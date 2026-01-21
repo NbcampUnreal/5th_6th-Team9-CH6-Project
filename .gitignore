@@ -1,25 +1,48 @@
-
+# --- Unreal Engine (project root) ---
 Binaries/
-Build/
 DerivedDataCache/
 Intermediate/
 Saved/
 
-*.sln
-*.suo
-*.xcodeproj
-*.xcworkspace
-*.VC.db
-*.VC.VC.opendb
+# (����) ���� ���⹰/������¡ ����
+#Saved/StagedBuilds/
+#Saved/Cooked/
 
-*.log
-*.tmp
-
-.DS_Store
-
+# --- IDE / ������ ---
+.vs/
 .vscode/
 .idea/
 
-# Visual Studio cache
-.vs/
+# Visual Studio
+*.sln
+*.suo
+*.user
+*.userosscache
+*.VC.db
+*.VC.opendb
+
+# Xcode / Apple
+*.xcodeproj/
+*.xcworkspace/
+*.xcuserstate
+*.xccheckout
+*.xcuserdata/
+
+# Rider/IntelliJ �ܿ���
+*.iml
+
+# OS ������
+.DS_Store
+Thumbs.db
+
+# Hot Reload / �ӽ�
+EncTempFolder/
+*.tmp
+*.log
+*.obj
+*.pdb
 *.ipch
+
+# Plugin/Module ������ �� �������� �ڵ� ���� (Binaries, Intermediate ��)
+# Plugins/*/Binaries/
+# Plugins/*/Intermediate/
