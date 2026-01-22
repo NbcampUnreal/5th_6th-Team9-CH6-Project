@@ -43,6 +43,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Movement")
 	TObjectPtr<UInputAction> EvasionAction;
 
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Movement")
+	TObjectPtr<UInputAction> InteractAction;
+
 	/// =========================
 	/// Input - Abilities
 	/// =========================
@@ -79,6 +82,7 @@ private:
 
 	void ToggleCrouch();
 	void Evasion();
+	void Interact();
 
 	void Attack();
 	void Skill();

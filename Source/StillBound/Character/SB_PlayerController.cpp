@@ -28,8 +28,14 @@ void ASB_PlayerController::SetupInputComponent()
 	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ThisClass::Jump);
 	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ThisClass::StopJumping);
 	EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &ThisClass::ToggleCrouch);
-	EnhancedInputComponent->BindAction(EvasionAction, ETriggerEvent::Started, this, &ThisClass::Evasion);
+	EnhancedInputComponent->BindAction(EvasionAction, ETriggerEvent::Triggered, this, &ThisClass::Evasion);
+	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Triggered, this, &ThisClass::Interact);
 	EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &ThisClass::Attack);
+	EnhancedInputComponent->BindAction(SkillAction, ETriggerEvent::Triggered, this, &ThisClass::Skill);
+	EnhancedInputComponent->BindAction(Hotbar1Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar1);
+	EnhancedInputComponent->BindAction(Hotbar2Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar2);
+	EnhancedInputComponent->BindAction(Hotbar3Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar3);
+	EnhancedInputComponent->BindAction(Hotbar4Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar4);
 }
 
 
@@ -88,6 +94,10 @@ void ASB_PlayerController::ToggleCrouch()
 }
 
 void ASB_PlayerController::Evasion()
+{
+}
+
+void ASB_PlayerController::Interact()
 {
 }
 
