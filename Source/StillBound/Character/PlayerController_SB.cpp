@@ -1,13 +1,15 @@
 
-#include "Character/SB_PlayerController.h"
+#include "Character/PlayerController_SB.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemInterface.h"
+#include "GameplayTagContainer.h"
+#include "GameplayTagsManager.h"
 
-
-void ASB_PlayerController::SetupInputComponent()
+void APlayerController_SB::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
@@ -41,7 +43,7 @@ void ASB_PlayerController::SetupInputComponent()
 
 #pragma region ========================= Input - Movement =========================
 
-void ASB_PlayerController::Move(const FInputActionValue& Value)
+void APlayerController_SB::Move(const FInputActionValue& Value)
 {
 	if (!IsValid(GetPawn())) return;
 
@@ -55,7 +57,7 @@ void ASB_PlayerController::Move(const FInputActionValue& Value)
 	GetPawn()->AddMovementInput(RightDirection, MovementVector.X);
 }
 
-void ASB_PlayerController::Look(const FInputActionValue& Value)
+void APlayerController_SB::Look(const FInputActionValue& Value)
 {
 	if (!IsValid(GetPawn())) return;
 
@@ -65,21 +67,21 @@ void ASB_PlayerController::Look(const FInputActionValue& Value)
 	AddPitchInput(LookVector.Y);
 }
 
-void ASB_PlayerController::Jump()
+void APlayerController_SB::Jump()
 {
 	if (!IsValid(GetCharacter())) return;
 
 	GetCharacter()->Jump();
 }
 
-void ASB_PlayerController::StopJumping()
+void APlayerController_SB::StopJumping()
 {
 	if (!IsValid(GetCharacter())) return;
 
 	GetCharacter()->StopJumping();
 }
 
-void ASB_PlayerController::ToggleCrouch()
+void APlayerController_SB::ToggleCrouch()
 {
 	if (!IsValid(GetCharacter())) return;
 
@@ -93,11 +95,7 @@ void ASB_PlayerController::ToggleCrouch()
 	}
 }
 
-void ASB_PlayerController::Evasion()
-{
-}
-
-void ASB_PlayerController::Interact()
+void APlayerController_SB::Interact()
 {
 }
 
@@ -106,11 +104,37 @@ void ASB_PlayerController::Interact()
 
 #pragma region ========================= Input - Abilities =========================
 
-void ASB_PlayerController::Attack()
+void APlayerController_SB::ActivateAbility(const FGameplayTag& AbilityTag) const
+{
+	APawn* P = GetPawn();
+	if (!P) { return; }
+
+	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(P);
+	if (!ASI) { return; }
+
+	UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent();
+	if (!ASC) { return; }
+
+	FGameplayTagContainer AbilityTags;
+	AbilityTags.AddTag(AbilityTag);
+
+	const bool bActivated = ASC->TryActivateAbilitiesByTag(AbilityTags);
+
+	UE_LOG(LogTemp, Log, TEXT("[PC] ActivateAbility(%s) -> %d"),
+		*AbilityTag.ToString(), bActivated);
+}
+
+void APlayerController_SB::Evasion()
+{
+	const FGameplayTag EvasionTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Evasion"));
+	ActivateAbility(EvasionTag);
+}
+
+void APlayerController_SB::Attack()
 {
 }
 
-void ASB_PlayerController::Skill()
+void APlayerController_SB::Skill()
 {
 }
 
@@ -119,19 +143,19 @@ void ASB_PlayerController::Skill()
 
 #pragma region ========================= Input - Hotbar =========================
 
-void ASB_PlayerController::SelectHotbar1()
+void APlayerController_SB::SelectHotbar1()
 {
 }
 
-void ASB_PlayerController::SelectHotbar2()
+void APlayerController_SB::SelectHotbar2()
 {
 }
 
-void ASB_PlayerController::SelectHotbar3()
+void APlayerController_SB::SelectHotbar3()
 {
 }
 
-void ASB_PlayerController::SelectHotbar4()
+void APlayerController_SB::SelectHotbar4()
 {
 }
 

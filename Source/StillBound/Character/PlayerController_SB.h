@@ -4,14 +4,14 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "GameFramework/PlayerController.h"
-#include "SB_PlayerController.generated.h"
+#include "PlayerController_SB.generated.h"
 
 class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
 
 UCLASS()
-class STILLBOUND_API ASB_PlayerController : public APlayerController
+class STILLBOUND_API APlayerController_SB : public APlayerController
 {
 	GENERATED_BODY()
 	
@@ -83,6 +83,8 @@ private:
 	void ToggleCrouch();
 	void Evasion();
 	void Interact();
+
+	void ActivateAbility(const FGameplayTag& AbilityTag) const;
 
 	void Attack();
 	void Skill();

@@ -1,6 +1,6 @@
 
 
-#include "Character/SB_PlayerCharacter.h"
+#include "Character/PlayerCharacter_SB.h"
 
 #include "AbilitySystemComponent.h"
 #include "Camera/CameraComponent.h"
@@ -9,7 +9,7 @@
 #include "GameFramework/SpringArmComponent.h"
 
 
-ASB_PlayerCharacter::ASB_PlayerCharacter()
+APlayerCharacter_SB::APlayerCharacter_SB()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
@@ -29,18 +29,4 @@ ASB_PlayerCharacter::ASB_PlayerCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>("FollowCamera");
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
-}
-
-UAbilitySystemComponent* ASB_PlayerCharacter::GetAbilitySystemComponent() const
-{
-	return nullptr;
-}
-
-void ASB_PlayerCharacter::PossessedBy(AController* NewController)
-{
-	Super::PossessedBy(NewController);
-
-	if (!IsValid(GetAbilitySystemComponent()) || !HasAuthority()) return;
-
-	GiveStartupAbilities();
 }
