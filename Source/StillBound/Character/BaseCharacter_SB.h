@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
+#include "AttributeSet.h"
 #include "BaseCharacter_SB.generated.h"
 
 class UGameplayAbility;
@@ -25,14 +26,14 @@ protected:
 
 	void GiveStartupAbilities();
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SB|GAS")
+	TSubclassOf<UAttributeSet> AttributeSetClassForInitStats;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SB|GAS")
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SB|GAS")
 	TObjectPtr<UDataTable> DefaultAttributeMetaDataTable;
-
-	UPROPERTY(VisibleAnywhere, Category = "SB|Attribute")
-	TObjectPtr<class UPlayerAttributeSet> PlayerAttributeSet;
 
 private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Abilities")

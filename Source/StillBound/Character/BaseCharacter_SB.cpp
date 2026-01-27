@@ -2,7 +2,7 @@
 
 #include "Character/BaseCharacter_SB.h"
 #include "AbilitySystemComponent.h"
-#include "Character/PlayerAttributeSet.h"
+
 
 ABaseCharacter_SB::ABaseCharacter_SB()
 {
@@ -13,14 +13,16 @@ ABaseCharacter_SB::ABaseCharacter_SB()
 	// ASC
 	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(false);
-
-	// AttributeSet
-	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 }
 
 void ABaseCharacter_SB::BeginPlay()
 {
 	Super::BeginPlay();
+
+	UE_LOG(LogTemp, Warning, TEXT("[InitStats] ASC=%d DT=%s AttrClass=%s"),
+		AbilitySystemComponent != nullptr,
+		*GetNameSafe(DefaultAttributeMetaDataTable),
+		*GetNameSafe(AttributeSetClassForInitStats));
 
 	if (!AbilitySystemComponent)
 	{
@@ -29,9 +31,9 @@ void ABaseCharacter_SB::BeginPlay()
 
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
 
-	if (DefaultAttributeMetaDataTable)
+	if (DefaultAttributeMetaDataTable && AttributeSetClassForInitStats)
 	{
-		AbilitySystemComponent->InitStats(UPlayerAttributeSet::StaticClass(), DefaultAttributeMetaDataTable);
+		AbilitySystemComponent->InitStats(AttributeSetClassForInitStats, DefaultAttributeMetaDataTable);
 	}
 
 	GiveStartupAbilities();
