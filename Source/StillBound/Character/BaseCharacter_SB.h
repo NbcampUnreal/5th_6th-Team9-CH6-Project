@@ -10,6 +10,7 @@
 class UGameplayAbility;
 class UAbilitySystemComponent;
 class UDataTable;
+class UPlayerAttributeSet;
 
 UCLASS()
 class STILLBOUND_API ABaseCharacter_SB : public ACharacter, public IAbilitySystemInterface
@@ -19,6 +20,8 @@ class STILLBOUND_API ABaseCharacter_SB : public ACharacter, public IAbilitySyste
 public:
 	ABaseCharacter_SB();
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	UPlayerAttributeSet* GetPlayerAttributeSet() const;
 
 protected:
 	virtual void BeginPlay() override;

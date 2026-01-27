@@ -43,6 +43,11 @@ UAbilitySystemComponent* ABaseCharacter_SB::GetAbilitySystemComponent() const
 	return AbilitySystemComponent;
 }
 
+UPlayerAttributeSet* ABaseCharacter_SB::GetPlayerAttributeSet() const
+{
+	return PlayerAttributeSet;
+}
+
 void ABaseCharacter_SB::GiveStartupAbilities()
 {
 	if (bAbilitiesGiven) return;
