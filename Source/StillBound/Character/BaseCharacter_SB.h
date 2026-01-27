@@ -38,6 +38,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SB|GAS")
 	TObjectPtr<UDataTable> DefaultAttributeMetaDataTable;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SB|GAS")
+	TObjectPtr<UPlayerAttributeSet> PlayerAttributeSet;
+
 private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Abilities")
 	TArray<TSubclassOf<UGameplayAbility>> StartupAbilities;
