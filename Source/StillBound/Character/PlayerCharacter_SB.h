@@ -16,6 +16,9 @@ class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB
 public:
 	APlayerCharacter_SB();
 
+protected:
+	virtual void BeginPlay() override;
+
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;

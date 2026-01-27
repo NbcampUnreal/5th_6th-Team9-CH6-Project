@@ -146,6 +146,8 @@ void APlayerController_SB::Evasion()
 
 void APlayerController_SB::Attack()
 {
+	const FGameplayTag EvasionTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Attack"));
+	ActivateAbility(EvasionTag);
 }
 
 void APlayerController_SB::Skill()
