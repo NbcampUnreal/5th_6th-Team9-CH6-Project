@@ -19,8 +19,14 @@ public class StillBound : ModuleRules
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
-			"Slate"
-		});
+			"Slate",
+
+            "GameplayAbilities",
+            "GameplayTasks",
+            "GameplayTags",
+
+            "NavigationSystem"
+        });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 
