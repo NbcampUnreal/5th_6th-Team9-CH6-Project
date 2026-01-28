@@ -8,6 +8,9 @@
 #include "AbilitySystemInterface.h"
 #include "GameplayTagContainer.h"
 #include "GameplayTagsManager.h"
+#include "Character/BaseCharacter_SB.h"
+#include "Character/PlayerAttributeSet.h"
+#include "UI/USB_UIManager.h"
 
 void APlayerController_SB::SetupInputComponent()
 {
@@ -40,7 +43,6 @@ void APlayerController_SB::SetupInputComponent()
 	EnhancedInputComponent->BindAction(Hotbar4Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar4);
 }
 
-
 #pragma region ========================= Input - Movement =========================
 
 void APlayerController_SB::Move(const FInputActionValue& Value)
@@ -69,9 +71,16 @@ void APlayerController_SB::Look(const FInputActionValue& Value)
 
 void APlayerController_SB::Jump()
 {
-	if (!IsValid(GetCharacter())) return;
+	ACharacter* Char = GetCharacter();
+	if (!IsValid(Char)) return;
 
-	GetCharacter()->Jump();
+	
+	if (!Char->CanJump())
+	{
+		return;
+	}
+
+	Char->Jump();
 }
 
 void APlayerController_SB::StopJumping()
@@ -101,19 +110,18 @@ void APlayerController_SB::Interact()
 
 #pragma endregion
 
-
 #pragma region ========================= Input - Abilities =========================
 
-void APlayerController_SB::ActivateAbility(const FGameplayTag& AbilityTag) const
+bool APlayerController_SB::ActivateAbility(const FGameplayTag& AbilityTag) const
 {
 	APawn* P = GetPawn();
-	if (!P) { return; }
+	if (!P) return false;
 
 	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(P);
-	if (!ASI) { return; }
+	if (!ASI) return false;
 
 	UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent();
-	if (!ASC) { return; }
+	if (!ASC) return false;
 
 	FGameplayTagContainer AbilityTags;
 	AbilityTags.AddTag(AbilityTag);
@@ -122,11 +130,17 @@ void APlayerController_SB::ActivateAbility(const FGameplayTag& AbilityTag) const
 
 	UE_LOG(LogTemp, Log, TEXT("[PC] ActivateAbility(%s) -> %d"),
 		*AbilityTag.ToString(), bActivated);
+	return bActivated;
 }
+
 
 void APlayerController_SB::Evasion()
 {
-	const FGameplayTag EvasionTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Evasion"));
+	if (!IsValid(GetPawn())) return;
+
+	const FGameplayTag EvasionTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Evasion"));
+
 	ActivateAbility(EvasionTag);
 }
 
@@ -141,7 +155,6 @@ void APlayerController_SB::Skill()
 }
 
 #pragma endregion
-
 
 #pragma region ========================= Input - Hotbar =========================
 
@@ -162,3 +175,50 @@ void APlayerController_SB::SelectHotbar4()
 }
 
 #pragma endregion
+
+#pragma region ========================= UI =========================
+void APlayerController_SB::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (UIManagerClass)
+	{
+		UIManager = NewObject<USB_UIManager>(this, UIManagerClass);
+		if (UIManager)
+		{
+			UIManager->Init(this);
+		}
+	}
+}
+
+void APlayerController_SB::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+
+	ABaseCharacter_SB* Char = Cast<ABaseCharacter_SB>(InPawn);
+	if (!Char) return;
+
+	UPlayerAttributeSet* AS = Char->GetPlayerAttributeSet();
+	if (!AS) return;
+
+	// Delegate¸¸ ¿¬°á
+	AS->OnHealthChanged.AddDynamic(this, &ThisClass::OnHealthChanged);
+	AS->OnStaminaChanged.AddDynamic(this, &ThisClass::OnStaminaChanged);
+}
+
+void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
+{
+	if (!UIManager)
+	{
+		return;
+	}
+
+	UIManager->UpdateHUD();
+}
+
+void APlayerController_SB::OnStaminaChanged(float OldValue, float NewValue)
+{
+	if (!UIManager) return;
+	UIManager->UpdateHUD();
+}
+#pragma endregion 
