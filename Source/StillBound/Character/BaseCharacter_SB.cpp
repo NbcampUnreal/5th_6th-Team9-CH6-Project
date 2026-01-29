@@ -2,6 +2,7 @@
 
 #include "Character/BaseCharacter_SB.h"
 #include "AbilitySystemComponent.h"
+#include "Inventory/InventoryComponent.h"
 
 
 ABaseCharacter_SB::ABaseCharacter_SB()
@@ -13,6 +14,8 @@ ABaseCharacter_SB::ABaseCharacter_SB()
 	// ASC
 	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(false);
+
+	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
 }
 
 void ABaseCharacter_SB::BeginPlay()

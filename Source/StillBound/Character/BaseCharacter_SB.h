@@ -12,6 +12,7 @@ class UGameplayAbility;
 class UAbilitySystemComponent;
 class UDataTable;
 class UPlayerAttributeSet;
+class UInventoryComponent;
 
 UCLASS()
 class STILLBOUND_API ABaseCharacter_SB : public ACharacter, public IAbilitySystemInterface
@@ -40,6 +41,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SB|GAS")
 	TObjectPtr<UPlayerAttributeSet> PlayerAttributeSet;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UInventoryComponent> InventoryComponent;
 
 private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Abilities")
