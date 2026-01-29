@@ -13,6 +13,7 @@ class UAbilitySystemComponent;
 class UDataTable;
 class UPlayerAttributeSet;
 class UInventoryComponent;
+class UGameplayEffect;
 
 UCLASS()
 class STILLBOUND_API ABaseCharacter_SB : public ACharacter, public IAbilitySystemInterface
@@ -42,8 +43,13 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SB|GAS")
 	TObjectPtr<UPlayerAttributeSet> PlayerAttributeSet;
 
+<<<<<<< HEAD
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UInventoryComponent> InventoryComponent;
+=======
+	UPROPERTY(EditDefaultsOnly, Category = "SB|GAS")
+	TSubclassOf<UGameplayEffect> DefaultStaminaRegenEffect;
+>>>>>>> dev
 
 private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Abilities")

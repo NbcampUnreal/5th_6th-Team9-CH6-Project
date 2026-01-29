@@ -6,6 +6,7 @@
 
 class UUW_HPBar;
 class UUW_StaminaBar;
+class UUW_ExpBar;
 /**
  * 
  */
@@ -20,13 +21,22 @@ public:
 	void SetHP(float Current, float Max);
 
 	UFUNCTION(BlueprintCallable)
-	void SetStamin(float Current, float Max);
+	void SetStamina(float Current, float Max);
+
+	UFUNCTION(BlueprintCallable)
+	void SetExp(float Current, float Required);
+
+	UFUNCTION(BlueprintCallable)
+	void SetLevel(int32 Level);
 
 protected:
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<class UUW_HPBar> HPBar;
+	TObjectPtr<UUW_HPBar> HPBar;
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<class UUW_StaminaBar> StaminaBar;
+	TObjectPtr<UUW_StaminaBar> StaminaBar;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UUW_ExpBar> ExpBar;
 };

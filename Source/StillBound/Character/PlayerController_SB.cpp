@@ -12,6 +12,7 @@
 #include "Character/PlayerAttributeSet.h"
 #include "UI/USB_UIManager.h"
 
+
 void APlayerController_SB::SetupInputComponent()
 {
 	Super::SetupInputComponent();
@@ -204,6 +205,7 @@ void APlayerController_SB::OnPossess(APawn* InPawn)
 	// Delegate¸¸ ¿¬°á
 	AS->OnHealthChanged.AddDynamic(this, &ThisClass::OnHealthChanged);
 	AS->OnStaminaChanged.AddDynamic(this, &ThisClass::OnStaminaChanged);
+
 }
 
 void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
