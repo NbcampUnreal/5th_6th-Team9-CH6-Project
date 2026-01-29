@@ -90,4 +90,9 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "SB|Attribute")
     FGameplayAttributeData Damage;
     ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, Damage);
+
+public:
+
+    //레벨별 필요 경험치 계산
+    float GetRequiredExpForLevel(int32 InLevel) const;
 };
