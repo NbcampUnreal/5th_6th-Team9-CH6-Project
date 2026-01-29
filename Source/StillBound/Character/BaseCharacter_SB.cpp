@@ -4,6 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
+#include "Inventory/InventoryComponent.h"
 
 
 ABaseCharacter_SB::ABaseCharacter_SB()
@@ -15,6 +16,8 @@ ABaseCharacter_SB::ABaseCharacter_SB()
 	// ASC
 	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(false);
+
+	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryCompontnt"));
 }
 
 void ABaseCharacter_SB::BeginPlay()
