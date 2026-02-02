@@ -9,7 +9,7 @@ class UUW_StaminaBar;
 class UUW_ExpBar;
 class UMainMenu;
 class UInteractionWidget;
-class FInteractableData;
+struct FInteractableData;
 
 /**
  * 
