@@ -30,6 +30,6 @@ protected:
 	virtual void EndFocus();
 	virtual void BeginInteract();
 	virtual void EndInteract();
-	virtual void Interact();
+	virtual void Interact(APlayerCharacter_SB* PlayerCharacter);
 
 };
