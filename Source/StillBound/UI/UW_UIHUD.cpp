@@ -12,7 +12,7 @@ void UUW_UIHUD::SetHP(float Current, float Max)
 
 void UUW_UIHUD::SetStamina(float Current, float Max)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[UIHUD] SetStamin: %f / %f"), Current, Max);
+	//UE_LOG(LogTemp, Warning, TEXT("[UIHUD] SetStamin: %f / %f"), Current, Max);
 
 	if (StaminaBar)
 	{
