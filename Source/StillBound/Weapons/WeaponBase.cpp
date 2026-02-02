@@ -1,0 +1,178 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+
+#include "Weapons/WeaponBase.h"
+
+#include "AbilitySystemComponent.h"
+#include "GameplayAbilitySpec.h"
+#include "GameplayEffect.h"
+#include "Components/SkeletalMeshComponent.h"
+
+// Sets default values
+AWeaponBase::AWeaponBase()
+{
+ 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	PrimaryActorTick.bCanEverTick = false;
+
+	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
+	SetRootComponent(WeaponMesh);
+}
+
+void AWeaponBase::Equip(AActor* NewOwner, UAbilitySystemComponent* InASC)
+{
+    if (bEquipped)
+    {
+        Unequip();
+    }
+
+    EquippedOwner = NewOwner;
+    EquippedASC = InASC;
+
+    if (!EquippedOwner.IsValid() || !EquippedASC.IsValid())
+    {
+        EquippedOwner = nullptr;
+        EquippedASC = nullptr;
+        return;
+    }
+
+    SetOwner(EquippedOwner.Get());
+
+    GrantToASC(EquippedASC.Get());
+    bEquipped = true;
+}
+
+void AWeaponBase::Unequip()
+{
+    if (!bEquipped)
+    {
+        return;
+    }
+
+    if (EquippedASC.IsValid())
+    {
+        RevokeFromASC(EquippedASC.Get());
+    }
+
+    bEquipped = false;
+    EquippedASC = nullptr;
+    EquippedOwner = nullptr;
+    SetOwner(nullptr);
+}
+
+bool AWeaponBase::ActivateByInputTag(FGameplayTag InputTag)
+{
+    if (!bEquipped || !EquippedASC.IsValid() || !InputTag.IsValid())
+    {
+        return false;
+    }
+
+    const FGameplayAbilitySpecHandle* Found = GrantedHandles.InputToAbilityHandle.Find(InputTag);
+    if (!Found || !Found->IsValid())
+    {
+        return false;
+    }
+
+    return EquippedASC->TryActivateAbility(*Found);
+}
+
+void AWeaponBase::GrantToASC(UAbilitySystemComponent* ASC)
+{
+    if (!ASC)
+    {
+        return;
+    }
+
+    GrantedHandles.Reset();
+
+    // Abilities
+    for (const FWeaponAbilityGrant& Grant : GrantedAbilities)
+    {
+        if (!Grant.Ability)
+        {
+            continue;
+        }
+
+        FGameplayAbilitySpec Spec(Grant.Ability, Grant.AbilityLevel);
+        Spec.SourceObject = this; // GA에서 무기 데이터를 읽기 위해 필수
+
+        if (Grant.InputTag.IsValid())
+        {
+            Spec.DynamicAbilityTags.AddTag(Grant.InputTag);
+        }
+
+        const FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(Spec);
+        GrantedHandles.AbilityHandles.Add(Handle);
+
+        if (Grant.InputTag.IsValid())
+        {
+            GrantedHandles.InputToAbilityHandle.Add(Grant.InputTag, Handle);
+        }
+    }
+
+    // Effects (필요하면 사용, 몽둥이 예시는 없어도 됨)
+    for (const FWeaponEffectGrant& Grant : GrantedEffects)
+    {
+        if (!Grant.Effect)
+        {
+            continue;
+        }
+
+        FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
+        Ctx.AddSourceObject(this);
+
+        const FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(Grant.Effect, Grant.EffectLevel, Ctx);
+        if (SpecHandle.IsValid())
+        {
+            const FActiveGameplayEffectHandle ActiveHandle =
+                ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+
+            GrantedHandles.EffectHandles.Add(ActiveHandle);
+        }
+    }
+}
+
+void AWeaponBase::RevokeFromASC(UAbilitySystemComponent* ASC)
+{
+    if (!ASC)
+    {
+        GrantedHandles.Reset();
+        return;
+    }
+
+    for (const FActiveGameplayEffectHandle& Handle : GrantedHandles.EffectHandles)
+    {
+        if (Handle.IsValid())
+        {
+            ASC->RemoveActiveGameplayEffect(Handle);
+        }
+    }
+
+    for (const FGameplayAbilitySpecHandle& Handle : GrantedHandles.AbilityHandles)
+    {
+        if (Handle.IsValid())
+        {
+            ASC->ClearAbility(Handle);
+        }
+    }
+
+    GrantedHandles.Reset();
+}
+
+
+
+
+
+
+// Called when the game starts or when spawned
+//void AWeaponBase::BeginPlay()
+//{
+//	Super::BeginPlay();
+//}
+//
+//// Called every frame
+//void AWeaponBase::Tick(float DeltaTime)
+//{
+//	Super::Tick(DeltaTime);
+//
+//}
+
