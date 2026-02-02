@@ -153,16 +153,15 @@ void APlayerController_SB::Evasion()
 {
 	if (!IsValid(GetPawn())) return;
 
-	const FGameplayTag EvasionTag =
-		FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Evasion"));
+	const FGameplayTag EvasionTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Evasion"));
 
 	ActivateAbility(EvasionTag);
 }
 
 void APlayerController_SB::Attack()
 {
-	const FGameplayTag EvasionTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Attack"));
-	ActivateAbility(EvasionTag);
+	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Attack"));
+	ActivateAbility(AttackTag);
 }
 
 void APlayerController_SB::Skill()
