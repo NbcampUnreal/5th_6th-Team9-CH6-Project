@@ -2,7 +2,7 @@
 
 #include "AI/AIAttributeSet.h"
 #include "GameplayEffectExtension.h"
-#include "AI/BaseAICharacter.h"
+#include "AI/EnemyCharacter.h"
 
 
 void UAIAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -68,9 +68,9 @@ void UAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 					GetOwningActor() ? GetOwningActor()->HasAuthority() : -1
 				);
 
-				if (ABaseAICharacter* AI = Cast<ABaseAICharacter>(GetOwningActor()))
+				if (AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(GetOwningActor()))
 				{
-					AI->HandleDeath();
+					Enemy->HandleDeath();
 				}
 			}
 		}

@@ -67,6 +67,16 @@ void UPlayerAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribut
 
     if (Attribute == GetHealthAttribute())
     {
+        if (NewValue < OldValue)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("[PlayerAttr][Auth=%d] Health Decreased: %.1f -> %.1f (Max=%.1f) Owning=%s"),
+                GetOwningActor() ? GetOwningActor()->HasAuthority() : -1,
+                OldValue, NewValue, GetMaxHealth(),
+                *GetNameSafe(GetOwningActor())
+            );
+        }
+
         OnHealthChanged.Broadcast(OldValue, NewValue);
     }
     else if (Attribute == GetMaxHealthAttribute())
