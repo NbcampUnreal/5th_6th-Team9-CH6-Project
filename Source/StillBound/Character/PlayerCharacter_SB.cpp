@@ -210,3 +210,35 @@ void APlayerCharacter_SB::Interact()
 		TargetInteractable->Interact();
 	}
 }
+
+void APlayerCharacter_SB::Die()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	bIsDead = true;
+
+	if (UCharacterMovementComponent* Move = GetCharacterMovement())
+	{
+		Move->StopMovementImmediately();
+		Move->DisableMovement();
+	}
+
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		if (UAnimInstance* Anim = MeshComp->GetAnimInstance())
+		{
+			Anim->StopAllMontages(0.1f);
+		}
+	}
+
+	if (DeathMontage)
+	{
+		PlayAnimMontage(DeathMontage, 1.5f);
+		return;
+	}
+}

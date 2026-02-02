@@ -1,6 +1,7 @@
 
 
 #include "Character/PlayerAttributeSet.h"
+#include "Character/PlayerCharacter_SB.h"
 #include "GameplayEffectExtension.h"
 
 
@@ -52,6 +53,16 @@ void UPlayerAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 
             const float NewHealth = FMath::Clamp(GetHealth() - Reduced, 0.f, GetMaxHealth());
             SetHealth(NewHealth);
+
+
+            if (NewHealth <= 0.f)
+            {
+                if (APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningActor()))
+                {
+                    Player->Die();
+                }
+            }
+
         }
 
         ClampCurrentValues();
