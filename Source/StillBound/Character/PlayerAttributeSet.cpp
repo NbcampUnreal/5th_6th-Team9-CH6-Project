@@ -158,3 +158,8 @@ void UPlayerAttributeSet::ClampCurrentValues()
     SetAttack(FMath::Max(GetAttack(), 0.f));
     SetDefense(FMath::Max(GetDefense(), 0.f));
 }
+
+float UPlayerAttributeSet::GetRequiredExpForLevel(int32 InLevel) const
+{
+    return 100.f + (InLevel - 1) * 50.f;
+}
