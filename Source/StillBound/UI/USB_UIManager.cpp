@@ -112,12 +112,32 @@ void USB_UIManager::DisplayMenu()
 	}
 }
 
-void USB_UIManager::HidMenu()
+void USB_UIManager::HideMenu()
 {
 	if (MainMenuWidget)
 	{
 		bIsMenuVisible = false;
 		MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void USB_UIManager::ToggleMenu()
+{
+	if (bIsMenuVisible)
+	{
+		HideMenu();
+
+		const FInputModeGameOnly InputMode;
+		OwnerPC->SetInputMode(InputMode);
+		OwnerPC->SetShowMouseCursor(false);
+	}
+	else
+	{
+		DisplayMenu();
+
+		const FInputModeGameAndUI InputMode;
+		OwnerPC->SetInputMode(InputMode);
+		OwnerPC->SetShowMouseCursor(true);
 	}
 }
 
