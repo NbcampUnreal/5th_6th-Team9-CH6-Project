@@ -11,6 +11,8 @@
 class UGameplayAbility;
 class UAbilitySystemComponent;
 class UDataTable;
+class UPlayerAttributeSet;
+class UGameplayEffect;
 
 UCLASS()
 class STILLBOUND_API ABaseCharacter_SB : public ACharacter, public IAbilitySystemInterface
@@ -20,6 +22,8 @@ class STILLBOUND_API ABaseCharacter_SB : public ACharacter, public IAbilitySyste
 public:
 	ABaseCharacter_SB();
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	UPlayerAttributeSet* GetPlayerAttributeSet() const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -34,6 +38,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SB|GAS")
 	TObjectPtr<UDataTable> DefaultAttributeMetaDataTable;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SB|GAS")
+	TObjectPtr<UPlayerAttributeSet> PlayerAttributeSet;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|GAS")
+	TSubclassOf<UGameplayEffect> DefaultStaminaRegenEffect;
 
 private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Abilities")

@@ -3,11 +3,14 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "UI/USB_UIManager.h"
 #include "GameFramework/PlayerController.h"
 #include "PlayerController_SB.generated.h"
 
+
 class UInputMappingContext;
 class UInputAction;
+class USB_UIManager;
 struct FInputActionValue;
 
 UCLASS()
@@ -82,9 +85,10 @@ private:
 
 	void ToggleCrouch();
 	void Evasion();
-	void Interact();
+	void BeginInteract();
+	void EndInteract();
 
-	void ActivateAbility(const FGameplayTag& AbilityTag) const;
+	bool ActivateAbility(const FGameplayTag& AbilityTag) const;
 
 	void Attack();
 	void Skill();
@@ -93,4 +97,26 @@ private:
 	void SelectHotbar2();
 	void SelectHotbar3();
 	void SelectHotbar4();
+
+protected:
+
+	virtual void BeginPlay() override;
+
+	virtual void OnPossess(APawn* InPawn) override;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|UI")
+	TSubclassOf<class USB_UIManager> UIManagerClass;
+
+	UPROPERTY()
+	TObjectPtr<class USB_UIManager> UIManager;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Stamina|Cost")
+	float EvasionStaminaCost = 25.f;
+
+	UFUNCTION()
+	void OnHealthChanged(float OldValue, float NewValue);
+
+	UFUNCTION()
+	void OnStaminaChanged(float OldValue, float NewValue);
+
 };

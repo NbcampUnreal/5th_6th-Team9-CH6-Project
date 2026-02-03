@@ -1,5 +1,10 @@
+
+
 #include "Character/PlayerAttributeSet.h"
 #include "GameplayEffectExtension.h"
+
+
+
 
 UPlayerAttributeSet::UPlayerAttributeSet()
 {
@@ -62,6 +67,16 @@ void UPlayerAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribut
 
     if (Attribute == GetHealthAttribute())
     {
+        if (NewValue < OldValue)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("[PlayerAttr][Auth=%d] Health Decreased: %.1f -> %.1f (Max=%.1f) Owning=%s"),
+                GetOwningActor() ? GetOwningActor()->HasAuthority() : -1,
+                OldValue, NewValue, GetMaxHealth(),
+                *GetNameSafe(GetOwningActor())
+            );
+        }
+
         OnHealthChanged.Broadcast(OldValue, NewValue);
     }
     else if (Attribute == GetMaxHealthAttribute())
@@ -142,4 +157,9 @@ void UPlayerAttributeSet::ClampCurrentValues()
 
     SetAttack(FMath::Max(GetAttack(), 0.f));
     SetDefense(FMath::Max(GetDefense(), 0.f));
+}
+
+float UPlayerAttributeSet::GetRequiredExpForLevel(int32 InLevel) const
+{
+    return 100.f + (InLevel - 1) * 50.f;
 }

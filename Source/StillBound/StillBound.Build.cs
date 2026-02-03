@@ -25,7 +25,8 @@ public class StillBound : ModuleRules
             "GameplayTasks",
             "GameplayTags",
 
-            "NavigationSystem"
+            "NavigationSystem",
+            "AIModule"
         });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
