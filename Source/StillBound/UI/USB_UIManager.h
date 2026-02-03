@@ -19,7 +19,9 @@ public:
 	void Init(APlayerController* InOwnerPC);
 
 	void SetHP(float Current, float Max);
-
+	void SetStamina(float Current, float Max);
+	void SetExp(float Current, float Required);
+	void SetLevel(int32 Level);
 	void UpdateHUD();
 private:
 
@@ -31,5 +33,11 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<UUW_UIHUD> UIHUDClass;
+
+	UFUNCTION()
+	void OnExpChanged(float OldValue, float NewValue);
+
+	UFUNCTION()
+	void OnLevelChanged(float OldValue, float NewValue);
 
 };

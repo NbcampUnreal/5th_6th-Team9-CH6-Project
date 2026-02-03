@@ -17,11 +17,84 @@ enum class EItemType : uint8
 };
 
 UENUM(BlueprintType)
+enum class EItemQuality : uint8
+{
+	Common UMETA(DisplayName = "Common"),
+	Rare UMETA(DisplayName = "Rare"),
+	Unique UMETA(DisplayName = "Unique"),
+	Legendary UMETA(DisplayName = "Legendary")
+};
+
+UENUM(BlueprintType)
 enum class EWeaponKind : uint8
 {
 	Melee UMETA(DisplayName = "Melee"),
 	Ranged UMETA(DisplayName = "Ranged")
 };
+
+USTRUCT(BlueprintType)
+struct FItemStatistics
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	float ArmorRating;
+
+	UPROPERTY(EditAnywhere)
+	float DamageValue;
+
+	UPROPERTY(EditAnywhere)
+	float RestorationAmount;
+
+	UPROPERTY(EditAnywhere)
+	float SellValue;
+};
+
+USTRUCT(BlueprintType)
+struct FItemTextData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	FText Name;
+
+	UPROPERTY(EditAnywhere)
+	FText Description;
+
+	UPROPERTY(EditAnywhere)
+	FText InteractionText;
+
+	UPROPERTY(EditAnywhere)
+	FText UsageText;
+};
+
+USTRUCT()
+struct FItemNumericData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	float Weight;
+
+	UPROPERTY(EditAnywhere)
+	int32 MaxStackSize;
+
+	UPROPERTY(EditAnywhere)
+	bool bIsStackable;
+};
+
+USTRUCT()
+struct FItemAssetData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	TSoftObjectPtr<UTexture2D> Icon;
+
+	UPROPERTY(EditAnywhere)
+	TSoftObjectPtr<UStaticMesh> WorldMesh;
+};
+
 
 #pragma region Master ItemDataTable
 
@@ -30,23 +103,29 @@ struct FItemDataRow : public FTableRowBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
-	EItemType ItemType = EItemType::Material;
+	UPROPERTY(EditAnywhere, Category = "Item")
+	FName ID;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
-	FText DisplayName;
+	UPROPERTY(EditAnywhere, Category = "Item")
+	EItemType ItemType;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
-	TObjectPtr<UTexture2D> Icon = nullptr;
+	UPROPERTY(EditAnywhere, Category = "Item")
+	EItemQuality ItemQuality;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
-	TObjectPtr<UStaticMesh> WorldMesh = nullptr;
+	UPROPERTY(EditAnywhere, Category = "Item")
+	FItemStatistics ItemStatistics;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
-	int32 MaxStack = 1;
+	UPROPERTY(EditAnywhere, Category = "Item")
+	FItemTextData TextData;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
-	TSubclassOf<AActor> PickupActorClass;
+	UPROPERTY(EditAnywhere, Category = "Item")
+	FItemNumericData NumericData;
+
+	UPROPERTY(EditAnywhere, Category = "Item")
+	FItemAssetData AssetData;
+
+	UPROPERTY(EditAnywhere, Category = "Item")
+	TSoftClassPtr<AActor> PickupActorClass;
 };
 
 #pragma endregion

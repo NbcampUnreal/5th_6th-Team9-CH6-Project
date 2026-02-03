@@ -9,8 +9,10 @@
 #include "GameplayTagContainer.h"
 #include "GameplayTagsManager.h"
 #include "Character/BaseCharacter_SB.h"
+#include "Character/PlayerCharacter_SB.h"
 #include "Character/PlayerAttributeSet.h"
 #include "UI/USB_UIManager.h"
+
 
 void APlayerController_SB::SetupInputComponent()
 {
@@ -34,7 +36,8 @@ void APlayerController_SB::SetupInputComponent()
 	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ThisClass::StopJumping);
 	EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &ThisClass::ToggleCrouch);
 	EnhancedInputComponent->BindAction(EvasionAction, ETriggerEvent::Triggered, this, &ThisClass::Evasion);
-	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Triggered, this, &ThisClass::Interact);
+	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &ThisClass::BeginInteract);
+	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Completed, this, &ThisClass::EndInteract);
 	EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &ThisClass::Attack);
 	EnhancedInputComponent->BindAction(SkillAction, ETriggerEvent::Triggered, this, &ThisClass::Skill);
 	EnhancedInputComponent->BindAction(Hotbar1Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar1);
@@ -104,8 +107,20 @@ void APlayerController_SB::ToggleCrouch()
 	}
 }
 
-void APlayerController_SB::Interact()
+void APlayerController_SB::BeginInteract()
 {
+	if (auto* PC = Cast<APlayerCharacter_SB>(GetPawn()))
+	{
+		PC->BeginInteract();
+	}
+}
+
+void APlayerController_SB::EndInteract()
+{
+	if (auto* PC = Cast<APlayerCharacter_SB>(GetPawn()))
+	{
+		PC->EndInteract();
+	}
 }
 
 #pragma endregion
@@ -204,6 +219,7 @@ void APlayerController_SB::OnPossess(APawn* InPawn)
 	// Delegate¸¸ ¿¬°á
 	AS->OnHealthChanged.AddDynamic(this, &ThisClass::OnHealthChanged);
 	AS->OnStaminaChanged.AddDynamic(this, &ThisClass::OnStaminaChanged);
+
 }
 
 void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)

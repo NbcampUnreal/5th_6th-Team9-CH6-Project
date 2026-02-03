@@ -85,7 +85,8 @@ private:
 
 	void ToggleCrouch();
 	void Evasion();
-	void Interact();
+	void BeginInteract();
+	void EndInteract();
 
 	bool ActivateAbility(const FGameplayTag& AbilityTag) const;
 
