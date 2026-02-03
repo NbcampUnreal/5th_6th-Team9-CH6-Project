@@ -59,6 +59,8 @@ void APlayerCharacter_SB::BeginPlay()
 	const float MH = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 
 	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
+
+
 }
 
 void APlayerCharacter_SB::Tick(float DeltaSeconds)

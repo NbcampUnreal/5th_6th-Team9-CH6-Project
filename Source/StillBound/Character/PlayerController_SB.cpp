@@ -38,7 +38,7 @@ void APlayerController_SB::SetupInputComponent()
 	EnhancedInputComponent->BindAction(EvasionAction, ETriggerEvent::Triggered, this, &ThisClass::Evasion);
 	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &ThisClass::BeginInteract);
 	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Completed, this, &ThisClass::EndInteract);
-	EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &ThisClass::Attack);
+	EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &ThisClass::Attack);
 	EnhancedInputComponent->BindAction(SkillAction, ETriggerEvent::Triggered, this, &ThisClass::Skill);
 	EnhancedInputComponent->BindAction(Hotbar1Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar1);
 	EnhancedInputComponent->BindAction(Hotbar2Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar2);
