@@ -70,10 +70,18 @@ public:
 	void EndInteract();
 	void Interact();
 
+	UFUNCTION(BlueprintCallable)
+	void Die();
+
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;
 
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	TObjectPtr<UCameraComponent> FollowCamera;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Death")
+	TObjectPtr<UAnimMontage> DeathMontage;
+
+	bool bIsDead = false;
 };
