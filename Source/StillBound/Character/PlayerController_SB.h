@@ -47,6 +47,9 @@ private:
 	TObjectPtr<UInputAction> EvasionAction;
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Movement")
+	TObjectPtr<UInputAction> EmoteAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Movement")
 	TObjectPtr<UInputAction> InteractAction;
 
 	/// =========================
@@ -85,6 +88,8 @@ private:
 
 	void ToggleCrouch();
 	void Evasion();
+	void Emote();
+	void CancelEmoteAbility();
 	void BeginInteract();
 	void EndInteract();
 
