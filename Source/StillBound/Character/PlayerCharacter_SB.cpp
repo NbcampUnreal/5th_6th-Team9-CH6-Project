@@ -10,6 +10,8 @@
 #include "Inventory/InventoryComponent.h"
 #include "Interface/InteractionInterface.h"
 #include "DrawDebugHelpers.h"
+#include "UI/USB_UIManager.h"
+#include "Character/PlayerController_SB.h"
 
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
@@ -38,8 +40,10 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 
-	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryCompontnt"));
-	
+	PlayerInventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("PlayerInventory"));
+	PlayerInventory->SetSlotsCapacity(20);
+	PlayerInventory->SetWeightCapacity(50.f);
+
 	InteractionCheckFrequency = 0.1f;
 	InteractionCheckDistance = 225.f;
 
@@ -137,6 +141,14 @@ void APlayerCharacter_SB::FoundInteractable(AActor* NewInteractable)
 	InteractionData.CurrentInteractable = NewInteractable;
 	TargetInteractable = NewInteractable;
 
+	auto* PC = Cast<APlayerController_SB>(GetController());
+	if (!PC) return;
+
+	USB_UIManager* UI = PC->UIManager;
+	if(!UI) return;
+
+	UI->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+
 	TargetInteractable->BeginFocus();
 }
 
@@ -154,7 +166,13 @@ void APlayerCharacter_SB::NoInteractableFound()
 			TargetInteractable->EndFocus();
 		}
 
-		// hide interaction widget on the HUD
+		auto* PC = Cast<APlayerController_SB>(GetController());
+		if (!PC) return;
+
+		USB_UIManager* UI = PC->UIManager;
+		if (!UI) return;
+
+		UI->HideInteractionWidget();
 
 		InteractionData.CurrentInteractable = nullptr;
 		TargetInteractable = nullptr;
@@ -206,5 +224,19 @@ void APlayerCharacter_SB::Interact()
 	if (IsValid(TargetInteractable.GetObject()))
 	{
 		TargetInteractable->Interact(this);
+	}
+}
+
+void APlayerCharacter_SB::UpdateInteractionWidget() const
+{
+	if (IsValid(TargetInteractable.GetObject()))
+	{
+		auto* PC = Cast<APlayerController_SB>(GetController());
+		if (!PC) return;
+
+		USB_UIManager* UI = PC->UIManager;
+		if (!UI) return;
+
+		UI->UpdateInteractionWidget(&TargetInteractable->InteractableData);
 	}
 }

@@ -7,9 +7,6 @@
 class UUW_HPBar;
 class UUW_StaminaBar;
 class UUW_ExpBar;
-class UMainMenu;
-class UInteractionWidget;
-struct FInteractableData;
 
 /**
  * 
@@ -43,44 +40,5 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UUW_ExpBar> ExpBar;
-
-
-public:
-
-	//===============================================================================
-	// PROPERTIES & VARIABLES
-	//===============================================================================
-	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
-	TSubclassOf<UMainMenu> MainMenuClass;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
-	TSubclassOf<UInteractionWidget> InteractionWidgetClass;
-
-	bool bIsMenuVisible;
-
-	//===============================================================================
-	// FUNCTIONS
-	//===============================================================================
-	
-	void DisplayMenu();
-	void HidMenu();
-
-	void ShowInteractionWidget();
-	void HideInteractionWidget();
-	void UpdateInteractionWidget(const FInteractableData* InteractableData);
-
-protected:
-	//===============================================================================
-	// PROPERTIES & VARIABLES
-	//===============================================================================
-	UPROPERTY()
-	UMainMenu* MainMenuWidget;
-
-	UPROPERTY()
-	UInteractionWidget* InteractionWidget;
-
-	//===============================================================================
-	// FUNCTIONS
-	//===============================================================================
 
 };

@@ -98,7 +98,7 @@ private:
 	void SelectHotbar3();
 	void SelectHotbar4();
 
-protected:
+public:
 
 	virtual void BeginPlay() override;
 
@@ -118,5 +118,6 @@ protected:
 
 	UFUNCTION()
 	void OnStaminaChanged(float OldValue, float NewValue);
+
 
 };

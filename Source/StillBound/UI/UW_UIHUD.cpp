@@ -39,23 +39,3 @@ void UUW_UIHUD::SetLevel(int32 Level)
 		ExpBar->SetLevel(Level);
 	}
 }
-
-void UUW_UIHUD::DisplayMenu()
-{
-}
-
-void UUW_UIHUD::HidMenu()
-{
-}
-
-void UUW_UIHUD::ShowInteractionWidget()
-{
-}
-
-void UUW_UIHUD::HideInteractionWidget()
-{
-}
-
-void UUW_UIHUD::UpdateInteractionWidget(const FInteractableData* InteractableData)
-{
-}

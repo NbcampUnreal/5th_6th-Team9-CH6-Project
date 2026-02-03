@@ -33,6 +33,8 @@ public:
 	UFUNCTION(Category = "Item")
 	virtual void Use(ABaseCharacter_SB* Character);
 
+	void ResetItemFlags();
+
 public:
 	UPROPERTY()
 	UInventoryComponent* OwningInventory;
@@ -63,6 +65,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "Item")
 	TSoftClassPtr<AActor> PickupActorClass;
+
+	bool bIsCopy;
+	bool bIsPickup;
 
 protected:
 	bool operator==(const FName& OtherID) const

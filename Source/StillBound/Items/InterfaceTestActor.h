@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -13,18 +11,16 @@ class STILLBOUND_API AInterfaceTestActor : public AActor, public IInteractionInt
 	GENERATED_BODY()
 	
 public:	
-	// Sets default values for this actor's properties
 	AInterfaceTestActor();
 
 protected:
 	UPROPERTY(EditAnywhere, Category="Test Actor")
 	UStaticMeshComponent* Mesh;
 
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+	UPROPERTY(EditInstanceOnly, Category="Text Actor")
+	FInteractableData InsntanceInteractableData;
 
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	virtual void BeginPlay() override;
 
 	virtual void BeginFocus();
 	virtual void EndFocus();
