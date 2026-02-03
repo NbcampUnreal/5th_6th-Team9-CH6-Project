@@ -49,7 +49,7 @@ struct FItemAddResult
 
     };
 
-    static FItemAddResult AddPartial(const int32 PartialAmountAdded, const FText& ErrorText)
+    static FItemAddResult AddedPartial(const int32 PartialAmountAdded, const FText& ErrorText)
     {
         FItemAddResult AddedPartialResult;
         AddedPartialResult.ActualAmountAdded = PartialAmountAdded;
