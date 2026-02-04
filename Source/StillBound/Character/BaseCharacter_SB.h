@@ -1,5 +1,3 @@
-
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -12,6 +10,7 @@ class UGameplayAbility;
 class UAbilitySystemComponent;
 class UDataTable;
 class UPlayerAttributeSet;
+class UInventoryComponent;
 class UGameplayEffect;
 
 UCLASS()
@@ -24,6 +23,9 @@ public:
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
 	UPlayerAttributeSet* GetPlayerAttributeSet() const;
+
+
+
 
 protected:
 	virtual void BeginPlay() override;

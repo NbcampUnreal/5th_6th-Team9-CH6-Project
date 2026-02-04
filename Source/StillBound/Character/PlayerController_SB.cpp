@@ -3,6 +3,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
@@ -12,7 +13,7 @@
 #include "Character/PlayerCharacter_SB.h"
 #include "Character/PlayerAttributeSet.h"
 #include "UI/USB_UIManager.h"
-
+#include "Weapons/WeaponBase.h"
 
 void APlayerController_SB::SetupInputComponent()
 {
@@ -36,8 +37,10 @@ void APlayerController_SB::SetupInputComponent()
 	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ThisClass::StopJumping);
 	EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &ThisClass::ToggleCrouch);
 	EnhancedInputComponent->BindAction(EvasionAction, ETriggerEvent::Triggered, this, &ThisClass::Evasion);
+	EnhancedInputComponent->BindAction(EmoteAction, ETriggerEvent::Started, this, &ThisClass::Emote);
 	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &ThisClass::BeginInteract);
 	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Completed, this, &ThisClass::EndInteract);
+
 	EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &ThisClass::Attack);
 	EnhancedInputComponent->BindAction(SkillAction, ETriggerEvent::Triggered, this, &ThisClass::Skill);
 	EnhancedInputComponent->BindAction(Hotbar1Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar1);
@@ -53,6 +56,11 @@ void APlayerController_SB::Move(const FInputActionValue& Value)
 	if (!IsValid(GetPawn())) return;
 
 	const FVector2D MovementVector = Value.Get<FVector2D>();
+
+	if (!MovementVector.IsNearlyZero())
+	{
+		CancelEmoteAbility();
+	}
 
 	const FRotator YawRotation(0.f, GetControlRotation().Yaw, 0.f);
 	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
@@ -83,6 +91,8 @@ void APlayerController_SB::Jump()
 		return;
 	}
 
+	CancelEmoteAbility();
+
 	Char->Jump();
 }
 
@@ -95,15 +105,34 @@ void APlayerController_SB::StopJumping()
 
 void APlayerController_SB::ToggleCrouch()
 {
-	if (!IsValid(GetCharacter())) return;
+	ACharacter* Char = GetCharacter();
+	if (!IsValid(Char)) return;
 
-	if (GetCharacter()->bIsCrouched)
+	if (UCharacterMovementComponent* MoveComp = Char->GetCharacterMovement())
 	{
-		GetCharacter()->UnCrouch();
+		if (MoveComp->IsFalling())
+		{
+			return;
+		}
+	}
+
+	UAbilitySystemComponent* ASC =UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Char);
+	if (ASC)
+	{
+		const FGameplayTag NoCrouchTag = FGameplayTag::RequestGameplayTag(TEXT("State.Action"));
+		if (ASC->HasMatchingGameplayTag(NoCrouchTag))
+		{
+			return;
+		}
+	}
+
+	if (Char->bIsCrouched)
+	{
+		Char->UnCrouch();
 	}
 	else
 	{
-		GetCharacter()->Crouch();
+		Char->Crouch();
 	}
 }
 
@@ -151,18 +180,91 @@ bool APlayerController_SB::ActivateAbility(const FGameplayTag& AbilityTag) const
 
 void APlayerController_SB::Evasion()
 {
-	if (!IsValid(GetPawn())) return;
+	ACharacter* Char = GetCharacter();
+	if (!IsValid(Char)) return;
 
-	const FGameplayTag EvasionTag =
-		FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Evasion"));
+	if (Char->bIsCrouched)
+	{
+		Char->UnCrouch();
+	}
+
+	const FGameplayTag EvasionTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Evasion"));
 
 	ActivateAbility(EvasionTag);
 }
 
+void APlayerController_SB::Emote()
+{
+	const FGameplayTag EvasionTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Emote"));
+
+	ActivateAbility(EvasionTag);
+}
+
+void APlayerController_SB::CancelEmoteAbility()
+{
+	APawn* P = GetPawn();
+	if (!IsValid(P)) return;
+
+	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(P);
+	if (!ASC) return;
+
+	const FGameplayTag EmoteAbilityTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Emote"));
+
+	FGameplayTagContainer EmoteTags;
+	EmoteTags.AddTag(EmoteAbilityTag);
+
+	ASC->CancelAbilities(&EmoteTags);
+
+bool APlayerController_SB::ActivateAbilityAttack(const FGameplayTag& InputTag) const
+{
+	// 1) Pawn -> PlayerCharacter
+	const APlayerCharacter_SB* PC = Cast<APlayerCharacter_SB>(GetPawn());
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PC] ActivateAbilityAttack: Pawn is not PlayerCharacter"));
+		return false;
+	}
+
+	// 2) EquippedWeapon 가져오기
+	AWeaponBase* Weapon = PC->GetEquippedWeapon();
+	if (!Weapon)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PC] ActivateAbilityAttack: No EquippedWeapon"));
+		return false;
+	}
+
+	// 3) 무기 내부 매핑(InputTag -> SpecHandle)로 GA 발동
+	const bool bActivated = Weapon->ActivateByInputTag(InputTag);
+
+	UE_LOG(LogTemp, Log, TEXT("[PC] ActivateAbilityAttack(%s) Weapon=%s -> %d"),
+		*InputTag.ToString(),
+		*GetNameSafe(Weapon),
+		bActivated);
+
+	return bActivated;
+
+}
+
 void APlayerController_SB::Attack()
 {
-	const FGameplayTag EvasionTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Attack"));
-	ActivateAbility(EvasionTag);
+
+	/*ACharacter* Char = GetCharacter();
+	if (!IsValid(Char)) return;
+
+	if (Char->bIsCrouched)
+	{
+		Char->UnCrouch();
+	}
+
+	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Attack"));
+	ActivateAbility(AttackTag);*/
+
+	// ? 공격은 이제 "캐릭터 AbilityTags"가 아니라 "무기 InputTag"로 라우팅
+	const FGameplayTag AttackInputTag =
+		FGameplayTag::RequestGameplayTag(TEXT("InputTag.Attack.Primary"));
+
+	ActivateAbilityAttack(AttackInputTag);
+
 }
 
 void APlayerController_SB::Skill()

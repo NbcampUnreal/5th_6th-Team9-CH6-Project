@@ -1,7 +1,9 @@
 #include "UI/USB_UIManager.h"
 #include "UI/UW_UIHUD.h"
+#include "UI/UW_Minimap.h"
 #include "GameFramework/PlayerController.h"
 #include "Character/BaseCharacter_SB.h"
+#include "Character/PlayerCharacter_SB.h"
 #include "Character/PlayerAttributeSet.h"
 
 void USB_UIManager::Init(APlayerController* InOwnerPC)
@@ -16,6 +18,14 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 
 	ABaseCharacter_SB* Char = Cast<ABaseCharacter_SB>(OwnerPC->GetPawn());
 	if (!Char) return;
+
+	if (APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(Char))
+	{
+		if (UIHUD->GetMiniMapWidget() && Player->GetMiniMapTarget())
+		{
+			UIHUD->GetMiniMapWidget()->SetMiniMapTexture(Player->GetMiniMapTarget());
+		}
+	}
 
 	UPlayerAttributeSet* AS = Char->GetPlayerAttributeSet();
 	if (!AS) return;

@@ -26,14 +26,6 @@ void UAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 
 	const FGameplayAttribute& AffectedAttr = Data.EvaluatedData.Attribute;
 
-
-	UE_LOG(LogTemp, Warning, TEXT("[AIAttr][Auth=%d] PostGEExecute: Attr=%s  H=%.1f/%.1f  Dmg=%.1f Def=%.1f"),
-		GetOwningActor() ? GetOwningActor()->HasAuthority() : -1,
-		*AffectedAttr.GetName(),
-		GetHealth(), GetMaxHealth(),
-		GetDamage(), GetDefense()
-	);
-
 	if (AffectedAttr == GetDamageAttribute())
 	{
 		const float LocalDamage = GetDamage();

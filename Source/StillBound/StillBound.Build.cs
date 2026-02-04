@@ -26,6 +26,7 @@ public class StillBound : ModuleRules
             "GameplayTags",
 
             "AIModule"
+
         });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

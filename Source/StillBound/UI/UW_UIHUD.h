@@ -7,6 +7,7 @@
 class UUW_HPBar;
 class UUW_StaminaBar;
 class UUW_ExpBar;
+class UUW_Minimap;
 /**
  * 
  */
@@ -29,6 +30,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetLevel(int32 Level);
 
+	UUW_Minimap* GetMiniMapWidget() const { return MiniMapWidget; }
+
 protected:
 
 	UPROPERTY(meta = (BindWidget))
@@ -39,4 +42,7 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UUW_ExpBar> ExpBar;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UUW_Minimap> MiniMapWidget;
 };

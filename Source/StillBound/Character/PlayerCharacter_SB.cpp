@@ -7,16 +7,21 @@
 #include "Character/PlayerAttributeSet.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Inventory/InventoryComponent.h"
 #include "Interface/InteractionInterface.h"
 #include "DrawDebugHelpers.h"
 
+#include "Weapons/WeaponBase.h"
+
+
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 	//  플레이어 AttributeSet 생성
-	CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
+	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 
 	//  InitStats는 이 클래스로
 	AttributeSetClassForInitStats = UPlayerAttributeSet::StaticClass();
@@ -38,8 +43,18 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 
+	//minimap camera
+	MiniMapArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("MiniMapArm"));
+	MiniMapArm->SetupAttachment(GetRootComponent());
+	MiniMapArm->SetRelativeRotation(FRotator(-90.f, 0, 0));
+	MiniMapArm->bDoCollisionTest = false;
+
+	MiniMapCapture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("MiniMapCapture"));
+	MiniMapCapture->SetupAttachment(MiniMapArm);
+	MiniMapCapture->ProjectionType = ECameraProjectionMode::Orthographic;
+
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryCompontnt"));
-	
+
 	InteractionCheckFrequency = 0.1f;
 	InteractionCheckDistance = 225.f;
 
@@ -59,7 +74,58 @@ void APlayerCharacter_SB::BeginPlay()
 	const float MH = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 
 	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
+
+
+	if (MiniMapTarget)
+	{
+		MiniMapCapture->TextureTarget = MiniMapTarget;
+	}
+
+	// ? 시작 무기 장착
+	EquipStartingWeapon();
+
 }
+
+void APlayerCharacter_SB::EquipStartingWeapon()
+{
+	if (EquippedWeapon) return;
+	if (!StartingWeaponClass) return;
+	if (!AbilitySystemComponent) return;
+
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!MeshComp) return;
+
+	FActorSpawnParameters Params;
+	Params.Owner = this;
+	Params.Instigator = this;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	AWeaponBase* NewWeapon = GetWorld()->SpawnActor<AWeaponBase>(StartingWeaponClass, Params);
+	if (!NewWeapon) return;
+
+	// 1) 손 소켓에 부착
+	NewWeapon->AttachToComponent(
+		MeshComp,
+		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+		StartingWeaponSocketName
+	);
+
+	// (선택) 무기 충돌 끄고 싶으면
+	// NewWeapon->SetActorEnableCollision(false);
+
+	// 2) ASC에 무기 GA/GE 부여 (Spec.SourceObject=this(weapon) 포함)
+	NewWeapon->Equip(this, AbilitySystemComponent);
+
+	EquippedWeapon = NewWeapon;
+
+	UE_LOG(LogTemp, Log, TEXT("[Player] StartingWeapon Equipped: %s -> Socket(%s)"),
+		*GetNameSafe(NewWeapon), *StartingWeaponSocketName.ToString());
+
+	UE_LOG(LogTemp, Warning, TEXT("[Equip] ASC=%s"), *GetNameSafe(AbilitySystemComponent));
+
+
+}
+
 
 void APlayerCharacter_SB::Tick(float DeltaSeconds)
 {
@@ -208,5 +274,37 @@ void APlayerCharacter_SB::Interact()
 	if (IsValid(TargetInteractable.GetObject()))
 	{
 		TargetInteractable->Interact();
+	}
+}
+
+void APlayerCharacter_SB::Die()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	bIsDead = true;
+
+	if (UCharacterMovementComponent* Move = GetCharacterMovement())
+	{
+		Move->StopMovementImmediately();
+		Move->DisableMovement();
+	}
+
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		if (UAnimInstance* Anim = MeshComp->GetAnimInstance())
+		{
+			Anim->StopAllMontages(0.1f);
+		}
+	}
+
+	if (DeathMontage)
+	{
+		PlayAnimMontage(DeathMontage, 1.5f);
+		return;
 	}
 }
