@@ -5,7 +5,7 @@
 #include "Inventory/InventoryComponent.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
-#include "Inventory/InventoryComponent.h"
+
 
 
 ABaseCharacter_SB::ABaseCharacter_SB()

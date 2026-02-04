@@ -2,6 +2,7 @@
 #include "UI/UW_HPBar.h"
 #include "UI/UW_StaminaBar.h"
 #include "UI/UW_ExpBar.h"
+#include "UI/UW_Minimap.h"
 
 void UUW_UIHUD::SetHP(float Current, float Max)
 {

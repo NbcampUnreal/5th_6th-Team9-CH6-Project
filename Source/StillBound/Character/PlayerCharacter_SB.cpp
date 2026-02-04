@@ -7,6 +7,8 @@
 #include "Character/PlayerAttributeSet.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Engine/TextureRenderTarget2D.h"
 
 
 APlayerCharacter_SB::APlayerCharacter_SB()
@@ -14,7 +16,7 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	PrimaryActorTick.bCanEverTick = false;
 
 	//  플레이어 AttributeSet 생성
-	CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
+	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 
 	//  InitStats는 이 클래스로
 	AttributeSetClassForInitStats = UPlayerAttributeSet::StaticClass();
@@ -35,6 +37,17 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>("FollowCamera");
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+
+	//minimap camera
+	MiniMapArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("MiniMapArm"));
+	MiniMapArm->SetupAttachment(GetRootComponent());
+	MiniMapArm->SetRelativeRotation(FRotator(-90.f, 0, 0));
+	MiniMapArm->bDoCollisionTest = false;
+
+	MiniMapCapture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("MiniMapCapture"));
+	MiniMapCapture->SetupAttachment(MiniMapArm);
+	MiniMapCapture->ProjectionType = ECameraProjectionMode::Orthographic;
+
 }
 
 void APlayerCharacter_SB::BeginPlay()
@@ -51,4 +64,9 @@ void APlayerCharacter_SB::BeginPlay()
 	const float MH = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 
 	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
+
+	if (MiniMapTarget)
+	{
+		MiniMapCapture->TextureTarget = MiniMapTarget;
+	}
 }
