@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -14,7 +14,8 @@ public class StillBound : ModuleRules
 			"Engine",
 			"InputCore",
 			"EnhancedInput",
-			"AIModule",
+            "NavigationSystem",
+            "AIModule",
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
@@ -24,7 +25,6 @@ public class StillBound : ModuleRules
             "GameplayTasks",
             "GameplayTags",
 
-            "NavigationSystem",
             "AIModule"
 
         });
