@@ -25,6 +25,9 @@ public:
 
 	UPlayerAttributeSet* GetPlayerAttributeSet() const;
 
+
+
+
 protected:
 	virtual void BeginPlay() override;
 

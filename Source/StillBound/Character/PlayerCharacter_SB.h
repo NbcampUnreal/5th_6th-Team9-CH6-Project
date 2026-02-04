@@ -28,6 +28,7 @@ class UCameraComponent;
 class USpringArmComponent;
 class UInventoryComponent;
 class IInteractionInterface;
+class AWeaponBase;
 
 UCLASS()
 class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB
@@ -64,6 +65,25 @@ public:
 	void BeginInteract();
 	void EndInteract();
 	void Interact();
+
+	// ===== 시작 무기 세팅 (BP에서 지정) =====
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SB|Weapon")
+	TSubclassOf<AWeaponBase> StartingWeaponClass;
+
+	// 캐릭터 스켈레탈메시(손)에 만든 소켓명
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SB|Weapon")
+	FName StartingWeaponSocketName = TEXT("WeaponSocket");
+
+	// 런타임 장착된 무기
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "SB|Weapon")
+	TObjectPtr<AWeaponBase> EquippedWeapon;
+
+	// ? PC가 현재 무기를 가져갈 수 있게 Getter 제공
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	AWeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
+
+	void EquipStartingWeapon(); // 추가
+
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")

@@ -88,31 +88,15 @@ class STILLBOUND_API AMeleeWeaponBase : public AWeaponBase
 public:
     AMeleeWeaponBase();
 
-    // GA 연결: 장착 시점에 GrantedAbilities(입력태그->GA) 구성이 누락되면 자동 보정
-    virtual void Equip(AActor* NewOwner, UAbilitySystemComponent* InASC) override;
-
-    // 입력에서 호출할 편의 함수(Primary)
-    UFUNCTION(BlueprintCallable, Category = "Weapon|Melee")
-    bool RequestPrimaryAttack();
-
     // GA가 무기에서 프로파일을 가져가는 API
     UFUNCTION(BlueprintCallable, Category = "Weapon|Melee")
     bool GetAttackProfile(FGameplayTag AttackTag, FWeaponAttackProfile& OutProfile) const;
 
 protected:
-    // 어떤 InputTag가 “Primary 공격”인지
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Melee|Input")
-    FGameplayTag PrimaryAttackInputTag;
-
-    // Primary 입력에서 어떤 GA를 실행할지(예: UGA_MeleeLight)
-    // - Club/Sword/Dagger에서 바꿔도 되고, BP에서 설정해도 됨
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Melee|GAS")
-    TSubclassOf<UGameplayAbility> PrimaryAttackAbilityClass;
-
+   
     // 공격 프로파일 테이블: Attack.Light → (몽타주/속도/범위/효과)
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Melee|Data")
     TMap<FGameplayTag, FWeaponAttackProfile> AttackProfiles;
 
-protected:
-    void EnsurePrimaryAttackGrant();
+
 };

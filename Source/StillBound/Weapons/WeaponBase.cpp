@@ -20,6 +20,9 @@ AWeaponBase::AWeaponBase()
 
 void AWeaponBase::Equip(AActor* NewOwner, UAbilitySystemComponent* InASC)
 {
+
+    UE_LOG(LogTemp, Warning, TEXT("[DBG] AWeaponBase::Equip %s"), *GetName());
+
     if (bEquipped)
     {
         Unequip();
@@ -79,16 +82,27 @@ void AWeaponBase::GrantToASC(UAbilitySystemComponent* ASC)
 {
     if (!ASC)
     {
+        UE_LOG(LogTemp, Error, TEXT("[DBG] GrantToASC ASC is NULL"));
         return;
     }
 
     GrantedHandles.Reset();
 
+    UE_LOG(LogTemp, Warning, TEXT("[DBG] GrantToASC: Weapon=%s AbilitiesToGrant=%d OwnerHasAuthority=%d"),
+        *GetName(), GrantedAbilities.Num(),
+        GetOwner() ? (int32)GetOwner()->HasAuthority() : -1);
     // Abilities
     for (const FWeaponAbilityGrant& Grant : GrantedAbilities)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[DBG] Grant Entry: Ability=%s InputTag=%s Valid=%d Level=%d"),
+            *GetNameSafe(Grant.Ability),
+            *Grant.InputTag.ToString(),
+            Grant.InputTag.IsValid(),
+            Grant.AbilityLevel);
+
         if (!Grant.Ability)
         {
+            UE_LOG(LogTemp, Warning, TEXT("[DBG] -> Skip (Ability is null)"));
             continue;
         }
 
@@ -101,6 +115,10 @@ void AWeaponBase::GrantToASC(UAbilitySystemComponent* ASC)
         }
 
         const FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(Spec);
+
+        UE_LOG(LogTemp, Warning, TEXT("[DBG] GiveAbility: HandleValid=%d"),
+            Handle.IsValid());
+
         GrantedHandles.AbilityHandles.Add(Handle);
 
         if (Grant.InputTag.IsValid())

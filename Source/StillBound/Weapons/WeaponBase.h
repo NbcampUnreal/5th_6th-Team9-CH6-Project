@@ -87,6 +87,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Weapon")
     USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
 
+
+
 protected:
 	// Called when the game starts or when spawned
 	

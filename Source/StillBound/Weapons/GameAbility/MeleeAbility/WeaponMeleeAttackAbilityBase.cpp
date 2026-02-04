@@ -189,6 +189,59 @@ void UWeaponMeleeAttackAbilityBase::DoSweepTick()
     {
         return;
     }
+    // ? ADDED: 스윕 디버그 드로우 (Start/End 결정된 "직후"가 최적 위치)
+    {
+        // 히트 결과에 따라 색 바꾸고 싶으면 SweepMulti 후로 옮겨도 됨.
+        const float LifeTime = 0.1f;        // 0.1~0.2 정도면 연타 시 궤적이 보임
+        const float Thickness = 2.0f;
+
+        // 1) 중심선
+        DrawDebugLine(
+            World,
+            Start,
+            End,
+            FColor::Cyan,
+            false,
+            LifeTime,
+            0,
+            Thickness
+        );
+
+        // 2) 스윕 반지름(양 끝 구체)
+        DrawDebugSphere(
+            World,
+            Start,
+            CachedSweep.Radius,
+            12,
+            FColor::Cyan,
+            false,
+            LifeTime
+        );
+
+        DrawDebugSphere(
+            World,
+            End,
+            CachedSweep.Radius,
+            12,
+            FColor::Cyan,
+            false,
+            LifeTime
+        );
+
+        // 3) 방향 화살표(선택)
+        DrawDebugDirectionalArrow(
+            World,
+            Start,
+            End,
+            25.f,
+            FColor::Cyan,
+            false,
+            LifeTime,
+            0,
+            Thickness
+        );
+    }
+
 
     FCollisionQueryParams Params(SCENE_QUERY_STAT(MeleeSweep), false);
     Params.AddIgnoredActor(Avatar);

@@ -58,6 +58,8 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Abilities")
 	TObjectPtr<UInputAction> SkillAction;
 
+
+
 	/// =========================
 	/// Input - Hotbar
 	/// =========================
@@ -89,6 +91,10 @@ private:
 	void EndInteract();
 
 	bool ActivateAbility(const FGameplayTag& AbilityTag) const;
+
+	// ? 무기 공격 전용 (InputTag 기반)
+	UFUNCTION(BlueprintCallable, Category = "SB|Abilities")
+	bool ActivateAbilityAttack(const FGameplayTag& InputTag) const;
 
 	void Attack();
 	void Skill();

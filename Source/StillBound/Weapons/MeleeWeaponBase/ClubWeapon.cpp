@@ -17,10 +17,6 @@ AClubWeapon::AClubWeapon()
     // 이 무기의 “라이트 공격” 프로파일 키
     LightAttackTag = FGameplayTag::RequestGameplayTag(TEXT("Attack.Light"), false);
 
-    // GA는 다음 단계에서 만들 예정이므로 기본은 nullptr
-    // - BP_ClubWeapon에서 PrimaryAttackAbilityClass를 UGA_MeleeLight로 지정하거나
-    // - UGA_MeleeLight 구현 후 여기서 StaticClass()로 지정하세요.
-    PrimaryAttackAbilityClass = nullptr;
 
     // ===== 기본 라이트 공격 프로파일(샘플) =====
     // 실제 몽타주/이펙트는 블루프린트에서 세팅하는 걸 추천
