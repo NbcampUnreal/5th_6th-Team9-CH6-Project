@@ -1,4 +1,4 @@
-
+ï»¿
 #include "Character/PlayerController_SB.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
@@ -214,6 +214,7 @@ void APlayerController_SB::CancelEmoteAbility()
 	EmoteTags.AddTag(EmoteAbilityTag);
 
 	ASC->CancelAbilities(&EmoteTags);
+}
 
 bool APlayerController_SB::ActivateAbilityAttack(const FGameplayTag& InputTag) const
 {
@@ -225,7 +226,7 @@ bool APlayerController_SB::ActivateAbilityAttack(const FGameplayTag& InputTag) c
 		return false;
 	}
 
-	// 2) EquippedWeapon °¡Á®¿À±â
+	// 2) EquippedWeapon ê°€ì ¸ì˜¤ê¸°
 	AWeaponBase* Weapon = PC->GetEquippedWeapon();
 	if (!Weapon)
 	{
@@ -233,7 +234,7 @@ bool APlayerController_SB::ActivateAbilityAttack(const FGameplayTag& InputTag) c
 		return false;
 	}
 
-	// 3) ¹«±â ³»ºÎ ¸ÅÇÎ(InputTag -> SpecHandle)·Î GA ¹ßµ¿
+	// 3) ë¬´ê¸° ë‚´ë¶€ ë§¤í•‘(InputTag -> SpecHandle)ë¡œ GA ë°œë™
 	const bool bActivated = Weapon->ActivateByInputTag(InputTag);
 
 	UE_LOG(LogTemp, Log, TEXT("[PC] ActivateAbilityAttack(%s) Weapon=%s -> %d"),
@@ -259,7 +260,7 @@ void APlayerController_SB::Attack()
 	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Attack"));
 	ActivateAbility(AttackTag);*/
 
-	// ? °ø°ÝÀº ÀÌÁ¦ "Ä³¸¯ÅÍ AbilityTags"°¡ ¾Æ´Ï¶ó "¹«±â InputTag"·Î ¶ó¿ìÆÃ
+	// ? ê³µê²©ì€ ì´ì œ "ìºë¦­í„° AbilityTags"ê°€ ì•„ë‹ˆë¼ "ë¬´ê¸° InputTag"ë¡œ ë¼ìš°íŒ…
 	const FGameplayTag AttackInputTag =
 		FGameplayTag::RequestGameplayTag(TEXT("InputTag.Attack.Primary"));
 
@@ -318,7 +319,7 @@ void APlayerController_SB::OnPossess(APawn* InPawn)
 	UPlayerAttributeSet* AS = Char->GetPlayerAttributeSet();
 	if (!AS) return;
 
-	// Delegate¸¸ ¿¬°á
+	// Delegateë§Œ ì—°ê²°
 	AS->OnHealthChanged.AddDynamic(this, &ThisClass::OnHealthChanged);
 	AS->OnStaminaChanged.AddDynamic(this, &ThisClass::OnStaminaChanged);
 
