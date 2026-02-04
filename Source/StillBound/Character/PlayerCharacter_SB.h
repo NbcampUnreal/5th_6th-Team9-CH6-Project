@@ -5,6 +5,8 @@
 #include "Character/BaseCharacter_SB.h"
 #include "PlayerCharacter_SB.generated.h"
 
+class UItemBase;
+
 USTRUCT()
 struct FInteractionData
 {
@@ -31,6 +33,7 @@ class UTextureRenderTarget2D;
 class UInventoryComponent;
 class IInteractionInterface;
 class AWeaponBase;
+class USB_UIManager;
 
 UCLASS()
 class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB
@@ -44,17 +47,23 @@ public:
 
 	FORCEINLINE bool IsInteracting() const { return GetWorldTimerManager().IsTimerActive(TimerHandle_Interaction); };
 
+	FORCEINLINE UInventoryComponent* GetInventory() const { return PlayerInventory; };
+
+	void UpdateInteractionWidget() const;
+
+	void DropItem(UItemBase* ItemToDrop, const int32 QuantityToDrop);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 
-public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<UInventoryComponent> InventoryComponent;
+	UPROPERTY(VisibleAnywhere, Category = "Inventory")
+	TObjectPtr<UInventoryComponent> PlayerInventory;
 
 	UPROPERTY(VisibleAnywhere, Category = "Interaction")
 	TScriptInterface<IInteractionInterface> TargetInteractable;
 
+public:
 	float InteractionCheckFrequency;
 
 	float InteractionCheckDistance;
@@ -69,7 +78,6 @@ public:
 	void BeginInteract();
 	void EndInteract();
 	void Interact();
-
 
 	UFUNCTION(BlueprintCallable)
 	void Die();

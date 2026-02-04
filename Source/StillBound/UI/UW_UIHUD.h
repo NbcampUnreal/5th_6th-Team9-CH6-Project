@@ -8,6 +8,7 @@ class UUW_HPBar;
 class UUW_StaminaBar;
 class UUW_ExpBar;
 class UUW_Minimap;
+
 /**
  * 
  */
@@ -45,4 +46,5 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UUW_Minimap> MiniMapWidget;
+
 };

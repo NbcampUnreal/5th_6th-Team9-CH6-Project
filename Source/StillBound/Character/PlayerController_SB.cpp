@@ -47,6 +47,7 @@ void APlayerController_SB::SetupInputComponent()
 	EnhancedInputComponent->BindAction(Hotbar2Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar2);
 	EnhancedInputComponent->BindAction(Hotbar3Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar3);
 	EnhancedInputComponent->BindAction(Hotbar4Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar4);
+	EnhancedInputComponent->BindAction(ToggleMenuAction, ETriggerEvent::Started, this, &ThisClass::ToggleMenu);
 }
 
 #pragma region ========================= Input - Movement =========================
@@ -150,6 +151,11 @@ void APlayerController_SB::EndInteract()
 	{
 		PC->EndInteract();
 	}
+}
+
+void APlayerController_SB::ToggleMenu()
+{
+	UIManager->ToggleMenu();
 }
 
 #pragma endregion
