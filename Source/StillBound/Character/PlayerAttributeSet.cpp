@@ -1,6 +1,7 @@
 
 
 #include "Character/PlayerAttributeSet.h"
+#include "Character/PlayerCharacter_SB.h"
 #include "GameplayEffectExtension.h"
 
 
@@ -52,6 +53,16 @@ void UPlayerAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 
             const float NewHealth = FMath::Clamp(GetHealth() - Reduced, 0.f, GetMaxHealth());
             SetHealth(NewHealth);
+
+
+            if (NewHealth <= 0.f)
+            {
+                if (APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningActor()))
+                {
+                    Player->Die();
+                }
+            }
+
         }
 
         ClampCurrentValues();
@@ -67,6 +78,16 @@ void UPlayerAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribut
 
     if (Attribute == GetHealthAttribute())
     {
+        if (NewValue < OldValue)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("[PlayerAttr][Auth=%d] Health Decreased: %.1f -> %.1f (Max=%.1f) Owning=%s"),
+                GetOwningActor() ? GetOwningActor()->HasAuthority() : -1,
+                OldValue, NewValue, GetMaxHealth(),
+                *GetNameSafe(GetOwningActor())
+            );
+        }
+
         OnHealthChanged.Broadcast(OldValue, NewValue);
     }
     else if (Attribute == GetMaxHealthAttribute())

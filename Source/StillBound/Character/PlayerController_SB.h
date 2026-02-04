@@ -47,6 +47,9 @@ private:
 	TObjectPtr<UInputAction> EvasionAction;
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Movement")
+	TObjectPtr<UInputAction> EmoteAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Movement")
 	TObjectPtr<UInputAction> InteractAction;
 
 	/// =========================
@@ -85,7 +88,10 @@ private:
 
 	void ToggleCrouch();
 	void Evasion();
-	void Interact();
+	void Emote();
+	void CancelEmoteAbility();
+	void BeginInteract();
+	void EndInteract();
 
 	bool ActivateAbility(const FGameplayTag& AbilityTag) const;
 

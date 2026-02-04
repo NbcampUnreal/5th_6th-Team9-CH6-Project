@@ -2,7 +2,7 @@
 
 #include "AI/AIAttributeSet.h"
 #include "GameplayEffectExtension.h"
-#include "AI/BaseAICharacter.h"
+#include "AI/EnemyCharacter.h"
 
 
 void UAIAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -25,14 +25,6 @@ void UAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 	Super::PostGameplayEffectExecute(Data);
 
 	const FGameplayAttribute& AffectedAttr = Data.EvaluatedData.Attribute;
-
-
-	UE_LOG(LogTemp, Warning, TEXT("[AIAttr][Auth=%d] PostGEExecute: Attr=%s  H=%.1f/%.1f  Dmg=%.1f Def=%.1f"),
-		GetOwningActor() ? GetOwningActor()->HasAuthority() : -1,
-		*AffectedAttr.GetName(),
-		GetHealth(), GetMaxHealth(),
-		GetDamage(), GetDefense()
-	);
 
 	if (AffectedAttr == GetDamageAttribute())
 	{
@@ -68,9 +60,9 @@ void UAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 					GetOwningActor() ? GetOwningActor()->HasAuthority() : -1
 				);
 
-				if (ABaseAICharacter* AI = Cast<ABaseAICharacter>(GetOwningActor()))
+				if (AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(GetOwningActor()))
 				{
-					AI->HandleDeath();
+					Enemy->HandleDeath();
 				}
 			}
 		}

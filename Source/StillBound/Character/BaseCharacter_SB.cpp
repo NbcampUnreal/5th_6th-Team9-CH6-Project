@@ -6,8 +6,6 @@
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
 
-
-
 ABaseCharacter_SB::ABaseCharacter_SB()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -66,7 +64,6 @@ void ABaseCharacter_SB::BeginPlay()
 	}
 }
 
-
 UAbilitySystemComponent* ABaseCharacter_SB::GetAbilitySystemComponent() const
 {
 	return AbilitySystemComponent;
@@ -91,6 +88,3 @@ void ABaseCharacter_SB::GiveStartupAbilities()
 
 	bAbilitiesGiven = true;
 }
-
-
-

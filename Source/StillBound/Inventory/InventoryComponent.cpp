@@ -44,7 +44,7 @@ void UInventoryComponent::InitializeSlots(int32 InSlotCount)
 
 bool UInventoryComponent::AddItem(FName ItemID, int32 Amount, int32& OutRemaining)
 {
-	if (Amount <= 0 || nullptr == ItemDataTable)
+	/*if (Amount <= 0 || nullptr == ItemDataTable)
 	{
 		return false;
 	}
@@ -87,7 +87,7 @@ bool UInventoryComponent::AddItem(FName ItemID, int32 Amount, int32& OutRemainin
 	}
 
 	BroadcastInventoryUpdated();
-
+	*/
 	return true;
 }
 
@@ -133,15 +133,15 @@ bool UInventoryComponent::RemoveItem(FName ItemID, int32 Amount, int32& OutRemai
 
 FInventorySlot* UInventoryComponent::FindStackableSlot(FName ItemID, const FItemDataRow* ItemData)
 {
-	for (FInventorySlot& Slot : Slots)
+	/*for (FInventorySlot& Slot : Slots)
 	{
 		if (false == Slot.IsEmpty() && Slot.ItemID == ItemID && Slot.Quantity <= ItemData->MaxStack)
 		{
 			return &Slot;
 		}
 	}
-
-	return nullptr;
+	*/
+	return nullptr; 
 }
 
 FInventorySlot* UInventoryComponent::FindEmptySlot()
