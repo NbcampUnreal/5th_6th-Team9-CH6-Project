@@ -13,6 +13,8 @@
 #include "Interface/InteractionInterface.h"
 #include "DrawDebugHelpers.h"
 
+#include "Weapons/WeaponBase.h"
+
 
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
@@ -73,11 +75,57 @@ void APlayerCharacter_SB::BeginPlay()
 
 	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
 
+
 	if (MiniMapTarget)
 	{
 		MiniMapCapture->TextureTarget = MiniMapTarget;
 	}
+
+	// ? 시작 무기 장착
+	EquipStartingWeapon();
+
 }
+
+void APlayerCharacter_SB::EquipStartingWeapon()
+{
+	if (EquippedWeapon) return;
+	if (!StartingWeaponClass) return;
+	if (!AbilitySystemComponent) return;
+
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!MeshComp) return;
+
+	FActorSpawnParameters Params;
+	Params.Owner = this;
+	Params.Instigator = this;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	AWeaponBase* NewWeapon = GetWorld()->SpawnActor<AWeaponBase>(StartingWeaponClass, Params);
+	if (!NewWeapon) return;
+
+	// 1) 손 소켓에 부착
+	NewWeapon->AttachToComponent(
+		MeshComp,
+		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+		StartingWeaponSocketName
+	);
+
+	// (선택) 무기 충돌 끄고 싶으면
+	// NewWeapon->SetActorEnableCollision(false);
+
+	// 2) ASC에 무기 GA/GE 부여 (Spec.SourceObject=this(weapon) 포함)
+	NewWeapon->Equip(this, AbilitySystemComponent);
+
+	EquippedWeapon = NewWeapon;
+
+	UE_LOG(LogTemp, Log, TEXT("[Player] StartingWeapon Equipped: %s -> Socket(%s)"),
+		*GetNameSafe(NewWeapon), *StartingWeaponSocketName.ToString());
+
+	UE_LOG(LogTemp, Warning, TEXT("[Equip] ASC=%s"), *GetNameSafe(AbilitySystemComponent));
+
+
+}
+
 
 void APlayerCharacter_SB::Tick(float DeltaSeconds)
 {
