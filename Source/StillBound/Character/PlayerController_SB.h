@@ -78,6 +78,7 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Hotbar")
 	TObjectPtr<UInputAction> Hotbar4Action;
 
+	
 private:
 	/// =========================
 	/// Input Handlers
@@ -102,6 +103,7 @@ private:
 	bool ActivateAbilityAttack(const FGameplayTag& InputTag) const;
 
 	void Attack();
+
 	void Skill();
 
 	void SelectHotbar1();

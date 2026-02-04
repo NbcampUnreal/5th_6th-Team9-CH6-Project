@@ -64,6 +64,9 @@ void APlayerCharacter_SB::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// ? 시작 무기 장착
+	EquipStartingWeapon();
+
 	if (!AbilitySystemComponent) return;
 
 	const UPlayerAttributeSet* AS = AbilitySystemComponent->GetSet<UPlayerAttributeSet>();
@@ -81,19 +84,25 @@ void APlayerCharacter_SB::BeginPlay()
 		MiniMapCapture->TextureTarget = MiniMapTarget;
 	}
 
-	// ? 시작 무기 장착
-	EquipStartingWeapon();
+	
 
 }
 
 void APlayerCharacter_SB::EquipStartingWeapon()
 {
-	if (EquippedWeapon) return;
-	if (!StartingWeaponClass) return;
-	if (!AbilitySystemComponent) return;
+	UE_LOG(LogTemp, Warning, TEXT("[Equip] Called. Pawn=%s HasAuthority=%d StartingWeaponClass=%s"),
+		*GetName(), HasAuthority(), *GetNameSafe(StartingWeaponClass));
+
+	if (EquippedWeapon) { UE_LOG(LogTemp, Warning, TEXT("[Equip] Already equipped")); return; }
+	if (!StartingWeaponClass) { UE_LOG(LogTemp, Error, TEXT("[Equip] StartingWeaponClass is NULL (BP 디폴트/GM DefaultPawnClass 확인)")); return; }
+	if (!AbilitySystemComponent) { UE_LOG(LogTemp, Error, TEXT("[Equip] ASC is NULL")); return; }
 
 	USkeletalMeshComponent* MeshComp = GetMesh();
-	if (!MeshComp) return;
+	if (!MeshComp) { UE_LOG(LogTemp, Error, TEXT("[Equip] MeshComp NULL")); return; }
+
+	UE_LOG(LogTemp, Warning, TEXT("[Equip] SocketExists(%s)=%d"),
+		*StartingWeaponSocketName.ToString(),
+		MeshComp->DoesSocketExist(StartingWeaponSocketName));
 
 	FActorSpawnParameters Params;
 	Params.Owner = this;
