@@ -78,6 +78,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Hotbar")
 	TObjectPtr<UInputAction> Hotbar4Action;
 
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|ToggleMenu")
+	TObjectPtr<UInputAction> ToggleMenuAction;
+
+
 private:
 	/// =========================
 	/// Input Handlers
@@ -109,7 +113,9 @@ private:
 	void SelectHotbar3();
 	void SelectHotbar4();
 
-protected:
+	void ToggleMenu();
+
+public:
 
 	virtual void BeginPlay() override;
 
@@ -129,5 +135,6 @@ protected:
 
 	UFUNCTION()
 	void OnStaminaChanged(float OldValue, float NewValue);
+
 
 };

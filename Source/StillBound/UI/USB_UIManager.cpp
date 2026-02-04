@@ -5,6 +5,8 @@
 #include "Character/BaseCharacter_SB.h"
 #include "Character/PlayerCharacter_SB.h"
 #include "Character/PlayerAttributeSet.h"
+#include "UI/MainMenu.h"
+#include "UI/Interaction/InteractionWidget.h"
 
 void USB_UIManager::Init(APlayerController* InOwnerPC)
 {
@@ -15,6 +17,24 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 	if (!UIHUD) return;
 
 	UIHUD->AddToViewport(10);
+
+	if (MainMenuClass)
+	{
+		MainMenuWidget = CreateWidget<UMainMenu>(OwnerPC, MainMenuClass);
+		if (!MainMenuWidget) return;
+
+		MainMenuWidget->AddToViewport(15);
+		MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	if (InteractionWidgetClass)
+	{
+		InteractionWidget = CreateWidget<UInteractionWidget>(OwnerPC, InteractionWidgetClass);
+		if (!InteractionWidget) return;
+
+		InteractionWidget->AddToViewport(5);
+		InteractionWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
 
 	ABaseCharacter_SB* Char = Cast<ABaseCharacter_SB>(OwnerPC->GetPawn());
 	if (!Char) return;
@@ -34,6 +54,7 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 	AS->OnLevelChanged.AddDynamic(this, &USB_UIManager::OnLevelChanged);
 
 	UpdateHUD();
+
 }
 
 void USB_UIManager::SetHP(float Current, float Max)
@@ -90,4 +111,69 @@ void USB_UIManager::OnExpChanged(float OldValue, float NewValue)
 void USB_UIManager::OnLevelChanged(float OldValue, float NewValue)
 {
 	UpdateHUD();
+}
+
+void USB_UIManager::DisplayMenu()
+{
+	if (MainMenuWidget)
+	{
+		bIsMenuVisible = true;
+		MainMenuWidget->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void USB_UIManager::HideMenu()
+{
+	if (MainMenuWidget)
+	{
+		bIsMenuVisible = false;
+		MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void USB_UIManager::ToggleMenu()
+{
+	if (bIsMenuVisible)
+	{
+		HideMenu();
+
+		const FInputModeGameOnly InputMode;
+		OwnerPC->SetInputMode(InputMode);
+		OwnerPC->SetShowMouseCursor(false);
+	}
+	else
+	{
+		DisplayMenu();
+
+		const FInputModeGameAndUI InputMode;
+		OwnerPC->SetInputMode(InputMode);
+		OwnerPC->SetShowMouseCursor(true);
+	}
+}
+
+void USB_UIManager::ShowInteractionWidget()
+{
+	if (InteractionWidget)
+	{
+		InteractionWidget->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+void USB_UIManager::HideInteractionWidget()
+{
+	if (InteractionWidget)
+	{
+		InteractionWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+void USB_UIManager::UpdateInteractionWidget(const FInteractableData* InteractableData)
+{
+	if (InteractionWidget)
+	{
+		if (InteractionWidget->GetVisibility() == ESlateVisibility::Collapsed)
+		{
+			InteractionWidget->SetVisibility(ESlateVisibility::Visible);
+		}
+
+		InteractionWidget->UpdateWidget(InteractableData);
+	}
 }

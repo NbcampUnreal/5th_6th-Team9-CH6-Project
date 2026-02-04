@@ -12,13 +12,16 @@
 #include "Inventory/InventoryComponent.h"
 #include "Interface/InteractionInterface.h"
 #include "DrawDebugHelpers.h"
+#include "UI/USB_UIManager.h"
+#include "Character/PlayerController_SB.h"
+#include "Items/Pickup.h"
 
 #include "Weapons/WeaponBase.h"
 
 
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	//  플레이어 AttributeSet 생성
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
@@ -53,7 +56,10 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	MiniMapCapture->SetupAttachment(MiniMapArm);
 	MiniMapCapture->ProjectionType = ECameraProjectionMode::Orthographic;
 
-	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryCompontnt"));
+	PlayerInventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("PlayerInventory"));
+	PlayerInventory->SetSlotsCapacity(20);
+	PlayerInventory->SetWeightCapacity(50.f);
+
 
 	InteractionCheckFrequency = 0.1f;
 	InteractionCheckDistance = 225.f;
@@ -148,14 +154,14 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 
 	if (LookDirection > 0)
 	{
-		DrawDebugLine(
+		/*DrawDebugLine(
 			GetWorld(),
 			TraceStart,
 			TraceEnd,
 			FColor::Red,
 			false,
 			1.f,
-			2.f);
+			2.f);*/
 
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(this);
@@ -170,9 +176,7 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 		{
 			if (TraceHit.GetActor()->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
 			{
-				const float Distance = (TraceStart - TraceHit.ImpactPoint).Size();
-
-				if (TraceHit.GetActor() != InteractionData.CurrentInteractable && Distance <= InteractionCheckDistance)
+				if (TraceHit.GetActor() != InteractionData.CurrentInteractable)
 				{
 					FoundInteractable(TraceHit.GetActor());
 					return;
@@ -205,6 +209,14 @@ void APlayerCharacter_SB::FoundInteractable(AActor* NewInteractable)
 	InteractionData.CurrentInteractable = NewInteractable;
 	TargetInteractable = NewInteractable;
 
+	auto* PC = Cast<APlayerController_SB>(GetController());
+	if (!PC) return;
+
+	USB_UIManager* UI = PC->UIManager;
+	if(!UI) return;
+
+	UI->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+
 	TargetInteractable->BeginFocus();
 }
 
@@ -222,7 +234,13 @@ void APlayerCharacter_SB::NoInteractableFound()
 			TargetInteractable->EndFocus();
 		}
 
-		// hide interaction widget on the HUD
+		auto* PC = Cast<APlayerController_SB>(GetController());
+		if (!PC) return;
+
+		USB_UIManager* UI = PC->UIManager;
+		if (!UI) return;
+
+		UI->HideInteractionWidget();
 
 		InteractionData.CurrentInteractable = nullptr;
 		TargetInteractable = nullptr;
@@ -273,7 +291,45 @@ void APlayerCharacter_SB::Interact()
 
 	if (IsValid(TargetInteractable.GetObject()))
 	{
-		TargetInteractable->Interact();
+		TargetInteractable->Interact(this);
+	}
+}
+
+void APlayerCharacter_SB::UpdateInteractionWidget() const
+{
+	if (IsValid(TargetInteractable.GetObject()))
+	{
+		auto* PC = Cast<APlayerController_SB>(GetController());
+		if (!PC) return;
+
+		USB_UIManager* UI = PC->UIManager;
+		if (!UI) return;
+
+		UI->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+	}
+}
+
+void APlayerCharacter_SB::DropItem(UItemBase* ItemToDrop, const int32 QuantityToDrop)
+{
+	if (PlayerInventory->FindMatchingItem(ItemToDrop))
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.bNoFail = true;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+		const FVector SpawnLocation{ GetActorLocation() + (GetActorForwardVector() * 50.f) };
+		const FTransform SpawnTransform(GetActorRotation(), SpawnLocation);
+
+		const int32 RemovedQuantity = PlayerInventory->RemoveAmountOfItem(ItemToDrop, QuantityToDrop);
+
+		APickup* Pickup = GetWorld()->SpawnActor<APickup>(APickup::StaticClass(), SpawnTransform, SpawnParams);
+
+		Pickup->InitializeDrop(ItemToDrop, RemovedQuantity);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Item to drop was shomhow null."));
 	}
 }
 

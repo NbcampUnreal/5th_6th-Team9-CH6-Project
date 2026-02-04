@@ -6,6 +6,9 @@
 
 class APlayerController;
 class UUW_UIHUD;
+class UMainMenu;
+class UInteractionWidget;
+struct FInteractableData;
 /**
  * 
  */
@@ -40,4 +43,43 @@ private:
 	UFUNCTION()
 	void OnLevelChanged(float OldValue, float NewValue);
 
+
+public:
+
+	//===============================================================================
+	// PROPERTIES & VARIABLES
+	//===============================================================================
+	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
+	TSubclassOf<UMainMenu> MainMenuClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
+	TSubclassOf<UInteractionWidget> InteractionWidgetClass;
+
+	bool bIsMenuVisible;
+
+	///===============================================================================
+	/// FUNCTIONS
+	///===============================================================================
+
+	void DisplayMenu();
+	void HideMenu();
+	void ToggleMenu();
+
+	void ShowInteractionWidget();
+	void HideInteractionWidget();
+	void UpdateInteractionWidget(const FInteractableData* InteractableData);
+
+protected:
+	///===============================================================================
+	/// PROPERTIES & VARIABLES
+	///===============================================================================
+	UPROPERTY()
+	TObjectPtr<UMainMenu> MainMenuWidget;
+
+	UPROPERTY()
+	TObjectPtr<UInteractionWidget> InteractionWidget;
+
+	///===============================================================================
+	/// FUNCTIONS
+	///===============================================================================
 };

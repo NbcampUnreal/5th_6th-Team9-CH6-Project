@@ -16,16 +16,16 @@ public class StillBound : ModuleRules
 			"EnhancedInput",
             "NavigationSystem",
             "AIModule",
+
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
 			"Slate",
+			"SlateCore",
 
             "GameplayAbilities",
             "GameplayTasks",
-            "GameplayTags",
-
-            "AIModule"
+            "GameplayTags"
 
         });
 
