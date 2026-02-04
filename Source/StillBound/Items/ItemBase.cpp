@@ -38,8 +38,12 @@ void UItemBase::SetQuantity(const int32 NewQuantity)
 		{
 			if (Quantity <= 0)
 			{
-				OwningInventory->RemoveSingleInstanceOfItem(this);
+				this->OwningInventory->RemoveSingleInstanceOfItem(this);
 			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("ItemBase OwningInventory was null!"));
 		}
 	}
 }

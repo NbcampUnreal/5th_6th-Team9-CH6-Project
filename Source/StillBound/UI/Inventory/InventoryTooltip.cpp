@@ -11,45 +11,48 @@ void UInventoryTooltip::NativeConstruct()
 
 	switch (ItemBeingHovered->ItemType)
 	{
-	case EItemType::Weapon: 
+	case EItemType::Weapon:
 		break;
-	case EItemType::Armor: 
+	case EItemType::Armor:
 		break;
-	case EItemType::Tool: 
+	case EItemType::Tool:
 		break;
-	case EItemType::Ammo: 
+	case EItemType::Ammo:
 		break;
-	case EItemType::Material: 
+	case EItemType::Material:
 		ItemType->SetText(FText::FromString("Material"));
 		DamageValue->SetVisibility(ESlateVisibility::Collapsed);
 		ArmorRating->SetVisibility(ESlateVisibility::Collapsed);
 		UsageText->SetVisibility(ESlateVisibility::Collapsed);
 		break;
-	case EItemType::Building: 
+	case EItemType::Building:
 		break;
 	case EItemType::Consumable:
 		ItemType->SetText(FText::FromString("Consumable"));
 		DamageValue->SetVisibility(ESlateVisibility::Collapsed);
 		ArmorRating->SetVisibility(ESlateVisibility::Collapsed);
-		SellValue->SetVisibility(ESlateVisibility::Collapsed);
 		break;
 	default:;
+	}
 
-		ItemName->SetText(ItemBeingHovered->TextData.Name);
-		DamageValue->SetText(FText::AsNumber(ItemBeingHovered->ItemStatistics.DamageValue));
-		ArmorRating->SetText(FText::AsNumber(ItemBeingHovered->ItemStatistics.ArmorRating));
-		UsageText->SetText(ItemBeingHovered->TextData.UsageText);
-		ItemDescription->SetText(ItemBeingHovered->TextData.Description);
-		SellValue->SetText(FText::AsNumber(ItemBeingHovered->ItemStatistics.SellValue));
-		StackWeight->SetText(FText::AsNumber(ItemBeingHovered->GetItemStackWeight()));
+	ItemName->SetText(ItemBeingHovered->TextData.Name);
+	DamageValue->SetText(FText::AsNumber(ItemBeingHovered->ItemStatistics.DamageValue));
+	ArmorRating->SetText(FText::AsNumber(ItemBeingHovered->ItemStatistics.ArmorRating));
+	UsageText->SetText(ItemBeingHovered->TextData.UsageText);
+	ItemDescription->SetText(ItemBeingHovered->TextData.Description);
 
-		if (ItemBeingHovered->NumericData.bIsStackable)
-		{
-			MaxStackSize->SetText(FText::AsNumber(ItemBeingHovered->NumericData.MaxStackSize));
-		}
-		else
-		{
-			MaxStackSize->SetVisibility(ESlateVisibility::Collapsed);
-		}
+	const FString WeightInfo = { "Weight: " + FString::SanitizeFloat(ItemBeingHovered->GetItemStackWeight()) };
+
+	StackWeight->SetText(FText::FromString(WeightInfo));
+
+	if (ItemBeingHovered->NumericData.bIsStackable)
+	{
+		const FString StackInfo = { "Max Stack size: " + FString::FromInt(ItemBeingHovered->NumericData.MaxStackSize) };
+
+		MaxStackSize->SetText(FText::FromString(StackInfo));
+	}
+	else
+	{
+		MaxStackSize->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }

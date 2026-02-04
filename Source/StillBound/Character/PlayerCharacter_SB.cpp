@@ -12,6 +12,7 @@
 #include "DrawDebugHelpers.h"
 #include "UI/USB_UIManager.h"
 #include "Character/PlayerController_SB.h"
+#include "Items/Pickup.h"
 
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
@@ -86,14 +87,14 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 
 	if (LookDirection > 0)
 	{
-		DrawDebugLine(
+		/*DrawDebugLine(
 			GetWorld(),
 			TraceStart,
 			TraceEnd,
 			FColor::Red,
 			false,
 			1.f,
-			2.f);
+			2.f);*/
 
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(this);
@@ -238,6 +239,30 @@ void APlayerCharacter_SB::UpdateInteractionWidget() const
 		if (!UI) return;
 
 		UI->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+	}
+}
+
+void APlayerCharacter_SB::DropItem(UItemBase* ItemToDrop, const int32 QuantityToDrop)
+{
+	if (PlayerInventory->FindMatchingItem(ItemToDrop))
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.bNoFail = true;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+		const FVector SpawnLocation{ GetActorLocation() + (GetActorForwardVector() * 50.f) };
+		const FTransform SpawnTransform(GetActorRotation(), SpawnLocation);
+
+		const int32 RemovedQuantity = PlayerInventory->RemoveAmountOfItem(ItemToDrop, QuantityToDrop);
+
+		APickup* Pickup = GetWorld()->SpawnActor<APickup>(APickup::StaticClass(), SpawnTransform, SpawnParams);
+
+		Pickup->InitializeDrop(ItemToDrop, RemovedQuantity);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Item to drop was shomhow null."));
 	}
 }
 

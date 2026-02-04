@@ -14,11 +14,11 @@ public class StillBound : ModuleRules
 			"Engine",
 			"InputCore",
 			"EnhancedInput",
-			"AIModule",
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
 			"Slate",
+			"SlateCore",
 
             "GameplayAbilities",
             "GameplayTasks",
