@@ -9,6 +9,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Inventory/InventoryComponent.h"
 #include "Interface/InteractionInterface.h"
+#include "NPC/InteractableInterface.h"
 #include "DrawDebugHelpers.h"
 
 APlayerCharacter_SB::APlayerCharacter_SB()
@@ -139,7 +140,8 @@ void APlayerCharacter_SB::FoundInteractable(AActor* NewInteractable)
 	InteractionData.CurrentInteractable = NewInteractable;
 	TargetInteractable = NewInteractable;
 
-	TargetInteractable->BeginFocus();
+	//TargetInteractable->BeginFocus();
+	IInteractionInterface::Execute_BeginFocus(TargetInteractable.GetObject());
 }
 
 void APlayerCharacter_SB::NoInteractableFound()
@@ -153,7 +155,8 @@ void APlayerCharacter_SB::NoInteractableFound()
 	{
 		if (IsValid(TargetInteractable.GetObject()))
 		{
-			TargetInteractable->EndFocus();
+			//TargetInteractable->EndFocus();
+			IInteractionInterface::Execute_EndFocus(TargetInteractable.GetObject());
 		}
 
 		// hide interaction widget on the HUD
@@ -172,9 +175,12 @@ void APlayerCharacter_SB::BeginInteract()
 	{
 		if (IsValid(TargetInteractable.GetObject()))
 		{
-			TargetInteractable->BeginInteract();
 
-			if (FMath::IsNearlyZero(TargetInteractable->InteractableData.InteractionDuration, 0.1f))
+			//TargetInteractable->BeginInteract();
+
+			IInteractionInterface::Execute_BeginInteract(TargetInteractable.GetObject());
+			FInteractableData TargetData = IInteractionInterface::Execute_GetInteractableData(TargetInteractable.GetObject());
+			if (FMath::IsNearlyZero(TargetData.InteractionDuration, 0.1f))
 			{
 				Interact();
 			}
@@ -184,7 +190,7 @@ void APlayerCharacter_SB::BeginInteract()
 					TimerHandle_Interaction,
 					this,
 					&ThisClass::Interact,
-					TargetInteractable->InteractableData.InteractionDuration,
+					TargetData.InteractionDuration, // 받아온 데이터의 시간 사용
 					false);
 			}
 		}
@@ -197,7 +203,8 @@ void APlayerCharacter_SB::EndInteract()
 
 	if (IsValid(TargetInteractable.GetObject()))
 	{
-		TargetInteractable->EndInteract();
+		//TargetInteractable->EndInteract();
+		IInteractionInterface::Execute_EndInteract(TargetInteractable.GetObject());
 	}
 }
 
@@ -207,6 +214,16 @@ void APlayerCharacter_SB::Interact()
 
 	if (IsValid(TargetInteractable.GetObject()))
 	{
-		TargetInteractable->Interact();
+		//TargetInteractable->Interact();
+		IInteractionInterface::Execute_Interact(TargetInteractable.GetObject(), this);
 	}
+}
+
+void APlayerCharacter_SB::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	// 상호작용 입력 바인딩
+	PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &APlayerCharacter_SB::BeginInteract);
+	PlayerInputComponent->BindAction("Interact", IE_Released, this, &APlayerCharacter_SB::EndInteract);
 }

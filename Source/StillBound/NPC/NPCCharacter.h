@@ -5,7 +5,12 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "InteractableInterface.h"
+#include "Interface/InteractionInterface.h"
+#include "Character/PlayerCharacter_SB.h"
+#include "DialogueComponent.h"
 #include "NPCCharacter.generated.h"
+
+class UDialogueWidget;
 
 UENUM(BlueprintType)
 enum class ENPCRegion : uint8
@@ -17,7 +22,7 @@ enum class ENPCRegion : uint8
 };
 
 UCLASS()
-class STILLBOUND_API ANPCCharacter : public ACharacter, public IInteractableInterface
+class STILLBOUND_API ANPCCharacter : public ACharacter, public IInteractableInterface, public IInteractionInterface
 {
 	GENERATED_BODY()
 
@@ -25,9 +30,33 @@ public:
 	// Sets default values for this character's properties
 	ANPCCharacter();
 
+	virtual void BeginFocus_Implementation() override;
+	virtual void EndFocus_Implementation() override;
+	virtual void BeginInteract_Implementation() override;
+	virtual void EndInteract_Implementation() override;
+	virtual void Interact_Implementation(AActor* InteractorActor) override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
+	FInteractableData InstanceInteractableData;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Dialogue")
+	UDialogueComponent* DialogueComponent;
+
+	virtual FInteractableData GetInteractableData_Implementation() override;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	//위젯 클래스
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
+	TSubclassOf<UDialogueWidget> DialogueWidgetClass;
+
+	//위젯인스턴스
+	UPROPERTY()
+	UDialogueWidget* DialogueWidget;
+
+
 
 public:	
 	// Called every frame
@@ -84,6 +113,18 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "NPC")
 	AActor* CurrentInteractor = nullptr;
+
+	UFUNCTION()
+	void HandleDialogueStarted(const FDialogueRow& DialogueData);
+
+	UFUNCTION()
+	void HandleDialogueUpdated(const FDialogueRow& DialogueData);
+
+	UFUNCTION()
+	void HandleDialogueEnded();
+
+	UFUNCTION()
+	void HandleOptionSelected(int32 OptionIndex);
 
 private:
 	//상태변화 모니터링..??
