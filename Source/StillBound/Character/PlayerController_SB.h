@@ -47,6 +47,9 @@ private:
 	TObjectPtr<UInputAction> EvasionAction;
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Movement")
+	TObjectPtr<UInputAction> EmoteAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Movement")
 	TObjectPtr<UInputAction> InteractAction;
 
 	/// =========================
@@ -57,6 +60,8 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Abilities")
 	TObjectPtr<UInputAction> SkillAction;
+
+
 
 	/// =========================
 	/// Input - Hotbar
@@ -73,6 +78,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Hotbar")
 	TObjectPtr<UInputAction> Hotbar4Action;
 
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|ToggleMenu")
+	TObjectPtr<UInputAction> ToggleMenuAction;
+
+
 private:
 	/// =========================
 	/// Input Handlers
@@ -85,10 +94,16 @@ private:
 
 	void ToggleCrouch();
 	void Evasion();
+	void Emote();
+	void CancelEmoteAbility();
 	void BeginInteract();
 	void EndInteract();
 
 	bool ActivateAbility(const FGameplayTag& AbilityTag) const;
+
+	// ? 무기 공격 전용 (InputTag 기반)
+	UFUNCTION(BlueprintCallable, Category = "SB|Abilities")
+	bool ActivateAbilityAttack(const FGameplayTag& InputTag) const;
 
 	void Attack();
 	void Skill();
@@ -98,7 +113,9 @@ private:
 	void SelectHotbar3();
 	void SelectHotbar4();
 
-protected:
+	void ToggleMenu();
+
+public:
 
 	virtual void BeginPlay() override;
 
@@ -118,5 +135,6 @@ protected:
 
 	UFUNCTION()
 	void OnStaminaChanged(float OldValue, float NewValue);
+
 
 };

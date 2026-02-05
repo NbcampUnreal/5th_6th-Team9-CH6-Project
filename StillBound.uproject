@@ -13,7 +13,8 @@
 				"AIModule",
 				"UMG",
 				"GameplayAbilities",
-				"CoreUObject"
+				"CoreUObject",
+				"UMGEditor"
 			]
 		}
 	],
@@ -47,6 +48,10 @@
 		},
 		{
 			"Name": "GameplayAbilities",
+			"Enabled": true
+		},
+		{
+			"Name": "AIAssistant",
 			"Enabled": true
 		}
 	]

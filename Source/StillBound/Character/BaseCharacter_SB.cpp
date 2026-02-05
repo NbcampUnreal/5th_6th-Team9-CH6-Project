@@ -2,9 +2,9 @@
 
 #include "Character/BaseCharacter_SB.h"
 #include "AbilitySystemComponent.h"
+#include "Inventory/InventoryComponent.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
-
 
 ABaseCharacter_SB::ABaseCharacter_SB()
 {
@@ -15,6 +15,7 @@ ABaseCharacter_SB::ABaseCharacter_SB()
 	// ASC
 	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(false);
+
 }
 
 void ABaseCharacter_SB::BeginPlay()
