@@ -24,4 +24,7 @@ struct STILLBOUND_API FEnemyVisualRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Combat")
 	TObjectPtr<UAnimMontage> AttackMontage = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Combat")
+	TObjectPtr<UAnimMontage> DeathMontage = nullptr;
 };
