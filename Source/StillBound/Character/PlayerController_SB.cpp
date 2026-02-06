@@ -1,4 +1,4 @@
-
+﻿
 #include "Character/PlayerController_SB.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
@@ -13,7 +13,7 @@
 #include "Character/PlayerCharacter_SB.h"
 #include "Character/PlayerAttributeSet.h"
 #include "UI/USB_UIManager.h"
-
+#include "Weapons/WeaponBase.h"
 
 void APlayerController_SB::SetupInputComponent()
 {
@@ -39,13 +39,15 @@ void APlayerController_SB::SetupInputComponent()
 	EnhancedInputComponent->BindAction(EvasionAction, ETriggerEvent::Triggered, this, &ThisClass::Evasion);
 	EnhancedInputComponent->BindAction(EmoteAction, ETriggerEvent::Started, this, &ThisClass::Emote);
 	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &ThisClass::BeginInteract);
-	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &ThisClass::EndInteract);
+	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Completed, this, &ThisClass::EndInteract);
+
 	EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &ThisClass::Attack);
 	EnhancedInputComponent->BindAction(SkillAction, ETriggerEvent::Triggered, this, &ThisClass::Skill);
 	EnhancedInputComponent->BindAction(Hotbar1Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar1);
 	EnhancedInputComponent->BindAction(Hotbar2Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar2);
 	EnhancedInputComponent->BindAction(Hotbar3Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar3);
 	EnhancedInputComponent->BindAction(Hotbar4Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar4);
+	EnhancedInputComponent->BindAction(ToggleMenuAction, ETriggerEvent::Started, this, &ThisClass::ToggleMenu);
 }
 
 #pragma region ========================= Input - Movement =========================
@@ -151,6 +153,11 @@ void APlayerController_SB::EndInteract()
 	}
 }
 
+void APlayerController_SB::ToggleMenu()
+{
+	UIManager->ToggleMenu();
+}
+
 #pragma endregion
 
 #pragma region ========================= Input - Abilities =========================
@@ -215,9 +222,40 @@ void APlayerController_SB::CancelEmoteAbility()
 	ASC->CancelAbilities(&EmoteTags);
 }
 
+bool APlayerController_SB::ActivateAbilityAttack(const FGameplayTag& InputTag) const
+{
+	// 1) Pawn -> PlayerCharacter
+	const APlayerCharacter_SB* PC = Cast<APlayerCharacter_SB>(GetPawn());
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PC] ActivateAbilityAttack: Pawn is not PlayerCharacter"));
+		return false;
+	}
+
+	// 2) EquippedWeapon 가져오기
+	AWeaponBase* Weapon = PC->GetEquippedWeapon();
+	if (!Weapon)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PC] ActivateAbilityAttack: No EquippedWeapon"));
+		return false;
+	}
+
+	// 3) 무기 내부 매핑(InputTag -> SpecHandle)로 GA 발동
+	const bool bActivated = Weapon->ActivateByInputTag(InputTag);
+
+	UE_LOG(LogTemp, Log, TEXT("[PC] ActivateAbilityAttack(%s) Weapon=%s -> %d"),
+		*InputTag.ToString(),
+		*GetNameSafe(Weapon),
+		bActivated);
+
+	return bActivated;
+
+}
+
 void APlayerController_SB::Attack()
 {
-	ACharacter* Char = GetCharacter();
+
+	/*ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
 
 	if (Char->bIsCrouched)
@@ -226,7 +264,14 @@ void APlayerController_SB::Attack()
 	}
 
 	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Attack"));
-	ActivateAbility(AttackTag);
+	ActivateAbility(AttackTag);*/
+
+	// ? 공격은 이제 "캐릭터 AbilityTags"가 아니라 "무기 InputTag"로 라우팅
+	const FGameplayTag AttackInputTag =
+		FGameplayTag::RequestGameplayTag(TEXT("InputTag.Attack.Primary"));
+
+	ActivateAbilityAttack(AttackInputTag);
+
 }
 
 void APlayerController_SB::Skill()
@@ -280,7 +325,7 @@ void APlayerController_SB::OnPossess(APawn* InPawn)
 	UPlayerAttributeSet* AS = Char->GetPlayerAttributeSet();
 	if (!AS) return;
 
-	// Delegate�� ����
+	// Delegate만 연결
 	AS->OnHealthChanged.AddDynamic(this, &ThisClass::OnHealthChanged);
 	AS->OnStaminaChanged.AddDynamic(this, &ThisClass::OnStaminaChanged);
 

@@ -7,16 +7,24 @@
 #include "Character/PlayerAttributeSet.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Inventory/InventoryComponent.h"
 #include "Interface/InteractionInterface.h"
 #include "DrawDebugHelpers.h"
+#include "UI/USB_UIManager.h"
+#include "Character/PlayerController_SB.h"
+#include "Items/Pickup.h"
+
+#include "Weapons/WeaponBase.h"
+
 
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
 	//  플레이어 AttributeSet 생성
-	CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
+	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 
 	//  InitStats는 이 클래스로
 	AttributeSetClassForInitStats = UPlayerAttributeSet::StaticClass();
@@ -38,8 +46,21 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 
-	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryCompontnt"));
-	
+	//minimap camera
+	MiniMapArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("MiniMapArm"));
+	MiniMapArm->SetupAttachment(GetRootComponent());
+	MiniMapArm->SetRelativeRotation(FRotator(-90.f, 0, 0));
+	MiniMapArm->bDoCollisionTest = false;
+
+	MiniMapCapture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("MiniMapCapture"));
+	MiniMapCapture->SetupAttachment(MiniMapArm);
+	MiniMapCapture->ProjectionType = ECameraProjectionMode::Orthographic;
+
+	PlayerInventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("PlayerInventory"));
+	PlayerInventory->SetSlotsCapacity(20);
+	PlayerInventory->SetWeightCapacity(50.f);
+
+
 	InteractionCheckFrequency = 0.1f;
 	InteractionCheckDistance = 225.f;
 
@@ -59,7 +80,58 @@ void APlayerCharacter_SB::BeginPlay()
 	const float MH = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 
 	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
+
+
+	if (MiniMapTarget)
+	{
+		MiniMapCapture->TextureTarget = MiniMapTarget;
+	}
+
+	// ? 시작 무기 장착
+	EquipStartingWeapon();
+
 }
+
+void APlayerCharacter_SB::EquipStartingWeapon()
+{
+	if (EquippedWeapon) return;
+	if (!StartingWeaponClass) return;
+	if (!AbilitySystemComponent) return;
+
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!MeshComp) return;
+
+	FActorSpawnParameters Params;
+	Params.Owner = this;
+	Params.Instigator = this;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	AWeaponBase* NewWeapon = GetWorld()->SpawnActor<AWeaponBase>(StartingWeaponClass, Params);
+	if (!NewWeapon) return;
+
+	// 1) 손 소켓에 부착
+	NewWeapon->AttachToComponent(
+		MeshComp,
+		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+		StartingWeaponSocketName
+	);
+
+	// (선택) 무기 충돌 끄고 싶으면
+	// NewWeapon->SetActorEnableCollision(false);
+
+	// 2) ASC에 무기 GA/GE 부여 (Spec.SourceObject=this(weapon) 포함)
+	NewWeapon->Equip(this, AbilitySystemComponent);
+
+	EquippedWeapon = NewWeapon;
+
+	UE_LOG(LogTemp, Log, TEXT("[Player] StartingWeapon Equipped: %s -> Socket(%s)"),
+		*GetNameSafe(NewWeapon), *StartingWeaponSocketName.ToString());
+
+	UE_LOG(LogTemp, Warning, TEXT("[Equip] ASC=%s"), *GetNameSafe(AbilitySystemComponent));
+
+
+}
+
 
 void APlayerCharacter_SB::Tick(float DeltaSeconds)
 {
@@ -82,14 +154,14 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 
 	if (LookDirection > 0)
 	{
-		DrawDebugLine(
+		/*DrawDebugLine(
 			GetWorld(),
 			TraceStart,
 			TraceEnd,
 			FColor::Red,
 			false,
 			1.f,
-			2.f);
+			2.f);*/
 
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(this);
@@ -104,9 +176,7 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 		{
 			if (TraceHit.GetActor()->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
 			{
-				const float Distance = (TraceStart - TraceHit.ImpactPoint).Size();
-
-				if (TraceHit.GetActor() != InteractionData.CurrentInteractable && Distance <= InteractionCheckDistance)
+				if (TraceHit.GetActor() != InteractionData.CurrentInteractable)
 				{
 					FoundInteractable(TraceHit.GetActor());
 					return;
@@ -139,6 +209,14 @@ void APlayerCharacter_SB::FoundInteractable(AActor* NewInteractable)
 	InteractionData.CurrentInteractable = NewInteractable;
 	TargetInteractable = NewInteractable;
 
+	auto* PC = Cast<APlayerController_SB>(GetController());
+	if (!PC) return;
+
+	USB_UIManager* UI = PC->UIManager;
+	if(!UI) return;
+
+	UI->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+
 	TargetInteractable->BeginFocus();
 }
 
@@ -156,7 +234,13 @@ void APlayerCharacter_SB::NoInteractableFound()
 			TargetInteractable->EndFocus();
 		}
 
-		// hide interaction widget on the HUD
+		auto* PC = Cast<APlayerController_SB>(GetController());
+		if (!PC) return;
+
+		USB_UIManager* UI = PC->UIManager;
+		if (!UI) return;
+
+		UI->HideInteractionWidget();
 
 		InteractionData.CurrentInteractable = nullptr;
 		TargetInteractable = nullptr;
@@ -207,7 +291,45 @@ void APlayerCharacter_SB::Interact()
 
 	if (IsValid(TargetInteractable.GetObject()))
 	{
-		TargetInteractable->Interact();
+		TargetInteractable->Interact(this);
+	}
+}
+
+void APlayerCharacter_SB::UpdateInteractionWidget() const
+{
+	if (IsValid(TargetInteractable.GetObject()))
+	{
+		auto* PC = Cast<APlayerController_SB>(GetController());
+		if (!PC) return;
+
+		USB_UIManager* UI = PC->UIManager;
+		if (!UI) return;
+
+		UI->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+	}
+}
+
+void APlayerCharacter_SB::DropItem(UItemBase* ItemToDrop, const int32 QuantityToDrop)
+{
+	if (PlayerInventory->FindMatchingItem(ItemToDrop))
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.bNoFail = true;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+		const FVector SpawnLocation{ GetActorLocation() + (GetActorForwardVector() * 50.f) };
+		const FTransform SpawnTransform(GetActorRotation(), SpawnLocation);
+
+		const int32 RemovedQuantity = PlayerInventory->RemoveAmountOfItem(ItemToDrop, QuantityToDrop);
+
+		APickup* Pickup = GetWorld()->SpawnActor<APickup>(APickup::StaticClass(), SpawnTransform, SpawnParams);
+
+		Pickup->InitializeDrop(ItemToDrop, RemovedQuantity);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Item to drop was shomhow null."));
 	}
 }
 
