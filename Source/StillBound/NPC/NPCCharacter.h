@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
-#include "InteractableInterface.h"
 #include "Interface/InteractionInterface.h"
 #include "Character/PlayerCharacter_SB.h"
 #include "DialogueComponent.h"
 #include "NPCCharacter.generated.h"
 
 class UDialogueWidget;
+class ANPCAIController;
 
 UENUM(BlueprintType)
 enum class ENPCRegion : uint8
@@ -22,113 +22,79 @@ enum class ENPCRegion : uint8
 };
 
 UCLASS()
-class STILLBOUND_API ANPCCharacter : public ACharacter, public IInteractableInterface, public IInteractionInterface
+class STILLBOUND_API ANPCCharacter : public ACharacter,
+    public IInteractionInterface
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
-	ANPCCharacter();
+    ANPCCharacter();
 
-	virtual void BeginFocus_Implementation() override;
-	virtual void EndFocus_Implementation() override;
-	virtual void BeginInteract_Implementation() override;
-	virtual void EndInteract_Implementation() override;
-	virtual void Interact_Implementation(AActor* InteractorActor) override;
+    // === 인터페이스 구현 ===
+    virtual void BeginFocus_Implementation() override;
+    virtual void EndFocus_Implementation() override;
+    virtual void EndInteract_Implementation() override;
+    virtual void Interact_Implementation(APlayerCharacter_SB* PlayerCharacter) override;
+    virtual FInteractableData GetInteractableData_Implementation() override;
+    virtual float GetInteractionDistance_Implementation() override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
-	FInteractableData InstanceInteractableData;
+    // === 대화 컴포넌트 ===
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Dialogue")
+    UDialogueComponent* DialogueComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Dialogue")
-	UDialogueComponent* DialogueComponent;
-
-	virtual FInteractableData GetInteractableData_Implementation() override;
-
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
-
-	//위젯 클래스
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
-	TSubclassOf<UDialogueWidget> DialogueWidgetClass;
-
-	//위젯인스턴스
-	UPROPERTY()
-	UDialogueWidget* DialogueWidget;
-
-
-
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
-	//NPC Info
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NPC|Info")
-	FString NPCName = TEXT("주민");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NPC|Info")
-	ENPCRegion Region = ENPCRegion::Forest;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NPC|Info")
-	FText NPCEdscription;
-
-	//Interaction
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NPC|Interaction")
-	float InteractionDistance = 200.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NPC|Interaction")
-	FText InteractionPrompt = FText::FromString(TEXT("대화하기"));
-
-	//Interaction Interface
-	virtual bool StartInteraction_Implementation(AActor* Interactor) override;
-	virtual void EndInteraction_Implementation(AActor* Interactor) override;
-	virtual bool CanInteraction_Implementation(AActor* Interactor) const override;
-	virtual float GetInteractionDistance_Implementation() const override;
-	virtual FText GetInteractionText_Implementation(AActor* Interactor) const override;
-	virtual bool IsInteracting_Implementation() const override;
-
-	//블루프린트 커스텀
-	//플레이어가 감지됐을 경우 (Alert)
-	UFUNCTION(BlueprintImplementableEvent, Category = "NPC|Events")
-	void OnPlayerDetected(AActor* Player);
-
-	//플레이어를 잃었을 경우 (Idle)
-	UFUNCTION(BlueprintImplementableEvent, Category = "NPC|Events")
-	void OnPlayerLost();
-
-	//상호작용 시작되었을 때
-	UFUNCTION(BlueprintImplementableEvent, Category = "NPC|Events")
-	void OnInteractionStarted(AActor* Interactor);
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "NPC|Events")
-	void OnInteractionEnded(AActor* Interactor);
-
-	//AI Controller 접근
-	UFUNCTION(BlueprintPure, Category = "NPC")
-	ANPCAIController* GetNPCAIController() const;
+    // === Widget ===
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<UDialogueWidget> DialogueWidgetClass;
 
 protected:
-	UPROPERTY(BlueprintReadOnly, Category = "NPC")
-	bool bIsInteracting = false;
+    virtual void BeginPlay() override;
+    virtual void Tick(float DeltaTime) override;
 
-	UPROPERTY(BlueprintReadOnly, Category = "NPC")
-	AActor* CurrentInteractor = nullptr;
+    // === 내부 함수 ===
+    void MonitorStateChanges();
 
-	UFUNCTION()
-	void HandleDialogueStarted(const FDialogueRow& DialogueData);
+    ANPCAIController* GetNPCAIController() const;
 
-	UFUNCTION()
-	void HandleDialogueUpdated(const FDialogueRow& DialogueData);
+    // === 대화 이벤트 핸들러 ===
+    UFUNCTION()
+    void OnDialogueStart(const FDialogueRow& DialogueData);
 
-	UFUNCTION()
-	void HandleDialogueEnded();
+    UFUNCTION()
+    void OnDialogueUpdate(const FDialogueRow& DialogueData);
 
-	UFUNCTION()
-	void HandleOptionSelected(int32 OptionIndex);
+    UFUNCTION()
+    void OnDialogueEnd();
+
+    UFUNCTION()
+    void OnOptionSelected(int32 OptionIndex);
+
+    // === 블루프린트 이벤트 ===
+    UFUNCTION(BlueprintImplementableEvent, Category = "NPC")
+    void OnPlayerDetected(AActor* Player);
+
+    UFUNCTION(BlueprintImplementableEvent, Category = "NPC")
+    void OnPlayerLost();
+
+    UFUNCTION(BlueprintImplementableEvent, Category = "NPC")
+    void OnInteractionStarted(AActor* Interactor);
+
+    UFUNCTION(BlueprintImplementableEvent, Category = "NPC")
+    void OnInteractionEnded(AActor* Interactor);
+
+    // === 상태 ===
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NPC")
+    FString NPCName = TEXT("NPC");
+
+    UPROPERTY(BlueprintReadOnly, Category = "NPC")
+    bool bIsInteracting = false;
+
+    UPROPERTY(BlueprintReadOnly, Category = "NPC")
+    AActor* CurrentInteractor = nullptr;
 
 private:
-	//상태변화 모니터링..??
-	void MonitorStateChanges();
-	uint8 LastNPCState = 0;
+    uint8 LastNPCState = 0;
 
+    // Widget 인스턴스
+    UPROPERTY()
+    UDialogueWidget* DialogueWidget = nullptr;
 };

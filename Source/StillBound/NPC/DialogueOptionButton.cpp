@@ -11,6 +11,10 @@ void UDialogueOptionButton::NativeConstruct()
 
 	if (Btn_Option)
 	{
+		// 1. 기존 연결이 있다면 끊어버리기 (안전장치)
+		Btn_Option->OnClicked.RemoveDynamic(this, &UDialogueOptionButton::OnBtnClicked);
+
+		// 2. 그 다음 깨끗하게 연결하기
 		Btn_Option->OnClicked.AddDynamic(this, &UDialogueOptionButton::OnBtnClicked);
 	}
 }

@@ -3,8 +3,9 @@
 
 #include "NPC/NPCCharacter.h"
 #include "NPC/NPCAIController.h"
+#include "NPC/DialogueComponent.h"
+#include "NPC/DialogueWidget.h"
 #include "Components/CapsuleComponent.h"
-#include "DialogueWidget.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 // Sets default values
@@ -27,11 +28,6 @@ ANPCCharacter::ANPCCharacter()
 
 }
 
-FInteractableData ANPCCharacter::GetInteractableData_Implementation()
-{
-	return FInteractableData();
-}
-
 // Called when the game starts or when spawned
 void ANPCCharacter::BeginPlay()
 {
@@ -45,153 +41,19 @@ void ANPCCharacter::BeginPlay()
 
 	if (DialogueComponent)
 	{
-		DialogueComponent->OnDialogueStarted.AddDynamic(this, &ANPCCharacter::HandleDialogueStarted);
-		DialogueComponent->OnDialogueUpdated.AddDynamic(this, &ANPCCharacter::HandleDialogueUpdated);
-		DialogueComponent->OnDialogueEnded.AddDynamic(this, &ANPCCharacter::HandleDialogueEnded);
+		DialogueComponent->OnDialogueStarted.AddDynamic(this, &ANPCCharacter::OnDialogueStart);
+		DialogueComponent->OnDialogueUpdated.AddDynamic(this, &ANPCCharacter::OnDialogueUpdate);
+		DialogueComponent->OnDialogueEnded.AddDynamic(this, &ANPCCharacter::OnDialogueEnd);
 	}
 	
 }
 
-// Called every frame
 void ANPCCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 	MonitorStateChanges();
 
 }
-
-bool ANPCCharacter::StartInteraction_Implementation(AActor* Interactor)
-{
-	//유효성
-	if (bIsInteracting || !Interactor)
-	{
-		return false;
-	}
-
-	//거리체크
-	float Distance = FVector::Dist(GetActorLocation(), Interactor->GetActorLocation());
-	if (Distance > InteractionDistance)
-	{
-		return false;
-	}
-	//상호작용
-	bIsInteracting = true;
-	CurrentInteractor = Interactor;
-
-	ANPCAIController* AIController = GetNPCAIController();
-	if (AIController)
-	{
-		AIController->SetNPCState(ENPCMode::Interacting);
-		AIController->SetInteractionTarget(Interactor);
-	}
-
-	bool bDialogueStarted = false;
-	if (DialogueComponent)
-	{
-		bDialogueStarted = DialogueComponent->StartDialogue(Interactor);
-	}
-
-	OnInteractionStarted(Interactor);
-	UE_LOG(LogTemp, Log, TEXT("[%s] Interaction started with %s"),
-		*NPCName, *Interactor->GetName());
-
-	if (bDialogueStarted)
-	{
-		UE_LOG(LogTemp, Log, TEXT("[%s] Dialogue started successfully"), *NPCName);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[%s] Failed to start dialogue"), *NPCName);
-	}
-	return true;
-}
-
-void ANPCCharacter::EndInteraction_Implementation(AActor* Interactor)
-{
-	/*
-	if (!bIsInteracting)
-	{
-		return;
-	}
-	bIsInteracting = false;
-	AActor* PreviousInteractor = CurrentInteractor;
-	CurrentInteractor = nullptr;
-
-	ANPCAIController* AIController = GetNPCAIController();
-	if (AIController)
-	{
-		AIController->SetInteractionTarget(nullptr);
-		
-		if (AIController->GetTargetActor())
-		{
-			AIController->SetNPCState(ENPCMode::Alert);
-		}
-		else
-		{
-			AIController->SetNPCState(ENPCMode::Idle);
-		}
-
-		OnInteractionEnded(PreviousInteractor);
-		UE_LOG(LogTemp, Log, TEXT("[%s] Interaction ended"), *NPCName);
-
-	}
-	*/
-
-	// 플레이어가 멀어지거나 고개를 돌렸을 때 실행됨
-	UE_LOG(LogTemp, Log, TEXT("플레이어가 떠났습니다. 대화를 강제로 종료합니다."));
-
-	// 여기서 대화창 UI를 끕니다.
-	if (DialogueWidget)
-	{
-		DialogueWidget->CloseDialogue();
-	}
-}
-
-bool ANPCCharacter::CanInteraction_Implementation(AActor* Interactor) const
-{
-	if (bIsInteracting || !Interactor)
-	{
-		return false;
-	}
-
-	float Distance = FVector::Dist(GetActorLocation(), Interactor->GetActorLocation());
-	if (Distance > InteractionDistance)
-	{
-		return false;
-	}
-
-	ANPCAIController* AIController = GetNPCAIController();
-	if (AIController)
-	{
-		ENPCMode CurrentState = AIController->GetNPCState();
-
-		// Idle이나 Alert 상태에서만 상호작용 가능
-		return CurrentState == ENPCMode::Idle || CurrentState == ENPCMode::Alert;
-	}
-	return false;
-}
-
-ANPCAIController* ANPCCharacter::GetNPCAIController() const
-{
-	return Cast<ANPCAIController>(GetController());
-}
-
-float ANPCCharacter::GetInteractionDistance_Implementation() const
-{
-	return 200.0f;
-}
-
-FText ANPCCharacter::GetInteractionText_Implementation(AActor* Interactor) const
-{
-	return FText::FromString(TEXT("상호작용"));
-}
-
-bool ANPCCharacter::IsInteracting_Implementation() const
-{
-	return false;
-}
-
 
 void ANPCCharacter::MonitorStateChanges()
 {
@@ -212,8 +74,8 @@ void ANPCCharacter::MonitorStateChanges()
 			}
 		}
 	}
-	else if (CurrentState == static_cast<uint8>(ENPCMode::Alert) &&
-		LastNPCState == static_cast<uint8>(ENPCMode::Idle))
+	else if (CurrentState == static_cast<uint8>(ENPCMode::Idle) &&
+		LastNPCState == static_cast<uint8>(ENPCMode::Alert))
 	{
 		OnPlayerLost();
 	}
@@ -222,8 +84,6 @@ void ANPCCharacter::MonitorStateChanges()
 
 void ANPCCharacter::BeginFocus_Implementation()
 {
-	// 플레이어가 NPC를 바라볼 때
-	// UI 표시 등
 	UE_LOG(LogTemp, Log, TEXT("[%s] Player looking at me"), *NPCName);
 }
 
@@ -233,94 +93,166 @@ void ANPCCharacter::EndFocus_Implementation()
 	UE_LOG(LogTemp, Log, TEXT("[%s] Player looking away"), *NPCName);
 }
 
-void ANPCCharacter::BeginInteract_Implementation()
-{
-	// 상호작용 시작 (버튼 누름)
-	UE_LOG(LogTemp, Log, TEXT("[%s] Interaction starting"), *NPCName);
-}
-
 void ANPCCharacter::EndInteract_Implementation()
 {
-	// 상호작용 취소
-	UE_LOG(LogTemp, Log, TEXT("[%s] Interaction cancelled"), *NPCName);
-}
-
-void ANPCCharacter::Interact_Implementation(AActor* InteractorActor)
-{
-	APlayerCharacter_SB* PlayerCharacter = Cast<APlayerCharacter_SB>(InteractorActor);
-	// 실제 상호작용 실행
-	if (!PlayerCharacter) return;
-
-	// 기존 ISB_InteractableInterface 함수 호출
-	StartInteraction_Implementation(PlayerCharacter);
-
-	UE_LOG(LogTemp, Log, TEXT("[%s] Interaction executed!"), *NPCName);
-
-	if (DialogueComponent)
+	if (DialogueComponent && DialogueComponent->IsDialogueActive())
 	{
-		DialogueComponent->StartDialogue(InteractorActor);
+		DialogueComponent->EndDialogue();
 	}
 }
 
-void ANPCCharacter::HandleDialogueStarted(const FDialogueRow& DialogueData)
+void ANPCCharacter::Interact_Implementation(APlayerCharacter_SB* PlayerCharacter)
 {
-	if (DialogueWidget == nullptr && DialogueWidgetClass)
+	if (!PlayerCharacter || bIsInteracting) return;
+
+	UE_LOG(LogTemp, Log, TEXT("[%s] Interaction Started with %s"),
+		*NPCName, *PlayerCharacter->GetName());
+
+	bIsInteracting = true;
+	CurrentInteractor = PlayerCharacter;
+
+	// AI 상태 변경
+	if (ANPCAIController* AIController = GetNPCAIController())
+	{
+		AIController->SetNPCState(ENPCMode::Interacting);
+		AIController->SetInteractionTarget(PlayerCharacter);
+	}
+
+	// 대화 시작 (DialogueComponent가 이벤트 발동)
+	if (DialogueComponent)
+	{
+		bool bStarted = DialogueComponent->StartDialogue(PlayerCharacter);
+
+		if (bStarted)
+		{
+			OnInteractionStarted(PlayerCharacter);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Failed to start dialogue"), *NPCName);
+
+			// 즉시 정리
+			bIsInteracting = false;
+			CurrentInteractor = nullptr;
+
+			if (ANPCAIController* AIController = GetNPCAIController())
+			{
+				AIController->SetInteractionTarget(nullptr);
+				AIController->SetNPCState(ENPCMode::Idle);
+			}
+		}
+	}
+}
+
+FInteractableData ANPCCharacter::GetInteractableData_Implementation()
+{
+	FInteractableData Data;
+
+	Data.InteractableType = EInteractableType::NonPlayerCharacter;
+	Data.Name = FText::FromString(NPCName); 
+	Data.Action = FText::FromString(TEXT("대화하기")); 
+	Data.InteractionDuration = 0.0f; 
+
+	return Data;
+}
+
+float ANPCCharacter::GetInteractionDistance_Implementation()
+{
+	return 200.0f;
+}
+
+ANPCAIController* ANPCCharacter::GetNPCAIController() const
+{
+	return Cast<ANPCAIController>(GetController());
+}
+
+void ANPCCharacter::OnDialogueStart(const FDialogueRow& DialogueData)
+{
+	// Widget 생성 (한 번만)
+	if (!DialogueWidget && DialogueWidgetClass)
 	{
 		DialogueWidget = CreateWidget<UDialogueWidget>(GetWorld(), DialogueWidgetClass);
-		DialogueWidget->OnOptionClicked.AddDynamic(this, &ANPCCharacter::HandleOptionSelected);
-	}
 
-	if (DialogueWidget)
-	{
-		DialogueWidget->AddToViewport();
-		// 2. 내용 채우기
-		HandleDialogueUpdated(DialogueData);
-	}
-
-	//마우스 커서
-	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-	{
-		FInputModeUIOnly InputMode;
-		InputMode.SetWidgetToFocus(DialogueWidget->TakeWidget());
-		PC->SetInputMode(InputMode);
-		PC->SetShowMouseCursor(true);
-	}
-}
-
-void ANPCCharacter::HandleDialogueUpdated(const FDialogueRow& DialogueData)
-{
-	if (DialogueWidget)
-	{
-		// 구조체의 Options를 FText 배열로 변환
-		TArray<FText> OptionTexts;
-		for (const FDialogueOption& Option : DialogueData.Options)
+		if (DialogueWidget)
 		{
-			OptionTexts.Add(Option.OptionText);
+			// 옵션 클릭 이벤트 바인딩
+			DialogueWidget->OnOptionClicked.AddDynamic(this, &ANPCCharacter::OnOptionSelected);
+		}
+	}
+
+	// Widget 표시 및 업데이트
+	if (DialogueWidget)
+	{
+		if (!DialogueWidget->IsInViewport())
+		{
+			DialogueWidget->AddToViewport(100);  // 높은 ZOrder
 		}
 
-		DialogueWidget->UpdateContent(
-			DialogueData.NPCName,
-			DialogueData.DialogueText,
-			OptionTexts
-		);
+		DialogueWidget->ShowDialogue(DialogueData);
 	}
 }
 
-
-void ANPCCharacter::HandleDialogueEnded()
+void ANPCCharacter::OnDialogueUpdate(const FDialogueRow& DialogueData)
 {
-	if (DialogueWidget)
+	if (DialogueWidget && DialogueWidget->IsInViewport())
 	{
-		DialogueWidget->CloseDialogue();
-		DialogueWidget = nullptr;
+		DialogueWidget->ShowDialogue(DialogueData);
 	}
 }
 
-void ANPCCharacter::HandleOptionSelected(int32 OptionIndex)
+void ANPCCharacter::OnDialogueEnd()
+{
+	// Widget 정리
+	if (DialogueWidget && DialogueWidget->IsInViewport())
+	{
+		DialogueWidget->RemoveFromParent();
+		// Widget은 재사용을 위해 유지 (nullptr 안 함)
+	}
+
+	// 상태 정리
+	bIsInteracting = false;
+	AActor* PreviousInteractor = CurrentInteractor;
+	CurrentInteractor = nullptr;
+
+	if (PreviousInteractor)
+	{
+		if (APlayerController* PC = Cast<APlayerController>(PreviousInteractor->GetInstigatorController()))
+		{
+			PC->SetShowMouseCursor(false);
+
+			FInputModeGameOnly InputMode;
+			PC->SetInputMode(InputMode);
+
+			UE_LOG(LogTemp, Log, TEXT("[%s] Player input mode restored"), *NPCName);
+		}
+	}
+
+	// AI 상태 복구
+	if (ANPCAIController* AIController = GetNPCAIController())
+	{
+		AIController->SetInteractionTarget(nullptr);
+
+		// 플레이어가 여전히 근처에 있으면 Alert
+		if (AIController->GetTargetActor())
+		{
+			AIController->SetNPCState(ENPCMode::Alert);
+		}
+		else
+		{
+			AIController->SetNPCState(ENPCMode::Idle);
+		}
+	}
+
+	// 블루프린트 이벤트
+	OnInteractionEnded(PreviousInteractor);
+
+	UE_LOG(LogTemp, Log, TEXT("[%s] Dialogue ended"), *NPCName);
+}
+
+void ANPCCharacter::OnOptionSelected(int32 OptionIndex)
 {
 	if (DialogueComponent)
 	{
-		
 		DialogueComponent->SelectOption(OptionIndex);
 	}
 }

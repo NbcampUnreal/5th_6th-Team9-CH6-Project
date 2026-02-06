@@ -48,8 +48,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<class UUserWidget> OptionButtonClass;
 
-	void UpdateContent(const FText& Name, const FText& Content, const TArray<FText>& Options);
-
 	//바인드 위젯 변수명
 
 	UPROPERTY(meta = (BindWidget))
@@ -72,4 +70,8 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Dialogue")
 	FDialogueRow CurrentDialogueData;
+
+private:
+	UPROPERTY()
+	TArray<UDialogueOptionButton*> OptionButtonPool;
 };

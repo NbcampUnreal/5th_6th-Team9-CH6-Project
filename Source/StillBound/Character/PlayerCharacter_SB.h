@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Character/BaseCharacter_SB.h"
+#include "Interface/InteractionInterface.h"
 #include "PlayerCharacter_SB.generated.h"
 
 class UItemBase;
@@ -24,6 +25,9 @@ struct FInteractionData
 
 	UPROPERTY()
 	float LastInteractionCheckTime;
+
+	UPROPERTY()
+	bool bIsInteracting = false;
 };
 
 class UCameraComponent;
@@ -36,7 +40,7 @@ class AWeaponBase;
 class USB_UIManager;
 
 UCLASS()
-class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB
+class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB, public IInteractionInterface
 {
 	GENERATED_BODY()
 	
@@ -45,7 +49,7 @@ public:
 
 	UTextureRenderTarget2D* GetMiniMapTarget() const { return MiniMapTarget; }
 
-	FORCEINLINE bool IsInteracting() const { return GetWorldTimerManager().IsTimerActive(TimerHandle_Interaction); };
+	FORCEINLINE bool IsInteracting() const { return GetWorldTimerManager().IsTimerActive(TimerHandle_Interaction) || InteractionData.bIsInteracting;};
 
 	FORCEINLINE UInventoryComponent* GetInventory() const { return PlayerInventory; };
 
@@ -56,9 +60,6 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
-	
-	//NPC 상호작용키 때메 추가험
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	UPROPERTY(VisibleAnywhere, Category = "Inventory")
 	TObjectPtr<UInventoryComponent> PlayerInventory;
@@ -74,6 +75,11 @@ public:
 	FTimerHandle TimerHandle_Interaction;
 
 	FInteractionData InteractionData;
+
+	UPROPERTY(EditAnywhere, Category = "Interaction")
+	FInteractableData InteractableData;
+
+	virtual FInteractableData GetInteractableData_Implementation() override;
 
 	void PerformInteractionCheck();
 	void FoundInteractable(AActor* NewInteractable);

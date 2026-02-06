@@ -22,35 +22,45 @@ public:
 	virtual void TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 
 protected:
-	//상호작용할 액터
-	UPROPERTY(EditAnywhere, Category = "Blackboard")
-	FBlackboardKeySelector InteractionTargetKey;
+    // === Blackboard Key ===
+    UPROPERTY(EditAnywhere, Category = "Blackboard")
+    FBlackboardKeySelector InteractionTargetKey;
 
-	//상호작용 지속 시간 
-	UPROPERTY(EditAnywhere, Category = "Interaction", meta = (ClampMin = "0.0"))
-	float InteractionDuration = 3.0f;
+    // === Interaction Settings ===
 
-	/**
- * 상호작용 전 거리 체크 수행 여부
- */
-	UPROPERTY(EditAnywhere, Category = "Interaction")
-	bool bCheckDistance = true;
+    // 상호작용 지속 시간 (0 = 즉시 종료, 대화 등은 수동 종료)
+    UPROPERTY(EditAnywhere, Category = "Interaction", meta = (ClampMin = "0.0"))
+    float InteractionDuration = 0.0f;
 
-	/**
- * 상호작용 중 타겟을 바라볼지 여부
- */
-	UPROPERTY(EditAnywhere, Category = "Interaction")
-	bool bLookAtTarget = true;
+    // 거리 체크 여부
+    UPROPERTY(EditAnywhere, Category = "Interaction")
+    bool bCheckDistance = true;
 
-	//상호작용 종료 시 자동으로 EndInteraction 호출 여부
-	UPROPERTY(EditAnywhere, Category = "Interaction")
-	bool bAutoEndInteraction = true;
+    // 타겟을 바라볼지 여부
+    UPROPERTY(EditAnywhere, Category = "Interaction")
+    bool bLookAtTarget = true;
+
+    // 자동으로 EndInteract 호출 여부 (대화는 false, 아이템 줍기는 true)
+    UPROPERTY(EditAnywhere, Category = "Interaction")
+    bool bAutoEndInteraction = false;
 
 private:
-	//경과시간
-	float ElapsedTime = 0.f;
+    // Task 실행 중 유지되는 데이터
+    float ElapsedTime = 0.0f;
+    bool bInteractionStarted = false;
 
-	//상호작용 시작 성공 여부
-	bool bInteractionStarted = false;
+    // 캐싱된 참조 (TickTask에서 사용)
+    UPROPERTY()
+    AActor* CachedTargetActor = nullptr;
+
+    UPROPERTY()
+    AAIController* CachedAIController = nullptr;
+
+    UPROPERTY()
+    APawn* CachedControlledPawn = nullptr;
+
+    // 헬퍼 함수
+    bool ValidateInteraction(UBehaviorTreeComponent& OwnerComp);
+    void CleanupInteraction();
 	
 };
