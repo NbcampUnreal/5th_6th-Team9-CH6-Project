@@ -21,7 +21,8 @@ public class StillBound : ModuleRules
 			"GameplayStateTreeModule",
 			"UMG",
 			"Slate",
-			"SlateCore",
+            "SlateCore",
+            "MoviePlayer",
 
             "GameplayAbilities",
             "GameplayTasks",
