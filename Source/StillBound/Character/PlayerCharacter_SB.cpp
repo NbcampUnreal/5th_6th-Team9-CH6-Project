@@ -11,8 +11,10 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Inventory/InventoryComponent.h"
 #include "Interface/InteractionInterface.h"
+#include "NPC/DialogueComponent.h"
 #include "DrawDebugHelpers.h"
 #include "UI/USB_UIManager.h"
+#include "Components/SlateWrapperTypes.h"
 #include "Character/PlayerController_SB.h"
 #include "Items/Pickup.h"
 
@@ -23,10 +25,10 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	//  ÇÃ·¹ÀÌ¾î AttributeSet »ý¼º
+	//  ï¿½Ã·ï¿½ï¿½Ì¾ï¿½ AttributeSet ï¿½ï¿½ï¿½ï¿½
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 
-	//  InitStats´Â ÀÌ Å¬·¡½º·Î
+	//  InitStatsï¿½ï¿½ ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	AttributeSetClassForInitStats = UPlayerAttributeSet::StaticClass();
 
 	GetCapsuleComponent()->InitCapsuleSize(42.0f, 97.0f);
@@ -66,6 +68,11 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 
 }
 
+FInteractableData APlayerCharacter_SB::GetInteractableData_Implementation()
+{
+	return FInteractableData();
+}
+
 void APlayerCharacter_SB::BeginPlay()
 {
 	Super::BeginPlay();
@@ -90,7 +97,10 @@ void APlayerCharacter_SB::BeginPlay()
 		MiniMapCapture->TextureTarget = MiniMapTarget;
 	}
 
-	
+
+
+	EquipStartingWeapon();
+
 
 }
 
@@ -118,17 +128,17 @@ void APlayerCharacter_SB::EquipStartingWeapon()
 	AWeaponBase* NewWeapon = GetWorld()->SpawnActor<AWeaponBase>(StartingWeaponClass, Params);
 	if (!NewWeapon) return;
 
-	// 1) ¼Õ ¼ÒÄÏ¿¡ ºÎÂø
+	// 1) ï¿½ï¿½ ï¿½ï¿½ï¿½Ï¿ï¿½ ï¿½ï¿½ï¿½ï¿½
 	NewWeapon->AttachToComponent(
 		MeshComp,
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 		StartingWeaponSocketName
 	);
 
-	// (¼±ÅÃ) ¹«±â Ãæµ¹ ²ô°í ½ÍÀ¸¸é
+	// (ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ ï¿½æµ¹ ï¿½ï¿½ï¿?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	// NewWeapon->SetActorEnableCollision(false);
 
-	// 2) ASC¿¡ ¹«±â GA/GE ºÎ¿© (Spec.SourceObject=this(weapon) Æ÷ÇÔ)
+	// 2) ASCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ GA/GE ï¿½Î¿ï¿½ (Spec.SourceObject=this(weapon) ï¿½ï¿½ï¿½ï¿½)
 	NewWeapon->Equip(this, AbilitySystemComponent);
 
 	EquippedWeapon = NewWeapon;
@@ -150,10 +160,21 @@ void APlayerCharacter_SB::Tick(float DeltaSeconds)
 	{
 		PerformInteractionCheck();
 	}
+	if (InteractionData.bIsInteracting && InteractionData.CurrentInteractable)
+	{
+		float Dist = FVector::Dist(GetActorLocation(), InteractionData.CurrentInteractable->GetActorLocation());
+
+		if (Dist > 300.0f)
+		{
+			EndInteract(); 
+		}
+	}
 }
 
 void APlayerCharacter_SB::PerformInteractionCheck()
 {
+	if (InteractionData.bIsInteracting) return;
+
 	InteractionData.LastInteractionCheckTime = GetWorld()->GetTimeSeconds();
 
 	FVector TraceStart{ GetPawnViewLocation() };
@@ -163,14 +184,14 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 
 	if (LookDirection > 0)
 	{
-		/*DrawDebugLine(
+		DrawDebugLine(
 			GetWorld(),
 			TraceStart,
 			TraceEnd,
 			FColor::Red,
 			false,
 			1.f,
-			2.f);*/
+			2.f);
 
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(this);
@@ -183,16 +204,22 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 			ECC_Visibility,
 			QueryParams))
 		{
-			if (TraceHit.GetActor()->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
-			{
-				if (TraceHit.GetActor() != InteractionData.CurrentInteractable)
-				{
-					FoundInteractable(TraceHit.GetActor());
-					return;
-				}
+			AActor* HitActor = TraceHit.GetActor();
 
-				if (TraceHit.GetActor() == InteractionData.CurrentInteractable)
+			// [ï¿½Ù½ï¿½] 1. ï¿½ï¿½ ï¿½Ú½ï¿½(this)ï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½, 2. ï¿½ï¿½È¿ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
+			if (HitActor && HitActor != this)
+			{
+				// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½?
+				if (HitActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
 				{
+					// ï¿½ï¿½ï¿½Î¿ï¿½ ï¿½ï¿½ï¿½ï¿½-> FoundInteractable È£ï¿½ï¿½
+					if (HitActor != InteractionData.CurrentInteractable)
+					{
+						FoundInteractable(HitActor);
+					}
+
+					// ï¿½î¶² ï¿½ï¿½ì°£ï¿½ï¿?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+					// ï¿½Ø¿ï¿½ ï¿½Ö´ï¿½ NoInteractableFound()ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Çµï¿½ï¿½ï¿½ Å»ï¿½ï¿½
 					return;
 				}
 			}
@@ -212,7 +239,8 @@ void APlayerCharacter_SB::FoundInteractable(AActor* NewInteractable)
 	if (InteractionData.CurrentInteractable)
 	{
 		TargetInteractable = InteractionData.CurrentInteractable;
-		TargetInteractable->EndFocus();
+	
+		IInteractionInterface::Execute_EndFocus(TargetInteractable.GetObject());
 	}
 
 	InteractionData.CurrentInteractable = NewInteractable;
@@ -224,23 +252,30 @@ void APlayerCharacter_SB::FoundInteractable(AActor* NewInteractable)
 	USB_UIManager* UI = PC->UIManager;
 	if(!UI) return;
 
-	UI->UpdateInteractionWidget(&TargetInteractable->InteractableData);
 
-	TargetInteractable->BeginFocus();
+	if (TargetInteractable.GetObject())
+	{
+		FInteractableData Data = IInteractionInterface::Execute_GetInteractableData(TargetInteractable.GetObject());
+		UI->UpdateInteractionWidget(Data);
+		IInteractionInterface::Execute_BeginFocus(TargetInteractable.GetObject());
+
+	}
+
 }
 
 void APlayerCharacter_SB::NoInteractableFound()
 {
-	if (IsInteracting())
+	if (InteractionData.bIsInteracting && !InteractionData.CurrentInteractable)
 	{
-		GetWorldTimerManager().ClearTimer(TimerHandle_Interaction);
+		EndInteract();
+		return;
 	}
 
 	if (InteractionData.CurrentInteractable)
 	{
 		if (IsValid(TargetInteractable.GetObject()))
 		{
-			TargetInteractable->EndFocus();
+			IInteractionInterface::Execute_EndFocus(TargetInteractable.GetObject());
 		}
 
 		auto* PC = Cast<APlayerController_SB>(GetController());
@@ -261,13 +296,27 @@ void APlayerCharacter_SB::BeginInteract()
 	//verify nothing has changed with the interactble state since beginning interaction
 	PerformInteractionCheck();
 
+	if (!InteractionData.CurrentInteractable || !IsValid(TargetInteractable.GetObject()))
+	{
+		if (auto* PC = Cast<APlayerController_SB>(GetController()))
+		{
+			if (PC->UIManager)
+			{
+				PC->UIManager->HideInteractionWidget();
+			}
+		}
+		return;
+	}
+
+	InteractionData.bIsInteracting = true;
+
 	if (InteractionData.CurrentInteractable)
 	{
 		if (IsValid(TargetInteractable.GetObject()))
 		{
-			TargetInteractable->BeginInteract();
-
-			if (FMath::IsNearlyZero(TargetInteractable->InteractableData.InteractionDuration, 0.1f))
+			IInteractionInterface::Execute_BeginInteract(TargetInteractable.GetObject());
+			FInteractableData TargetData = IInteractionInterface::Execute_GetInteractableData(TargetInteractable.GetObject());
+			if (FMath::IsNearlyZero(TargetData.InteractionDuration, 0.1f))
 			{
 				Interact();
 			}
@@ -276,8 +325,8 @@ void APlayerCharacter_SB::BeginInteract()
 				GetWorldTimerManager().SetTimer(
 					TimerHandle_Interaction,
 					this,
-					&ThisClass::Interact,
-					TargetInteractable->InteractableData.InteractionDuration,
+					&APlayerCharacter_SB::Interact,
+					TargetData.InteractionDuration, // ï¿½Þ¾Æ¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ ï¿½ï¿½ï¿?
 					false);
 			}
 		}
@@ -286,11 +335,23 @@ void APlayerCharacter_SB::BeginInteract()
 
 void APlayerCharacter_SB::EndInteract()
 {
+	if (InteractionData.CurrentInteractable)
+	{
+		IInteractionInterface::Execute_EndInteract(InteractionData.CurrentInteractable);
+	}
+
+	InteractionData.bIsInteracting = false;
 	GetWorldTimerManager().ClearTimer(TimerHandle_Interaction);
 
-	if (IsValid(TargetInteractable.GetObject()))
+	InteractionData.CurrentInteractable = nullptr;
+	TargetInteractable = nullptr;
+
+	if (auto* PC = Cast<APlayerController_SB>(GetController()))
 	{
-		TargetInteractable->EndInteract();
+		if (PC->UIManager)
+		{
+			PC->UIManager->HideInteractionWidget();
+		}
 	}
 }
 
@@ -298,14 +359,57 @@ void APlayerCharacter_SB::Interact()
 {
 	GetWorldTimerManager().ClearTimer(TimerHandle_Interaction);
 
-	if (IsValid(TargetInteractable.GetObject()))
+	UObject* TargetObject = TargetInteractable.GetObject();
+	if (!TargetObject)
 	{
-		TargetInteractable->Interact(this);
+		UE_LOG(LogTemp, Error, TEXT("Interact: TargetInteractable.GetObject() is nullptr"));
+		return;
 	}
+
+	AActor* TargetActor = Cast<AActor>(TargetObject);
+	if (!IsValid(TargetActor))
+	{
+		UE_LOG(LogTemp, Error, TEXT("Interact: TargetActor is invalid"));
+		return;
+	}
+
+	if (!TargetActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
+	{
+		UE_LOG(LogTemp, Error, TEXT("Interact: Target does not implement IInteractionInterface"));
+		return;
+	}
+
+	// 1. NPCï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
+	UDialogueComponent* DialogueComp = TargetActor->FindComponentByClass<UDialogueComponent>();
+	if (DialogueComp)
+	{
+		// ï¿½ï¿½È£ï¿½Û¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
+		if (auto* PC = Cast<APlayerController_SB>(GetController()))
+		{
+			if (PC->UIManager)
+			{
+				PC->UIManager->HideInteractionWidget();
+			}
+		}
+
+		// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Îµï¿½
+		DialogueComp->OnDialogueEnded.RemoveAll(this);
+		DialogueComp->OnDialogueEnded.AddDynamic(this, &APlayerCharacter_SB::EndInteract);
+	
+		InteractionData.bIsInteracting = true;
+	}
+		IInteractionInterface::Execute_Interact(TargetActor, this);
+		//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¶ï¿½
+		if (DialogueComp == nullptr)
+		{
+			EndInteract();
+		}
 }
 
 void APlayerCharacter_SB::UpdateInteractionWidget() const
 {
+	UObject* InteractableObject = TargetInteractable.GetObject();
+
 	if (IsValid(TargetInteractable.GetObject()))
 	{
 		auto* PC = Cast<APlayerController_SB>(GetController());
@@ -314,7 +418,8 @@ void APlayerCharacter_SB::UpdateInteractionWidget() const
 		USB_UIManager* UI = PC->UIManager;
 		if (!UI) return;
 
-		UI->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+		FInteractableData Data = IInteractionInterface::Execute_GetInteractableData(InteractableObject);
+		UI->UpdateInteractionWidget(Data);
 	}
 }
 
@@ -332,7 +437,9 @@ void APlayerCharacter_SB::DropItem(UItemBase* ItemToDrop, const int32 QuantityTo
 
 		const int32 RemovedQuantity = PlayerInventory->RemoveAmountOfItem(ItemToDrop, QuantityToDrop);
 
-		APickup* Pickup = GetWorld()->SpawnActor<APickup>(APickup::StaticClass(), SpawnTransform, SpawnParams);
+		if (!PickupClass) return;
+
+		APickup* Pickup = GetWorld()->SpawnActor<APickup>(PickupClass, SpawnTransform, SpawnParams);
 
 		Pickup->InitializeDrop(ItemToDrop, RemovedQuantity);
 	}

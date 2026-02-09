@@ -139,9 +139,9 @@ void APlayerController_SB::ToggleCrouch()
 
 void APlayerController_SB::BeginInteract()
 {
-	if (auto* PC = Cast<APlayerCharacter_SB>(GetPawn()))
+	if (APlayerCharacter_SB* PlayerChar = Cast<APlayerCharacter_SB>(GetPawn()))
 	{
-		PC->BeginInteract();
+		PlayerChar->BeginInteract();
 	}
 }
 
@@ -149,6 +149,13 @@ void APlayerController_SB::EndInteract()
 {
 	if (auto* PC = Cast<APlayerCharacter_SB>(GetPawn()))
 	{
+		// [핵심] 만약 지금 '대화 중'이거나 '잠금 상태'라면, 
+		// 키를 뗐을 때 발생하는 종료 신호를 여기서 씹어버립니다(return).
+		if (PC->IsInteracting())
+		{
+			return;
+		}
+
 		PC->EndInteract();
 	}
 }
@@ -255,7 +262,7 @@ bool APlayerController_SB::ActivateAbilityAttack(const FGameplayTag& InputTag) c
 void APlayerController_SB::Attack()
 {
 
-	/*ACharacter* Char = GetCharacter();
+	ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
 
 	if (Char->bIsCrouched)
@@ -264,13 +271,8 @@ void APlayerController_SB::Attack()
 	}
 
 	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Attack"));
-	ActivateAbility(AttackTag);*/
+	ActivateAbility(AttackTag);
 
-	// ? 공격은 이제 "캐릭터 AbilityTags"가 아니라 "무기 InputTag"로 라우팅
-	const FGameplayTag AttackInputTag =
-		FGameplayTag::RequestGameplayTag(TEXT("InputTag.Attack.Primary"));
-
-	ActivateAbilityAttack(AttackInputTag);
 
 }
 

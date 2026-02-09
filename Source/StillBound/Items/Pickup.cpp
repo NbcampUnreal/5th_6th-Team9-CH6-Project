@@ -21,6 +21,11 @@ void APickup::BeginPlay()
 
 }
 
+FInteractableData APickup::GetInteractableData_Implementation()
+{
+	return InstanceInteractableData;
+}
+
 void APickup::InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int32 InQuantity)
 {
 	if (ItemDataTable && !DesiredItemID.IsNone())
@@ -60,10 +65,10 @@ void APickup::UpdateInteractableData()
 	InstanceInteractableData.Action = ItemReference->TextData.InteractionText;
 	InstanceInteractableData.Name = ItemReference->TextData.Name;
 	InstanceInteractableData.Quantity = ItemReference->Quantity;
-	InteractableData = InstanceInteractableData;
+	//InteractableData = InstanceInteractableData;
 }
 
-void APickup::BeginFocus()
+void APickup::BeginFocus_Implementation()
 {
 	if (PickupMesh)
 	{
@@ -71,7 +76,7 @@ void APickup::BeginFocus()
 	}
 }
 
-void APickup::EndFocus()
+void APickup::EndFocus_Implementation()
 {
 	if (PickupMesh)
 	{
@@ -79,7 +84,7 @@ void APickup::EndFocus()
 	}
 }
 
-void APickup::Interact(APlayerCharacter_SB* PlayerCharacter)
+void APickup::Interact_Implementation(APlayerCharacter_SB* PlayerCharacter)
 {
 	if (PlayerCharacter)
 	{

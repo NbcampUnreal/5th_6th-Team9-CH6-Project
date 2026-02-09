@@ -14,11 +14,16 @@ AInterfaceTestActor::AInterfaceTestActor()
 
 }
 
+FInteractableData AInterfaceTestActor::GetInteractableData_Implementation()
+{
+	return InstanceInteractableData;
+}
+
 void AInterfaceTestActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	InteractableData = InsntanceInteractableData;
+	InteractableData = InstanceInteractableData;
 	
 }
 

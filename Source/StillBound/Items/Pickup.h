@@ -32,8 +32,10 @@ public:
 
 	FORCEINLINE UItemBase* GetItemData() { return ItemReference; }
 
-	virtual void BeginFocus() override;
-	virtual void EndFocus() override;
+	virtual void BeginFocus_Implementation() override;
+	virtual void EndFocus_Implementation() override;
+
+	virtual FInteractableData GetInteractableData_Implementation() override;
 
 protected:
 	///===============================================================================
@@ -57,14 +59,14 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Pickup|Interaction")
 	FInteractableData InstanceInteractableData;
 
-
 	///===============================================================================
 	/// FUNCTIONS
 	///===============================================================================
 
 	virtual void BeginPlay() override;
 
-	virtual void Interact(APlayerCharacter_SB* PlayerCharacter) override;
+	//virtual void Interact(APlayerCharacter_SB* PlayerCharacter) override;
+	virtual void Interact_Implementation(class APlayerCharacter_SB* PlayerCharacter) override;
 	void UpdateInteractableData();
 
 	void TakePickup(const APlayerCharacter_SB* Taker);
