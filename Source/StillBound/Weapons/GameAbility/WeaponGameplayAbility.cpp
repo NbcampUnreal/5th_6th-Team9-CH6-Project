@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Weapons/GameAbility/WeaponGameplayAbility.h"
@@ -7,14 +7,28 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayEffect.h"
+#include "GameplayTagsManager.h"
+
+#include "Weapons/GameEffect/GE_WeaponDamage_Instant.h"
 
 UWeaponGameplayAbility::UWeaponGameplayAbility()
 {
-    // ½Ì±ÛÇÃ·¹ÀÌ ±âÁØ: LocalOnly·Î µÎ¸é ¿¹Ãø/¼­¹ö ÀÌ½´ ¾øÀÌ ±ò²ûÇÔ
+    // ì‹±ê¸€í”Œë ˆì´ ê¸°ì¤€: LocalOnlyë¡œ ë‘ë©´ ì˜ˆì¸¡/ì„œë²„ ì´ìŠˆ ì—†ì´ ê¹”ë”í•¨
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalOnly;
 
-    // º¸Åë ¹«±â °ø°ÝÀº ÀÎ½ºÅÏ½º°¡ ÇÊ¿ä (»óÅÂ/Å¸ÀÌ¸Ó/È÷Æ®¸ñ·Ï À¯Áö)
+    // ë³´í†µ ë¬´ê¸° ê³µê²©ì€ ì¸ìŠ¤í„´ìŠ¤ê°€ í•„ìš” (ìƒíƒœ/íƒ€ì´ë¨¸/ížˆíŠ¸ëª©ë¡ ìœ ì§€)
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+
+    //  ê¸°ë³¸ ë°ë¯¸ì§€ GE ê¸°ë³¸ê°’ ì§€ì • (BPì—ì„œ ë‹¤ë¥¸ GEë¡œ êµì²´ë„ ê°€ëŠ¥)
+    BaseDamageEffectClass = UGE_WeaponDamage_Instant::StaticClass();
+}
+
+FGameplayTag UWeaponGameplayAbility::GetDataDamageTag() // 
+{
+    static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TEXT("Data.Damage"), /*ErrorIfNotFound*/ false);
+    ensureMsgf(Tag.IsValid(),
+        TEXT("[GAS] GameplayTag 'Data.Damage' is not registered. Add it in Project Settings > GameplayTags or DefaultGameplayTags.ini"));
+    return Tag;
 }
 
 AWeaponBase* UWeaponGameplayAbility::GetWeaponFromSourceObject() const
@@ -35,14 +49,6 @@ AWeaponBase* UWeaponGameplayAbility::GetWeaponFromSourceObject() const
     return Cast<AWeaponBase>(SourceObj);
 }
 
-UAbilitySystemComponent* UWeaponGameplayAbility::GetTargetASC(AActor* TargetActor) const
-{
-    if (!TargetActor)
-    {
-        return nullptr;
-    }
-    return UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
-}
 
 bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     AActor* TargetActor,
@@ -67,8 +73,10 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     }
 
     UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
-    UAbilitySystemComponent* TargetASC = GetTargetASC(TargetActor);
-    if (!SourceASC || !TargetASC)
+    if (!SourceASC) { return false; }
+    UAbilitySystemComponent* TargetASC =
+        UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
+    if (!TargetASC)
     {
         return false;
     }
@@ -87,10 +95,11 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     }
 
     FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(EffectClass, Level, Ctx);
-    if (!SpecHandle.IsValid())
+    if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid()) // âœ… Data ìœ íš¨ì„±ê¹Œì§€ ì²´í¬
     {
         return false;
     }
+
 
     for (const auto& KVP : SetByCallerMagnitudes)
     {
@@ -102,4 +111,40 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
 
     SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
     return true;
+}
+
+bool UWeaponGameplayAbility::ApplyBaseDamageToTargetActor( // âœ… FIX: êµ¬í˜„ ì¶”ê°€
+    AActor* TargetActor,
+    float DamageValue,
+    float Level,
+    float Chance
+) const
+{
+    if (!TargetActor || DamageValue <= 0.f)
+    {
+        return false;
+    }
+
+    if (!BaseDamageEffectClass)
+    {
+        // ê¸°ë³¸ ë°ë¯¸ì§€ GEê°€ ì§€ì •ë˜ì§€ ì•Šì•˜ë‹¤ë©´ ì ìš© ë¶ˆê°€
+        return false;
+    }
+
+    const FGameplayTag DamageTag = GetDataDamageTag();
+    if (!DamageTag.IsValid())
+    {
+        return false;
+    }
+
+    TMap<FGameplayTag, float> Mags;
+    Mags.Add(DamageTag, DamageValue); // SetByCaller(Data.Damage) ì£¼ìž…
+
+    return ApplyEffectToTargetActor(
+        TargetActor,
+        BaseDamageEffectClass,
+        Level,
+        Mags,
+        Chance
+    );
 }

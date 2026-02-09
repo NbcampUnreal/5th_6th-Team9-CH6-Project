@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -21,7 +21,7 @@ public:
     UWeaponGameplayAbility();
 
 protected:
-    /** ÇöÀç AbilitySpecÀÇ SourceObject¿¡¼­ ¹«±â(AWeaponBase)¸¦ °¡Á®¿Â´Ù */
+    /** í˜„ì¬ AbilitySpecì˜ SourceObjectì—ì„œ ë¬´ê¸°(AWeaponBase)ë¥¼ ê°€ì ¸ì˜¨ë‹¤ */
     UFUNCTION(BlueprintCallable, Category = "Weapon|GA")
     AWeaponBase* GetWeaponFromSourceObject() const;
 
@@ -31,7 +31,7 @@ protected:
         return Cast<T>(GetWeaponFromSourceObject());
     }
 
-    /** (°øÅë À¯Æ¿) TargetActorÀÇ ASC¿¡ GE Àû¿ë (SetByCaller Áö¿ø, Chance Áö¿ø) */
+    /** (ê³µí†µ ìœ í‹¸) TargetActorì˜ ASCì— GE ì ìš© (SetByCaller ì§€ì›, Chance ì§€ì›) */
     bool ApplyEffectToTargetActor(
         AActor* TargetActor,
         TSubclassOf<UGameplayEffect> EffectClass,
@@ -40,5 +40,19 @@ protected:
         float Chance = 1.0f
     ) const;
 
-    UAbilitySystemComponent* GetTargetASC(AActor* TargetActor) const;
+    /** âœ… FIX: "ê¸°ë³¸ ë°ë¯¸ì§€"ë¥¼ ëª¨ë“  ë¬´ê¸°ê°€ ê³µí†µìœ¼ë¡œ ì ìš©í•  ìˆ˜ ìˆê²Œ ìƒìœ„ í—¬í¼ ì¶”ê°€ */
+    bool ApplyBaseDamageToTargetActor(
+        AActor* TargetActor,
+        float DamageValue,
+        float Level = 1.0f,
+        float Chance = 1.0f
+    ) const;
+
+protected:
+    /** âœ… FIX: ê¸°ë³¸ ë°ë¯¸ì§€ì— ì‚¬ìš©í•  GE (ê¸°ë³¸ê°’: UGE_WeaponDamage_Instant) */
+    UPROPERTY(EditDefaultsOnly, Category = "Weapon|GA|Damage")
+    TSubclassOf<UGameplayEffect> BaseDamageEffectClass;
+
+public:
+    static FGameplayTag GetDataDamageTag();
 };
