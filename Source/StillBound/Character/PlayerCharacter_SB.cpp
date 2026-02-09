@@ -23,10 +23,10 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	//  ÇÃ·¹ÀÌ¾î AttributeSet »ý¼º
+	//  ï¿½Ã·ï¿½ï¿½Ì¾ï¿½ AttributeSet ï¿½ï¿½ï¿½ï¿½
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 
-	//  InitStats´Â ÀÌ Å¬·¡½º·Î
+	//  InitStatsï¿½ï¿½ ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	AttributeSetClassForInitStats = UPlayerAttributeSet::StaticClass();
 
 	GetCapsuleComponent()->InitCapsuleSize(42.0f, 97.0f);
@@ -87,7 +87,7 @@ void APlayerCharacter_SB::BeginPlay()
 		MiniMapCapture->TextureTarget = MiniMapTarget;
 	}
 
-	// ? ½ÃÀÛ ¹«±â ÀåÂø
+	// ? ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	EquipStartingWeapon();
 
 }
@@ -109,17 +109,17 @@ void APlayerCharacter_SB::EquipStartingWeapon()
 	AWeaponBase* NewWeapon = GetWorld()->SpawnActor<AWeaponBase>(StartingWeaponClass, Params);
 	if (!NewWeapon) return;
 
-	// 1) ¼Õ ¼ÒÄÏ¿¡ ºÎÂø
+	// 1) ï¿½ï¿½ ï¿½ï¿½ï¿½Ï¿ï¿½ ï¿½ï¿½ï¿½ï¿½
 	NewWeapon->AttachToComponent(
 		MeshComp,
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 		StartingWeaponSocketName
 	);
 
-	// (¼±ÅÃ) ¹«±â Ãæµ¹ ²ô°í ½ÍÀ¸¸é
+	// (ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ ï¿½æµ¹ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	// NewWeapon->SetActorEnableCollision(false);
 
-	// 2) ASC¿¡ ¹«±â GA/GE ºÎ¿© (Spec.SourceObject=this(weapon) Æ÷ÇÔ)
+	// 2) ASCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ GA/GE ï¿½Î¿ï¿½ (Spec.SourceObject=this(weapon) ï¿½ï¿½ï¿½ï¿½)
 	NewWeapon->Equip(this, AbilitySystemComponent);
 
 	EquippedWeapon = NewWeapon;
@@ -323,7 +323,9 @@ void APlayerCharacter_SB::DropItem(UItemBase* ItemToDrop, const int32 QuantityTo
 
 		const int32 RemovedQuantity = PlayerInventory->RemoveAmountOfItem(ItemToDrop, QuantityToDrop);
 
-		APickup* Pickup = GetWorld()->SpawnActor<APickup>(APickup::StaticClass(), SpawnTransform, SpawnParams);
+		if (!PickupClass) return;
+
+		APickup* Pickup = GetWorld()->SpawnActor<APickup>(PickupClass, SpawnTransform, SpawnParams);
 
 		Pickup->InitializeDrop(ItemToDrop, RemovedQuantity);
 	}

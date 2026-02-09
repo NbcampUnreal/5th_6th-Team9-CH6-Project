@@ -34,6 +34,7 @@ class UInventoryComponent;
 class IInteractionInterface;
 class AWeaponBase;
 class USB_UIManager;
+class APickup;
 
 UCLASS()
 class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB
@@ -63,6 +64,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Interaction")
 	TScriptInterface<IInteractionInterface> TargetInteractable;
 
+	UPROPERTY(EditDefaultsOnly, Category="Drop")
+	TSubclassOf<APickup> PickupClass;
+
 public:
 	float InteractionCheckFrequency;
 
@@ -82,23 +86,23 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void Die();
 
-	// ===== ½ÃÀÛ ¹«±â ¼¼ÆÃ (BP¿¡¼­ ÁöÁ¤) =====
+	// ===== ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (BPï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½) =====
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SB|Weapon")
 	TSubclassOf<AWeaponBase> StartingWeaponClass;
 
-	// Ä³¸¯ÅÍ ½ºÄÌ·¹Å»¸Þ½Ã(¼Õ)¿¡ ¸¸µç ¼ÒÄÏ¸í
+	// Ä³ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì·ï¿½Å»ï¿½Þ½ï¿½(ï¿½ï¿½)ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ï¸ï¿½
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SB|Weapon")
 	FName StartingWeaponSocketName = TEXT("WeaponSocket");
 
-	// ·±Å¸ÀÓ ÀåÂøµÈ ¹«±â
+	// ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "SB|Weapon")
 	TObjectPtr<AWeaponBase> EquippedWeapon;
 
-	// ? PC°¡ ÇöÀç ¹«±â¸¦ °¡Á®°¥ ¼ö ÀÖ°Ô Getter Á¦°ø
+	// ? PCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½â¸¦ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö°ï¿½ Getter ï¿½ï¿½ï¿½ï¿½
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	AWeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
 
-	void EquipStartingWeapon(); // Ãß°¡
+	void EquipStartingWeapon(); // ï¿½ß°ï¿½
 
 
 
