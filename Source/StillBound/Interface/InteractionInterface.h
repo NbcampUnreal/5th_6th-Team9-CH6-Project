@@ -79,17 +79,6 @@ public:
 	void EndInteract();
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
 	void Interact(class APlayerCharacter_SB* PlayerCharacter);
-/*
-	virtual void BeginFocus();
-	virtual void EndFocus();
-	virtual void BeginInteract();
-	virtual void EndInteract();
-	virtual void Interact(APlayerCharacter_SB* PlayerCharacter);
-*/
-
-	//// 인터페이스에는 변수(FInteractableData)를 직접 선언하면 안 됩니다!
-	// 이 줄은 삭제하고, 대신 각 클래스(NPC, 아이템)가 직접 변수를 갖도록 해야 합니다.
-	// FInteractableData InteractableData;
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
 	FInteractableData GetInteractableData();
