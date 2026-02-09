@@ -331,16 +331,6 @@ void APlayerCharacter_SB::EndInteract()
 	InteractionData.bIsInteracting = false;
 	GetWorldTimerManager().ClearTimer(TimerHandle_Interaction);
 
-	InteractionData.CurrentInteractable = nullptr;
-	TargetInteractable = nullptr;
-
-	if (auto* PC = Cast<APlayerController_SB>(GetController()))
-	{
-		if (PC->UIManager)
-		{
-			PC->UIManager->HideInteractionWidget();
-		}
-	}
 }
 
 void APlayerCharacter_SB::Interact()
