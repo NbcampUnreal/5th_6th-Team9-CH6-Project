@@ -227,7 +227,7 @@ void APlayerCharacter_SB::FoundInteractable(AActor* NewInteractable)
 	if (InteractionData.CurrentInteractable)
 	{
 		TargetInteractable = InteractionData.CurrentInteractable;
-		//TargetInteractable->EndFocus();
+	
 		IInteractionInterface::Execute_EndFocus(TargetInteractable.GetObject());
 	}
 
@@ -240,13 +240,11 @@ void APlayerCharacter_SB::FoundInteractable(AActor* NewInteractable)
 	USB_UIManager* UI = PC->UIManager;
 	if(!UI) return;
 
-	//UI->UpdateInteractionWidget(&TargetInteractable->InteractableData);
 
-	//TargetInteractable->BeginFocus();
 	if (TargetInteractable.GetObject())
 	{
 		FInteractableData Data = IInteractionInterface::Execute_GetInteractableData(TargetInteractable.GetObject());
-		UI->UpdateInteractionWidget(&Data);
+		UI->UpdateInteractionWidget(Data);
 		IInteractionInterface::Execute_BeginFocus(TargetInteractable.GetObject());
 
 	}
@@ -255,16 +253,16 @@ void APlayerCharacter_SB::FoundInteractable(AActor* NewInteractable)
 
 void APlayerCharacter_SB::NoInteractableFound()
 {
-	if (IsInteracting())
+	if (InteractionData.bIsInteracting && !InteractionData.CurrentInteractable)
 	{
-		GetWorldTimerManager().ClearTimer(TimerHandle_Interaction);
+		EndInteract();
+		return;
 	}
 
 	if (InteractionData.CurrentInteractable)
 	{
 		if (IsValid(TargetInteractable.GetObject()))
 		{
-			//TargetInteractable->EndFocus();
 			IInteractionInterface::Execute_EndFocus(TargetInteractable.GetObject());
 		}
 
@@ -283,17 +281,30 @@ void APlayerCharacter_SB::NoInteractableFound()
 
 void APlayerCharacter_SB::BeginInteract()
 {
+
 	InteractionData.bIsInteracting = true;
 	//verify nothing has changed with the interactble state since beginning interaction
 	PerformInteractionCheck();
+
+	if (!InteractionData.CurrentInteractable || !IsValid(TargetInteractable.GetObject()))
+	{
+		if (auto* PC = Cast<APlayerController_SB>(GetController()))
+		{
+			if (PC->UIManager)
+			{
+				PC->UIManager->HideInteractionWidget();
+			}
+		}
+		return;
+	}
+
+	
+
 
 	if (InteractionData.CurrentInteractable)
 	{
 		if (IsValid(TargetInteractable.GetObject()))
 		{
-
-			//TargetInteractable->BeginInteract();
-
 			IInteractionInterface::Execute_BeginInteract(TargetInteractable.GetObject());
 			FInteractableData TargetData = IInteractionInterface::Execute_GetInteractableData(TargetInteractable.GetObject());
 			if (FMath::IsNearlyZero(TargetData.InteractionDuration, 0.1f))
@@ -328,8 +339,10 @@ void APlayerCharacter_SB::EndInteract()
 
 	if (auto* PC = Cast<APlayerController_SB>(GetController()))
 	{
-		PC->SetShowMouseCursor(false);
-		PC->SetInputMode(FInputModeGameOnly());
+		if (PC->UIManager)
+		{
+			PC->UIManager->HideInteractionWidget();
+		}
 	}
 }
 
@@ -396,9 +409,8 @@ void APlayerCharacter_SB::UpdateInteractionWidget() const
 		USB_UIManager* UI = PC->UIManager;
 		if (!UI) return;
 
-		//UI->UpdateInteractionWidget(&TargetInteractable->InteractableData);
 		FInteractableData Data = IInteractionInterface::Execute_GetInteractableData(InteractableObject);
-		UI->UpdateInteractionWidget(&Data);
+		UI->UpdateInteractionWidget(Data);
 	}
 }
 
