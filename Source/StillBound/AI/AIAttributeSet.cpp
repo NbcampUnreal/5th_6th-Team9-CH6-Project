@@ -2,6 +2,9 @@
 
 #include "AI/AIAttributeSet.h"
 #include "GameplayEffectExtension.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "GameplayTagContainer.h"
+#include "AbilitySystemComponent.h"
 #include "AI/EnemyCharacter.h"
 
 
@@ -60,10 +63,33 @@ void UAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 					GetOwningActor() ? GetOwningActor()->HasAuthority() : -1
 				);
 
-				if (AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(GetOwningActor()))
+				AActor* Owner = GetOwningActor();
+				if (!Owner || !Owner->HasAuthority())
 				{
-					Enemy->HandleDeath();
+					return;
 				}
+
+				UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Owner);
+				if (!ASC)
+				{
+					return;
+				}
+
+				const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Enemy.State.Dead"));
+				const FGameplayTag DeathEventTag = FGameplayTag::RequestGameplayTag(TEXT("Event.Enemy.Death"));
+
+				if (ASC->HasMatchingGameplayTag(DeadTag))
+				{
+					return;
+				}
+
+				ASC->AddLooseGameplayTag(DeadTag);
+
+				FGameplayEventData EventData;
+				EventData.EventTag = DeathEventTag;
+				EventData.Target = Owner;
+
+				UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, DeathEventTag, EventData);
 			}
 		}
 	}
