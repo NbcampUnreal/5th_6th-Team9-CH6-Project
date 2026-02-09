@@ -25,9 +25,9 @@ UWeaponGameplayAbility::UWeaponGameplayAbility()
 
 FGameplayTag UWeaponGameplayAbility::GetDataDamageTag() // 
 {
-    static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TEXT("Data.Damage"), /*ErrorIfNotFound*/ false);
+    static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TEXT("Data.EnemyDamage"), /*ErrorIfNotFound*/ false);
     ensureMsgf(Tag.IsValid(),
-        TEXT("[GAS] GameplayTag 'Data.Damage' is not registered. Add it in Project Settings > GameplayTags or DefaultGameplayTags.ini"));
+        TEXT("[GAS] GameplayTag 'Data.EnemyDamage' is not registered. Add it in Project Settings > GameplayTags or DefaultGameplayTags.ini"));
     return Tag;
 }
 
@@ -58,8 +58,14 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     float Chance
 ) const
 {
+    // [DEBUG ADD HERE] 입력 검증 로그
     if (!TargetActor || !EffectClass)
     {
+        if (bDebugGE)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[GE] Invalid args Target=%s Effect=%s"),
+                *GetNameSafe(TargetActor), *GetNameSafe(EffectClass));
+        }
         return false;
     }
 
@@ -73,11 +79,21 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     }
 
     UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
-    if (!SourceASC) { return false; }
+    if (!SourceASC) {
+        if (bDebugGE)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[GE] SourceASC is null"));
+        }
+        return false;
+    }
     UAbilitySystemComponent* TargetASC =
         UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
     if (!TargetASC)
     {
+        if (bDebugGE)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[GE] TargetASC is null Target=%s"), *GetNameSafe(TargetActor));
+        }
         return false;
     }
 
@@ -97,6 +113,10 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(EffectClass, Level, Ctx);
     if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid()) // ✅ Data 유효성까지 체크
     {
+        if (bDebugGE)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[GE] MakeOutgoingSpec failed Effect=%s"), *GetNameSafe(EffectClass));
+        }
         return false;
     }
 
@@ -106,6 +126,12 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
         if (KVP.Key.IsValid())
         {
             SpecHandle.Data->SetSetByCallerMagnitude(KVP.Key, KVP.Value);
+
+            if (bDebugGE)
+            {
+                UE_LOG(LogTemp, Log, TEXT("[GE] SetByCaller %s=%.2f Effect=%s Target=%s"),
+                    *KVP.Key.ToString(), KVP.Value, *GetNameSafe(EffectClass), *GetNameSafe(TargetActor));
+            }
         }
     }
 

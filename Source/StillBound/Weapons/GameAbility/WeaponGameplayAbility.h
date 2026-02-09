@@ -53,6 +53,10 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Weapon|GA|Damage")
     TSubclassOf<UGameplayEffect> BaseDamageEffectClass;
 
+    // [DEBUG ADD HERE] GE 적용 디버그 로그 토글
+    UPROPERTY(EditDefaultsOnly, Category = "Weapon|GA|Debug")
+    bool bDebugGE = true;
+
 public:
     static FGameplayTag GetDataDamageTag();
 };

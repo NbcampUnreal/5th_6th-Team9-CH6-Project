@@ -323,8 +323,14 @@ bool UWeaponMeleeAttackAbilityBase::ApplyOnHitEffects(AActor* TargetActor)
 
     // ✅ FIX: "공통 베이스 데미지"는 WeaponGameplayAbility의 공통 함수로 적용
     bAnyApplied |= ApplyBaseDamageToTargetActor(TargetActor, TempBaseDamage, /*Level*/ 1.f, /*Chance*/ 1.f);
-
    
+    // 베이스 데미지 적용
+    const bool bBaseApplied = ApplyBaseDamageToTargetActor(TargetActor, TempBaseDamage, 1.f, 1.f);
+    bAnyApplied |= bBaseApplied;
+    // [DEBUG ADD HERE] "몬스터에 데미지를 넣는지" 확인 로그
+    UE_LOG(LogTemp, Warning, TEXT("[HIT] Target=%s BaseDamage=%.1f Applied=%d"),
+        *GetNameSafe(TargetActor), TempBaseDamage, bBaseApplied);
+
     // ✅ FIX: 프로파일 OnHitTargetEffects는 "특수효과 전용" (출혈/화염/빙결/스턴 등)
     //        BP에서 GE만 추가해도 그대로 동작하게 유지
     for (const FOnHitGameplayEffectSpec& Spec : CachedProfile.OnHitTargetEffects)
@@ -337,6 +343,7 @@ bool UWeaponMeleeAttackAbilityBase::ApplyOnHitEffects(AActor* TargetActor)
         // 실수로 OnHit에 기본 데미지 GE를 넣었다면 중복 데미지 방지
         if (BaseDamageEffectClass && Spec.Effect && Spec.Effect->IsChildOf(BaseDamageEffectClass))
         {
+            UE_LOG(LogTemp, Log, TEXT("[HIT] Skip duplicate damage GE: %s"), *GetNameSafe(Spec.Effect));
             continue;
         }
 
