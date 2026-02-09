@@ -105,35 +105,19 @@ void AEnemyCharacter::ApplyVisualFromDataTable()
 	}
 
 	AttackMontage = FoundRow->AttackMontage;
-
-	UE_LOG(LogTemp, Warning, TEXT("[EnemyCharacter] Applied DT EnemyId=%d (RowName=%s) Mesh=%s AnimClass=%s Montage=%s"),
-		EnemyId,
-		*FoundRowName.ToString(),
-		*GetNameSafe(FoundRow->Mesh),
-		*GetNameSafe(FoundRow->AnimClass.Get()),
-		*GetNameSafe(FoundRow->AttackMontage));
+	DeathMontage = FoundRow->DeathMontage;
 }
 
 void AEnemyCharacter::HandleDeath()
 {
-	UE_LOG(LogTemp, Error, TEXT("[Enemy] HandleDeath CALLED. Auth=%d Name=%s"),
-		HasAuthority(), *GetName());
-
 	if (bIsDead) return;
 	bIsDead = true;
 
 	if (AAIController* AIC = Cast<AAIController>(GetController()))
 	{
-		AIC->StopMovement();
 		AIC->UnPossess();
 	}
 
 	SetActorEnableCollision(false);
-
-	if (UCharacterMovementComponent* Move = GetCharacterMovement())
-	{
-		Move->DisableMovement();
-	}
-
-	SetLifeSpan(3.0f);
+	SetLifeSpan(0.1f);
 }
