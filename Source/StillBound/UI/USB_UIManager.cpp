@@ -165,7 +165,7 @@ void USB_UIManager::HideInteractionWidget()
 		InteractionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
-void USB_UIManager::UpdateInteractionWidget(const FInteractableData* InteractableData)
+void USB_UIManager::UpdateInteractionWidget(const FInteractableData& InteractableData)
 {
 	if (InteractionWidget)
 	{
