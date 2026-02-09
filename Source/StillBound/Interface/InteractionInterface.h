@@ -18,7 +18,7 @@ enum class EInteractableType : uint8
 	Container UMETA(DisplayName = "Container")
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FInteractableData
 {
 	GENERATED_BODY()
@@ -68,11 +68,21 @@ class STILLBOUND_API IInteractionInterface
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	virtual void BeginFocus();
-	virtual void EndFocus();
-	virtual void BeginInteract();
-	virtual void EndInteract();
-	virtual void Interact(APlayerCharacter_SB* PlayerCharacter);
 
-	FInteractableData InteractableData;
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	void BeginFocus();
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	void EndFocus();
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	void BeginInteract();
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	void EndInteract();
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	void Interact(class APlayerCharacter_SB* PlayerCharacter);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	FInteractableData GetInteractableData();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	float GetInteractionDistance();
 };

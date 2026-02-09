@@ -67,7 +67,7 @@ public:
 
 	void ShowInteractionWidget();
 	void HideInteractionWidget();
-	void UpdateInteractionWidget(const FInteractableData* InteractableData);
+	void UpdateInteractionWidget(const FInteractableData& InteractableData);
 
 protected:
 	///===============================================================================
