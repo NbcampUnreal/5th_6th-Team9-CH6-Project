@@ -56,6 +56,25 @@ void UAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 				*GetNameSafe(GetOwningActor())
 			);
 
+			if (Reduced > 0.f && NewHealth > 0.f)
+			{
+				AActor* Owner = GetOwningActor();
+				if (Owner)
+				{
+
+					const FGameplayTag GetHitEventTag = FGameplayTag::RequestGameplayTag(TEXT("Event.Enemy.GetHit"));
+
+					FGameplayEventData HitEvent;
+					HitEvent.EventTag = GetHitEventTag;
+					HitEvent.Target = Owner;
+					HitEvent.EventMagnitude = Reduced;
+					HitEvent.Instigator = Data.EffectSpec.GetContext().GetInstigator();
+					HitEvent.OptionalObject = Data.EffectSpec.GetContext().GetSourceObject();
+
+					UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, GetHitEventTag, HitEvent);
+				}
+			}
+
 			if (NewHealth <= 0.f)
 			{
 

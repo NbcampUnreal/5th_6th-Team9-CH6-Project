@@ -262,7 +262,7 @@ bool APlayerController_SB::ActivateAbilityAttack(const FGameplayTag& InputTag) c
 void APlayerController_SB::Attack()
 {
 
-	/*ACharacter* Char = GetCharacter();
+	ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
 
 	if (Char->bIsCrouched)
@@ -271,13 +271,8 @@ void APlayerController_SB::Attack()
 	}
 
 	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Attack"));
-	ActivateAbility(AttackTag);*/
+	ActivateAbility(AttackTag);
 
-	// ? 공격은 이제 "캐릭터 AbilityTags"가 아니라 "무기 InputTag"로 라우팅
-	const FGameplayTag AttackInputTag =
-		FGameplayTag::RequestGameplayTag(TEXT("InputTag.Attack.Primary"));
-
-	ActivateAbilityAttack(AttackInputTag);
 
 }
 
