@@ -41,7 +41,7 @@ void APlayerController_SB::SetupInputComponent()
 	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &ThisClass::BeginInteract);
 	EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Completed, this, &ThisClass::EndInteract);
 
-	EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &ThisClass::Attack);
+	EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &ThisClass::Attack);
 	EnhancedInputComponent->BindAction(SkillAction, ETriggerEvent::Triggered, this, &ThisClass::Skill);
 	EnhancedInputComponent->BindAction(Hotbar1Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar1);
 	EnhancedInputComponent->BindAction(Hotbar2Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar2);
@@ -270,10 +270,20 @@ void APlayerController_SB::Attack()
 		Char->UnCrouch();
 	}
 
-	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Attack"));
-	ActivateAbility(AttackTag);
+	//const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Attack"));
+	//ActivateAbility(AttackTag);
 
+	 // 무기 기본 공격 입력 태그로 발동
+	const FGameplayTag InputAttackPrimary =
+		FGameplayTag::RequestGameplayTag(TEXT("InputTag.Attack.Primary"), /*ErrorIfNotFound*/ false);
 
+	if (!InputAttackPrimary.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PC] Attack: InputTag.Attack.Primary is not registered"));
+		return;
+	}
+
+	ActivateAbilityAttack(InputAttackPrimary);
 }
 
 void APlayerController_SB::Skill()

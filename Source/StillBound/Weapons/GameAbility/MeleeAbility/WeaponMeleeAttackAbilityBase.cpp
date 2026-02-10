@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Weapons/GameAbility/MeleeAbility/WeaponMeleeAttackAbilityBase.h"
@@ -10,14 +10,17 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
+#include "DrawDebugHelpers.h"
+
+
 
 UWeaponMeleeAttackAbilityBase::UWeaponMeleeAttackAbilityBase()
 {
-    // ½Ì±ÛÇÃ·¹ÀÌ: LocalOnly À¯Áö
+    // ì‹±ê¸€í”Œë ˆì´: LocalOnly ìœ ì§€
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalOnly;
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
-    // ±âº» ÅÂ±×(ÆÄ»ı¿¡¼­ µ¤¾î½áµµ µÊ)
+    // ê¸°ë³¸ íƒœê·¸(íŒŒìƒì—ì„œ ë®ì–´ì¨ë„ ë¨)
     AttackTag = FGameplayTag::RequestGameplayTag(TEXT("Attack.Light"), false);
 }
 
@@ -45,7 +48,7 @@ void UWeaponMeleeAttackAbilityBase::ActivateAbility(
 
     HitActors.Reset();
 
-    // ¸ùÅ¸ÁÖ ¾øÀ¸¸é: 1È¸ ½ºÀ¬¸¸ ÇÏ°í Á¾·á (Å×½ºÆ®/ÇÁ·ÎÅäÅ¸ÀÔ¿¡ À¯¿ë)
+    // ëª½íƒ€ì£¼ ì—†ìœ¼ë©´: 1íšŒ ìŠ¤ìœ•ë§Œ í•˜ê³  ì¢…ë£Œ (í…ŒìŠ¤íŠ¸/í”„ë¡œí† íƒ€ì…ì— ìœ ìš©)
     if (!CachedProfile.Montage)
     {
         DoSweepTick();
@@ -189,13 +192,13 @@ void UWeaponMeleeAttackAbilityBase::DoSweepTick()
     {
         return;
     }
-    // ? ADDED: ½ºÀ¬ µğ¹ö±× µå·Î¿ì (Start/End °áÁ¤µÈ "Á÷ÈÄ"°¡ ÃÖÀû À§Ä¡)
+    // ? ADDED: ìŠ¤ìœ• ë””ë²„ê·¸ ë“œë¡œìš° (Start/End ê²°ì •ëœ "ì§í›„"ê°€ ìµœì  ìœ„ì¹˜)
     {
-        // È÷Æ® °á°ú¿¡ µû¶ó »ö ¹Ù²Ù°í ½ÍÀ¸¸é SweepMulti ÈÄ·Î ¿Å°Üµµ µÊ.
-        const float LifeTime = 0.1f;        // 0.1~0.2 Á¤µµ¸é ¿¬Å¸ ½Ã ±ËÀûÀÌ º¸ÀÓ
+        // íˆíŠ¸ ê²°ê³¼ì— ë”°ë¼ ìƒ‰ ë°”ê¾¸ê³  ì‹¶ìœ¼ë©´ SweepMulti í›„ë¡œ ì˜®ê²¨ë„ ë¨.
+        const float LifeTime = 0.1f;        // 0.1~0.2 ì •ë„ë©´ ì—°íƒ€ ì‹œ ê¶¤ì ì´ ë³´ì„
         const float Thickness = 2.0f;
 
-        // 1) Áß½É¼±
+        // 1) ì¤‘ì‹¬ì„ 
         DrawDebugLine(
             World,
             Start,
@@ -207,7 +210,7 @@ void UWeaponMeleeAttackAbilityBase::DoSweepTick()
             Thickness
         );
 
-        // 2) ½ºÀ¬ ¹İÁö¸§(¾ç ³¡ ±¸Ã¼)
+        // 2) ìŠ¤ìœ• ë°˜ì§€ë¦„(ì–‘ ë êµ¬ì²´)
         DrawDebugSphere(
             World,
             Start,
@@ -228,7 +231,7 @@ void UWeaponMeleeAttackAbilityBase::DoSweepTick()
             LifeTime
         );
 
-        // 3) ¹æÇâ È­»ìÇ¥(¼±ÅÃ)
+        // 3) ë°©í–¥ í™”ì‚´í‘œ(ì„ íƒ)
         DrawDebugDirectionalArrow(
             World,
             Start,
@@ -247,7 +250,7 @@ void UWeaponMeleeAttackAbilityBase::DoSweepTick()
     Params.AddIgnoredActor(Avatar);
     Params.AddIgnoredActor(Weapon);
 
-    // °¢ ¾×ÅÍ 1È¸¸¸ ¶§¸®±â ¿É¼ÇÀÌ¸é, ÀÌ¹Ì ¸ÂÀº ¾×ÅÍ´Â ¹«½Ã
+    // ê° ì•¡í„° 1íšŒë§Œ ë•Œë¦¬ê¸° ì˜µì…˜ì´ë©´, ì´ë¯¸ ë§ì€ ì•¡í„°ëŠ” ë¬´ì‹œ
     if (CachedSweep.bHitEachActorOnce)
     {
         for (const TWeakObjectPtr<AActor>& HitA : HitActors)
@@ -285,13 +288,13 @@ void UWeaponMeleeAttackAbilityBase::DoSweepTick()
             continue;
         }
 
-        // Áßº¹ ¹æÁö
-        if (CachedSweep.bHitEachActorOnce && HitActors.Contains(HitActor))
+        // TSet<TWeakObjectPtr<AActor>>ì™€ ë¹„êµë¥¼ ëª…í™•íˆ (ì•”ì‹œ ë³€í™˜ ì˜ì¡´ ì œê±°)
+        if (CachedSweep.bHitEachActorOnce && HitActors.Contains(TWeakObjectPtr<AActor>(HitActor)))
         {
             continue;
         }
 
-        // ¿ÂÈı Àû¿ë
+        // ì˜¨í› ì ìš©
         const bool bApplied = ApplyOnHitEffects(HitActor);
         if (bApplied)
         {
@@ -315,8 +318,35 @@ bool UWeaponMeleeAttackAbilityBase::ApplyOnHitEffects(AActor* TargetActor)
 
     bool bAnyApplied = false;
 
+    // âœ… FIX: ë² ì´ìŠ¤ ë°ë¯¸ì§€ëŠ” ì„ì‹œë¡œ 10 ê³ ì • (ë‚˜ì¤‘ì— DBì—ì„œ ê°€ì ¸ì˜¤ë„ë¡ êµì²´ ì˜ˆì •)
+    constexpr float TempBaseDamage = 10.f;
+
+    // âœ… FIX: "ê³µí†µ ë² ì´ìŠ¤ ë°ë¯¸ì§€"ëŠ” WeaponGameplayAbilityì˜ ê³µí†µ í•¨ìˆ˜ë¡œ ì ìš©
+    bAnyApplied |= ApplyBaseDamageToTargetActor(TargetActor, TempBaseDamage, /*Level*/ 1.f, /*Chance*/ 1.f);
+   
+    // ë² ì´ìŠ¤ ë°ë¯¸ì§€ ì ìš©
+    const bool bBaseApplied = ApplyBaseDamageToTargetActor(TargetActor, TempBaseDamage, 1.f, 1.f);
+    bAnyApplied |= bBaseApplied;
+    // [DEBUG ADD HERE] "ëª¬ìŠ¤í„°ì— ë°ë¯¸ì§€ë¥¼ ë„£ëŠ”ì§€" í™•ì¸ ë¡œê·¸
+    UE_LOG(LogTemp, Warning, TEXT("[HIT] Target=%s BaseDamage=%.1f Applied=%d"),
+        *GetNameSafe(TargetActor), TempBaseDamage, bBaseApplied);
+
+    // âœ… FIX: í”„ë¡œíŒŒì¼ OnHitTargetEffectsëŠ” "íŠ¹ìˆ˜íš¨ê³¼ ì „ìš©" (ì¶œí˜ˆ/í™”ì—¼/ë¹™ê²°/ìŠ¤í„´ ë“±)
+    //        BPì—ì„œ GEë§Œ ì¶”ê°€í•´ë„ ê·¸ëŒ€ë¡œ ë™ì‘í•˜ê²Œ ìœ ì§€
     for (const FOnHitGameplayEffectSpec& Spec : CachedProfile.OnHitTargetEffects)
     {
+        if (!Spec.Effect)
+        {
+            continue;
+        }
+
+        // ì‹¤ìˆ˜ë¡œ OnHitì— ê¸°ë³¸ ë°ë¯¸ì§€ GEë¥¼ ë„£ì—ˆë‹¤ë©´ ì¤‘ë³µ ë°ë¯¸ì§€ ë°©ì§€
+        if (BaseDamageEffectClass && Spec.Effect && Spec.Effect->IsChildOf(BaseDamageEffectClass))
+        {
+            UE_LOG(LogTemp, Log, TEXT("[HIT] Skip duplicate damage GE: %s"), *GetNameSafe(Spec.Effect));
+            continue;
+        }
+
         bAnyApplied |= ApplyEffectToTargetActor(
             TargetActor,
             Spec.Effect,
@@ -346,6 +376,6 @@ void UWeaponMeleeAttackAbilityBase::OnMontageInterrupted()
 
 void UWeaponMeleeAttackAbilityBase::OnMontageBlendOut()
 {
-    // ºí·»µå¾Æ¿ô¿¡¼­ Á¾·á½ÃÅ°°í ½ÍÀ¸¸é ¿©±â¼­ EndAbility È£ÃâÇØµµ µÊ.
-    // Áö±İÀº Completed/Interrupted°¡ Ã³¸®ÇÏ¹Ç·Î ºñ¿öµÖµµ OK.
+    // ë¸”ë Œë“œì•„ì›ƒì—ì„œ ì¢…ë£Œì‹œí‚¤ê³  ì‹¶ìœ¼ë©´ ì—¬ê¸°ì„œ EndAbility í˜¸ì¶œí•´ë„ ë¨.
+    // ì§€ê¸ˆì€ Completed/Interruptedê°€ ì²˜ë¦¬í•˜ë¯€ë¡œ ë¹„ì›Œë‘¬ë„ OK.
 }

@@ -77,6 +77,9 @@ void APlayerCharacter_SB::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// ? ½ÃÀÛ ¹«±â ÀåÂø
+	EquipStartingWeapon();
+
 	if (!AbilitySystemComponent) return;
 
 	const UPlayerAttributeSet* AS = AbilitySystemComponent->GetSet<UPlayerAttributeSet>();
@@ -94,19 +97,28 @@ void APlayerCharacter_SB::BeginPlay()
 		MiniMapCapture->TextureTarget = MiniMapTarget;
 	}
 
-	// ? ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+
+
 	EquipStartingWeapon();
+
 
 }
 
 void APlayerCharacter_SB::EquipStartingWeapon()
 {
-	if (EquippedWeapon) return;
-	if (!StartingWeaponClass) return;
-	if (!AbilitySystemComponent) return;
+	UE_LOG(LogTemp, Warning, TEXT("[Equip] Called. Pawn=%s HasAuthority=%d StartingWeaponClass=%s"),
+		*GetName(), HasAuthority(), *GetNameSafe(StartingWeaponClass));
+
+	if (EquippedWeapon) { UE_LOG(LogTemp, Warning, TEXT("[Equip] Already equipped")); return; }
+	if (!StartingWeaponClass) { UE_LOG(LogTemp, Error, TEXT("[Equip] StartingWeaponClass is NULL (BP µðÆúÆ®/GM DefaultPawnClass È®ÀÎ)")); return; }
+	if (!AbilitySystemComponent) { UE_LOG(LogTemp, Error, TEXT("[Equip] ASC is NULL")); return; }
 
 	USkeletalMeshComponent* MeshComp = GetMesh();
-	if (!MeshComp) return;
+	if (!MeshComp) { UE_LOG(LogTemp, Error, TEXT("[Equip] MeshComp NULL")); return; }
+
+	UE_LOG(LogTemp, Warning, TEXT("[Equip] SocketExists(%s)=%d"),
+		*StartingWeaponSocketName.ToString(),
+		MeshComp->DoesSocketExist(StartingWeaponSocketName));
 
 	FActorSpawnParameters Params;
 	Params.Owner = this;
@@ -123,7 +135,7 @@ void APlayerCharacter_SB::EquipStartingWeapon()
 		StartingWeaponSocketName
 	);
 
-	// (ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ ï¿½æµ¹ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	// (ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ ï¿½æµ¹ ï¿½ï¿½ï¿?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	// NewWeapon->SetActorEnableCollision(false);
 
 	// 2) ASCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ GA/GE ï¿½Î¿ï¿½ (Spec.SourceObject=this(weapon) ï¿½ï¿½ï¿½ï¿½)
@@ -206,7 +218,7 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 						FoundInteractable(HitActor);
 					}
 
-					// ï¿½î¶² ï¿½ï¿½ì°£ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+					// ï¿½î¶² ï¿½ï¿½ì°£ï¿½ï¿?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 					// ï¿½Ø¿ï¿½ ï¿½Ö´ï¿½ NoInteractableFound()ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Çµï¿½ï¿½ï¿½ Å»ï¿½ï¿½
 					return;
 				}
@@ -314,7 +326,7 @@ void APlayerCharacter_SB::BeginInteract()
 					TimerHandle_Interaction,
 					this,
 					&APlayerCharacter_SB::Interact,
-					TargetData.InteractionDuration, // ï¿½Þ¾Æ¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½
+					TargetData.InteractionDuration, // ï¿½Þ¾Æ¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ ï¿½ï¿½ï¿?
 					false);
 			}
 		}
