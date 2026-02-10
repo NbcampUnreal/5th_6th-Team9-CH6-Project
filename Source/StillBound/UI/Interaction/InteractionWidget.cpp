@@ -18,22 +18,22 @@ void UInteractionWidget::NativeConstruct()
     CurrentInteractionDuration = 0.f;
 }
 
-void UInteractionWidget::UpdateWidget(const FInteractableData* InteractableData)
+void UInteractionWidget::UpdateWidget(const FInteractableData& InteractableData)
 {
-    switch (InteractableData->InteractableType)
+    switch (InteractableData.InteractableType)
     {
     case EInteractableType::Pickup:
         KeyPressText->SetText(FText::FromString("Press"));
         InteractionProgressBar->SetVisibility(ESlateVisibility::Collapsed);
 
-        if (InteractableData->Quantity < 2)
+        if (InteractableData.Quantity < 2)
         {
             QuantityText->SetVisibility(ESlateVisibility::Collapsed);
         }
         else
         {
             QuantityText->SetText(FText::Format(NSLOCTEXT("InteractionWidget", "QuantityText", "x{0}"),
-                InteractableData->Quantity));
+                InteractableData.Quantity));
             QuantityText->SetVisibility(ESlateVisibility::Visible);
 
         }
@@ -54,8 +54,8 @@ void UInteractionWidget::UpdateWidget(const FInteractableData* InteractableData)
     default:;
     }
 
-    ActionText->SetText(InteractableData->Action);
-    NameText->SetText(InteractableData->Name);
+    ActionText->SetText(InteractableData.Action);
+    NameText->SetText(InteractableData.Name);
 }
 
 float UInteractionWidget::UpdateInteractionProgress()

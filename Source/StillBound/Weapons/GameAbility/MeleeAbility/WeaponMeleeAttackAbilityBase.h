@@ -39,8 +39,8 @@ protected:
 
     // 프로파일 캐시 (struct는 UPROPERTY로 보관 불가하니 멤버로 보관)
     bool bHasCachedProfile = false;
-    struct FWeaponAttackProfile CachedProfile;
-    struct FMeleeSweepConfig CachedSweep;
+    FWeaponAttackProfile CachedProfile;
+    FMeleeSweepConfig CachedSweep;
 
 protected:
     virtual void ActivateAbility(

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Interface/InteractionInterface.h"
+#include "Interface/InteractionInterface.h"
 #include "InterfaceTestActor.generated.h"
 
 UCLASS()
@@ -18,7 +19,10 @@ protected:
 	UStaticMeshComponent* Mesh;
 
 	UPROPERTY(EditInstanceOnly, Category="Text Actor")
-	FInteractableData InsntanceInteractableData;
+	FInteractableData InstanceInteractableData;
+
+	UPROPERTY(EditAnywhere, Category = "Interaction")
+	FInteractableData InteractableData;
 
 	virtual void BeginPlay() override;
 
@@ -27,5 +31,7 @@ protected:
 	virtual void BeginInteract();
 	virtual void EndInteract();
 	virtual void Interact(APlayerCharacter_SB* PlayerCharacter);
+
+	virtual FInteractableData GetInteractableData_Implementation() override;
 
 };

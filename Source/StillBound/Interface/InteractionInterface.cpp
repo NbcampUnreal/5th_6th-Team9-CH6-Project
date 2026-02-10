@@ -6,6 +6,7 @@
 
 // Add default functionality here for any IInteractionInterface functions that are not pure virtual.
 
+/*
 void IInteractionInterface::BeginFocus()
 {
 }
@@ -25,3 +26,4 @@ void IInteractionInterface::EndInteract()
 void IInteractionInterface::Interact(APlayerCharacter_SB* PlayerCharacter)
 {
 }
+*/

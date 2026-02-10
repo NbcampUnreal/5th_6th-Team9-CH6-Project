@@ -82,6 +82,7 @@ private:
 	TObjectPtr<UInputAction> ToggleMenuAction;
 
 
+
 private:
 	/// =========================
 	/// Input Handlers
@@ -106,6 +107,7 @@ private:
 	bool ActivateAbilityAttack(const FGameplayTag& InputTag) const;
 
 	void Attack();
+
 	void Skill();
 
 	void SelectHotbar1();
