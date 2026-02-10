@@ -3,6 +3,7 @@
 #include "AI/EnemyAIController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/TargetPoint.h"
+#include "Character/PlayerCharacter_SB.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Sight.h"
 #include "Perception/AISense_Sight.h"
@@ -84,15 +85,25 @@ void AEnemyAIController::OnTargetPerceptionUpdated(AActor* Actor, FAIStimulus St
 		return;
 	}
 
-	if (Stimulus.WasSuccessfullySensed())
+	if (Actor == GetPawn())
 	{
-		BlackboardComponent->SetValueAsObject(TargetActorKey, Actor);
+		return;
 	}
-	else
+
+	if (!Stimulus.WasSuccessfullySensed())
 	{
 		if (BlackboardComponent->GetValueAsObject(TargetActorKey) == Actor)
 		{
 			BlackboardComponent->ClearValue(TargetActorKey);
 		}
+		return;
 	}
+
+	APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(Actor);
+	if (!Player)
+	{
+		return;
+	}
+
+	BlackboardComponent->SetValueAsObject(TargetActorKey, Player);
 }

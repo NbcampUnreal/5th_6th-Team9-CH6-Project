@@ -25,10 +25,10 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	//  ÇÃ·¹ÀÌ¾î AttributeSet »ý¼º
+	//  ï¿½Ã·ï¿½ï¿½Ì¾ï¿½ AttributeSet ï¿½ï¿½ï¿½ï¿½
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 
-	//  InitStats´Â ÀÌ Å¬·¡½º·Î
+	//  InitStatsï¿½ï¿½ ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	AttributeSetClassForInitStats = UPlayerAttributeSet::StaticClass();
 
 	GetCapsuleComponent()->InitCapsuleSize(42.0f, 97.0f);
@@ -77,6 +77,9 @@ void APlayerCharacter_SB::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// ? ½ÃÀÛ ¹«±â ÀåÂø
+	EquipStartingWeapon();
+
 	if (!AbilitySystemComponent) return;
 
 	const UPlayerAttributeSet* AS = AbilitySystemComponent->GetSet<UPlayerAttributeSet>();
@@ -94,19 +97,28 @@ void APlayerCharacter_SB::BeginPlay()
 		MiniMapCapture->TextureTarget = MiniMapTarget;
 	}
 
-	// ? ½ÃÀÛ ¹«±â ÀåÂø
+
+
 	EquipStartingWeapon();
+
 
 }
 
 void APlayerCharacter_SB::EquipStartingWeapon()
 {
-	if (EquippedWeapon) return;
-	if (!StartingWeaponClass) return;
-	if (!AbilitySystemComponent) return;
+	UE_LOG(LogTemp, Warning, TEXT("[Equip] Called. Pawn=%s HasAuthority=%d StartingWeaponClass=%s"),
+		*GetName(), HasAuthority(), *GetNameSafe(StartingWeaponClass));
+
+	if (EquippedWeapon) { UE_LOG(LogTemp, Warning, TEXT("[Equip] Already equipped")); return; }
+	if (!StartingWeaponClass) { UE_LOG(LogTemp, Error, TEXT("[Equip] StartingWeaponClass is NULL (BP µðÆúÆ®/GM DefaultPawnClass È®ÀÎ)")); return; }
+	if (!AbilitySystemComponent) { UE_LOG(LogTemp, Error, TEXT("[Equip] ASC is NULL")); return; }
 
 	USkeletalMeshComponent* MeshComp = GetMesh();
-	if (!MeshComp) return;
+	if (!MeshComp) { UE_LOG(LogTemp, Error, TEXT("[Equip] MeshComp NULL")); return; }
+
+	UE_LOG(LogTemp, Warning, TEXT("[Equip] SocketExists(%s)=%d"),
+		*StartingWeaponSocketName.ToString(),
+		MeshComp->DoesSocketExist(StartingWeaponSocketName));
 
 	FActorSpawnParameters Params;
 	Params.Owner = this;
@@ -116,17 +128,17 @@ void APlayerCharacter_SB::EquipStartingWeapon()
 	AWeaponBase* NewWeapon = GetWorld()->SpawnActor<AWeaponBase>(StartingWeaponClass, Params);
 	if (!NewWeapon) return;
 
-	// 1) ¼Õ ¼ÒÄÏ¿¡ ºÎÂø
+	// 1) ï¿½ï¿½ ï¿½ï¿½ï¿½Ï¿ï¿½ ï¿½ï¿½ï¿½ï¿½
 	NewWeapon->AttachToComponent(
 		MeshComp,
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 		StartingWeaponSocketName
 	);
 
-	// (¼±ÅÃ) ¹«±â Ãæµ¹ ²ô°í ½ÍÀ¸¸é
+	// (ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ ï¿½æµ¹ ï¿½ï¿½ï¿?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	// NewWeapon->SetActorEnableCollision(false);
 
-	// 2) ASC¿¡ ¹«±â GA/GE ºÎ¿© (Spec.SourceObject=this(weapon) Æ÷ÇÔ)
+	// 2) ASCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ GA/GE ï¿½Î¿ï¿½ (Spec.SourceObject=this(weapon) ï¿½ï¿½ï¿½ï¿½)
 	NewWeapon->Equip(this, AbilitySystemComponent);
 
 	EquippedWeapon = NewWeapon;
@@ -194,20 +206,20 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 		{
 			AActor* HitActor = TraceHit.GetActor();
 
-			// [ÇÙ½É] 1. ³ª ÀÚ½Å(this)ÀÌ¸é ¹«½Ã, 2. À¯È¿ÇÑ ¾×ÅÍÀÎÁö È®ÀÎ
+			// [ï¿½Ù½ï¿½] 1. ï¿½ï¿½ ï¿½Ú½ï¿½(this)ï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½, 2. ï¿½ï¿½È¿ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
 			if (HitActor && HitActor != this)
 			{
-				// ÀÎÅÍÆäÀÌ½º¸¦ °¡Áö°í ÀÖ´Â?
+				// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½?
 				if (HitActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
 				{
-					// »õ·Î¿î ¾×ÅÍ-> FoundInteractable È£Ãâ
+					// ï¿½ï¿½ï¿½Î¿ï¿½ ï¿½ï¿½ï¿½ï¿½-> FoundInteractable È£ï¿½ï¿½
 					if (HitActor != InteractionData.CurrentInteractable)
 					{
 						FoundInteractable(HitActor);
 					}
 
-					// ¾î¶² °æ¿ì°£¿¡ ÀÎÅÍÆäÀÌ½º°¡ ÀÖ´Â ¾×ÅÍ¸¦ ºÃÀ¸´Ï
-					// ¹Ø¿¡ ÀÖ´Â NoInteractableFound()°¡ ½ÇÇà ¾È µÇµµ·Ï Å»Ãâ
+					// ï¿½î¶² ï¿½ï¿½ì°£ï¿½ï¿?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+					// ï¿½Ø¿ï¿½ ï¿½Ö´ï¿½ NoInteractableFound()ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Çµï¿½ï¿½ï¿½ Å»ï¿½ï¿½
 					return;
 				}
 			}
@@ -281,8 +293,6 @@ void APlayerCharacter_SB::NoInteractableFound()
 
 void APlayerCharacter_SB::BeginInteract()
 {
-
-	InteractionData.bIsInteracting = true;
 	//verify nothing has changed with the interactble state since beginning interaction
 	PerformInteractionCheck();
 
@@ -298,8 +308,7 @@ void APlayerCharacter_SB::BeginInteract()
 		return;
 	}
 
-	
-
+	InteractionData.bIsInteracting = true;
 
 	if (InteractionData.CurrentInteractable)
 	{
@@ -317,7 +326,7 @@ void APlayerCharacter_SB::BeginInteract()
 					TimerHandle_Interaction,
 					this,
 					&APlayerCharacter_SB::Interact,
-					TargetData.InteractionDuration, // ¹Þ¾Æ¿Â µ¥ÀÌÅÍÀÇ ½Ã°£ »ç¿ë
+					TargetData.InteractionDuration, // ï¿½Þ¾Æ¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ ï¿½ï¿½ï¿?
 					false);
 			}
 		}
@@ -370,11 +379,11 @@ void APlayerCharacter_SB::Interact()
 		return;
 	}
 
-	// 1. NPCÀÎÁö È®ÀÎ
+	// 1. NPCï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
 	UDialogueComponent* DialogueComp = TargetActor->FindComponentByClass<UDialogueComponent>();
 	if (DialogueComp)
 	{
-		// »óÈ£ÀÛ¿ë ÇÁ·ÒÇÁÆ® ¼û±è
+		// ï¿½ï¿½È£ï¿½Û¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
 		if (auto* PC = Cast<APlayerController_SB>(GetController()))
 		{
 			if (PC->UIManager)
@@ -383,14 +392,14 @@ void APlayerCharacter_SB::Interact()
 			}
 		}
 
-		// Á¾·á ¹ÙÀÎµù
+		// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Îµï¿½
 		DialogueComp->OnDialogueEnded.RemoveAll(this);
 		DialogueComp->OnDialogueEnded.AddDynamic(this, &APlayerCharacter_SB::EndInteract);
 	
 		InteractionData.bIsInteracting = true;
 	}
 		IInteractionInterface::Execute_Interact(TargetActor, this);
-		//¾ÆÀÌÅÛÀÏ¶§
+		//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¶ï¿½
 		if (DialogueComp == nullptr)
 		{
 			EndInteract();
@@ -428,7 +437,9 @@ void APlayerCharacter_SB::DropItem(UItemBase* ItemToDrop, const int32 QuantityTo
 
 		const int32 RemovedQuantity = PlayerInventory->RemoveAmountOfItem(ItemToDrop, QuantityToDrop);
 
-		APickup* Pickup = GetWorld()->SpawnActor<APickup>(APickup::StaticClass(), SpawnTransform, SpawnParams);
+		if (!PickupClass) return;
+
+		APickup* Pickup = GetWorld()->SpawnActor<APickup>(PickupClass, SpawnTransform, SpawnParams);
 
 		Pickup->InitializeDrop(ItemToDrop, RemovedQuantity);
 	}
