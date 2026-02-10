@@ -77,7 +77,7 @@ void APlayerCharacter_SB::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// ? ½ÃÀÛ ¹«±â ÀåÂø
+	// ? ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	EquipStartingWeapon();
 
 	if (!AbilitySystemComponent) return;
@@ -110,7 +110,7 @@ void APlayerCharacter_SB::EquipStartingWeapon()
 		*GetName(), HasAuthority(), *GetNameSafe(StartingWeaponClass));
 
 	if (EquippedWeapon) { UE_LOG(LogTemp, Warning, TEXT("[Equip] Already equipped")); return; }
-	if (!StartingWeaponClass) { UE_LOG(LogTemp, Error, TEXT("[Equip] StartingWeaponClass is NULL (BP µðÆúÆ®/GM DefaultPawnClass È®ÀÎ)")); return; }
+	if (!StartingWeaponClass) { UE_LOG(LogTemp, Error, TEXT("[Equip] StartingWeaponClass is NULL (BP ï¿½ï¿½ï¿½ï¿½Æ®/GM DefaultPawnClass È®ï¿½ï¿½)")); return; }
 	if (!AbilitySystemComponent) { UE_LOG(LogTemp, Error, TEXT("[Equip] ASC is NULL")); return; }
 
 	USkeletalMeshComponent* MeshComp = GetMesh();
@@ -135,7 +135,7 @@ void APlayerCharacter_SB::EquipStartingWeapon()
 		StartingWeaponSocketName
 	);
 
-	// (ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ ï¿½æµ¹ ï¿½ï¿½ï¿?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	// (ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ ï¿½æµ¹ ï¿½ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	// NewWeapon->SetActorEnableCollision(false);
 
 	// 2) ASCï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ GA/GE ï¿½Î¿ï¿½ (Spec.SourceObject=this(weapon) ï¿½ï¿½ï¿½ï¿½)
@@ -218,7 +218,7 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 						FoundInteractable(HitActor);
 					}
 
-					// ï¿½î¶² ï¿½ï¿½ì°£ï¿½ï¿?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+					// ï¿½î¶² ï¿½ï¿½ì°£ï¿½ï¿½?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 					// ï¿½Ø¿ï¿½ ï¿½Ö´ï¿½ NoInteractableFound()ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Çµï¿½ï¿½ï¿½ Å»ï¿½ï¿½
 					return;
 				}
@@ -326,7 +326,7 @@ void APlayerCharacter_SB::BeginInteract()
 					TimerHandle_Interaction,
 					this,
 					&APlayerCharacter_SB::Interact,
-					TargetData.InteractionDuration, // ï¿½Þ¾Æ¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ ï¿½ï¿½ï¿?
+					TargetData.InteractionDuration, // ï¿½Þ¾Æ¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½?
 					false);
 			}
 		}
