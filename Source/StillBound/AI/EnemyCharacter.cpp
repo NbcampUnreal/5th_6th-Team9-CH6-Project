@@ -122,3 +122,9 @@ void AEnemyCharacter::HandleDeath()
 	SetActorEnableCollision(false);
 	SetLifeSpan(0.1f);
 }
+
+void AEnemyCharacter::SetEnemyId(int32 NewId)
+{
+	EnemyId = NewId;
+	ApplyVisualFromDataTable();
+}
