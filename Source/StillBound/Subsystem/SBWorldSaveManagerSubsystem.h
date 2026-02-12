@@ -5,7 +5,10 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Data/SBWorldIndexSaveGame.h"
+#include "Data/SBWorldSaveGame.h"
 #include "SBWorldSaveManagerSubsystem.generated.h"
+
+class UAbilitySystemComponent;
 
 UCLASS()
 class STILLBOUND_API USBWorldSaveManagerSubsystem : public UGameInstanceSubsystem
@@ -28,6 +31,27 @@ public:
     UFUNCTION(BlueprintCallable)
     FString GetCurrentSlotId() const { return CurrentSlotId; }
 
+    UFUNCTION(BlueprintCallable)
+    bool TouchWorldLastPlayed(const FString& SlotId);
+
+    UFUNCTION(BlueprintCallable)
+    bool TouchCurrentWorldLastPlayed();
+
+    // World Save / Load
+    UFUNCTION(BlueprintCallable)
+    bool SaveCurrentWorldFromPawn(APawn* Pawn);
+
+    // 콘솔 로드용
+    UFUNCTION(BlueprintCallable)
+    bool LoadCurrentWorldToPawn(APawn* Pawn);
+
+    // 스폰 위치 보정용
+    UFUNCTION(BlueprintCallable)
+    bool LoadCurrentWorldTransformToPawn(APawn* Pawn);
+
+    UFUNCTION(BlueprintCallable)
+    bool LoadCurrentWorldAttributesToPawn(APawn* Pawn);
+
 private:
     static const FString IndexSlotName;
 
@@ -35,6 +59,15 @@ private:
     void SaveIndex(USBWorldIndexSaveGame* Index);
     FString MakeUniqueWorldName(const TArray<FSBWorldSlotMeta>& List, FString BaseName) const;
 
+    USBWorldSaveGame* LoadOrCreateWorldSave(const FString& SlotId);
+    bool SaveWorldSave(const FString& SlotId, USBWorldSaveGame* WorldSave);
+
+    // 3단계 helpers
+    bool FillPlayerAttributesFromPawn(APawn* Pawn, USBWorldSaveGame* Save);
+    bool ApplyPlayerAttributesToPawn(APawn* Pawn, const USBWorldSaveGame* Save);
+    void UpdateIndexMetaFromWorldSave(const FString& SlotId, const USBWorldSaveGame* WorldSave);
+
+private:
     UPROPERTY()
     FString CurrentSlotId;
 };
