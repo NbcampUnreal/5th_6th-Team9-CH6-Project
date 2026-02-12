@@ -30,4 +30,16 @@ struct STILLBOUND_API FEnemyVisualRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Combat")
 	TObjectPtr<UAnimMontage> GetHitMontage = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Size", meta = (ClampMin = "0.01", UIMin = "0.01"))
+	float MeshScale = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Size", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float CapsuleRadius = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Size", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float CapsuleHalfHeight = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Size")
+	FVector MeshRelativeLocation = FVector::ZeroVector;
 };
