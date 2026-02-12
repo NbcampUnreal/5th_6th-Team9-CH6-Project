@@ -184,14 +184,14 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 
 	if (LookDirection > 0)
 	{
-		DrawDebugLine(
+		/*DrawDebugLine(
 			GetWorld(),
 			TraceStart,
 			TraceEnd,
 			FColor::Red,
 			false,
 			1.f,
-			2.f);
+			2.f);*/
 
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(this);

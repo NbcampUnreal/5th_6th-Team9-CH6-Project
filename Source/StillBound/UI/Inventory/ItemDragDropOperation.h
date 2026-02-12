@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/DragDropOperation.h"
+#include "Data/InventoryTypes.h"
 #include "ItemDragDropOperation.generated.h"
 
 class UItemBase;
@@ -18,5 +19,11 @@ public:
 
 	UPROPERTY()
 	UInventoryComponent* SourceInventory;
+
+	UPROPERTY()
+	ESlotContainer SourceContainer;
+
+	UPROPERTY()
+	int32 SourceIndex = INDEX_NONE;
 	
 };
