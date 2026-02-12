@@ -34,6 +34,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Enemy|Combat")
     UAnimMontage* GetDeathMontage() const { return DeathMontage; }
 
+    UFUNCTION(BlueprintCallable, Category = "Enemy|Combat")
+    UAnimMontage* GetGetHitMontage() const { return GetHitMontage; }
+
     UFUNCTION(BlueprintCallable, Category = "Enemy|Data")
     void ApplyVisualFromDataTable();
 
@@ -52,6 +55,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Enemy|Combat")
     TObjectPtr<UAnimMontage> DeathMontage;
+
+    UPROPERTY(VisibleAnywhere, Category = "Enemy|Combat")
+    TObjectPtr<UAnimMontage> GetHitMontage;
 
     UPROPERTY(VisibleAnywhere, Category = "AI")
     bool bIsDead = false;

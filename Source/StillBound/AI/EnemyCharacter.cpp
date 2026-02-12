@@ -106,6 +106,7 @@ void AEnemyCharacter::ApplyVisualFromDataTable()
 
 	AttackMontage = FoundRow->AttackMontage;
 	DeathMontage = FoundRow->DeathMontage;
+	GetHitMontage = FoundRow->GetHitMontage;
 }
 
 void AEnemyCharacter::HandleDeath()

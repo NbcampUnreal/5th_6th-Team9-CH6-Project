@@ -11,6 +11,7 @@
 class UInputMappingContext;
 class UInputAction;
 class USB_UIManager;
+class AMapWorldManager;
 struct FInputActionValue;
 
 UCLASS()
@@ -81,6 +82,17 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|ToggleMenu")
 	TObjectPtr<UInputAction> ToggleMenuAction;
 
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|UI")
+	TObjectPtr<UInputAction> FullMapAction;
+
+	/// =========================
+	/// UI Map
+	/// =========================
+	UPROPERTY()
+	TObjectPtr<AMapWorldManager> MapWorldManager;
+public:
+	virtual void Tick(float DeltaTime) override;
+
 
 private:
 	/// =========================
@@ -106,6 +118,7 @@ private:
 	bool ActivateAbilityAttack(const FGameplayTag& InputTag) const;
 
 	void Attack();
+
 	void Skill();
 
 	void SelectHotbar1();
@@ -120,6 +133,8 @@ public:
 	virtual void BeginPlay() override;
 
 	virtual void OnPossess(APawn* InPawn) override;
+
+	APlayerController_SB();
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|UI")
 	TSubclassOf<class USB_UIManager> UIManagerClass;
@@ -136,5 +151,8 @@ public:
 	UFUNCTION()
 	void OnStaminaChanged(float OldValue, float NewValue);
 
+private:
+
+	void ToggleFullMap();
 
 };
