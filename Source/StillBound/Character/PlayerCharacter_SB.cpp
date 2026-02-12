@@ -1,3 +1,5 @@
+
+
 #include "Character/PlayerCharacter_SB.h"
 #include "AbilitySystemComponent.h"
 #include "Camera/CameraComponent.h"
@@ -13,8 +15,8 @@
 #include "Components/SlateWrapperTypes.h"
 #include "Character/PlayerController_SB.h"
 #include "Items/Pickup.h"
+
 #include "Weapons/WeaponBase.h"
-#include "Subsystem/SBWorldSaveManagerSubsystem.h"
 
 
 APlayerCharacter_SB::APlayerCharacter_SB()
@@ -62,11 +64,8 @@ void APlayerCharacter_SB::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
-	{
-		const bool bOk = Sub->LoadCurrentWorldAttributesToPawn(this);
-		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldAttributesToPawn -> %d"), bOk);
-	}
+	// ? ���� ���� ����
+	EquipStartingWeapon();
 
 	if (!AbilitySystemComponent) return;
 

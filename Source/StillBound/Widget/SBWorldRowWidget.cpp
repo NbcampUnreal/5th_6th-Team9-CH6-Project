@@ -18,7 +18,7 @@ void USBWorldRowWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 
     if (TXT_LastPlayed)
     {
-        TXT_LastPlayed->SetText(FText::FromString(Data->LastPlayed.ToString(TEXT("%Y-%m-%d %H:%M"))));
+        TXT_LastPlayed->SetText(FText::FromString(Data->LastPlayed.ToString()));
     }
 }
 

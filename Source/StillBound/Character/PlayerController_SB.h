@@ -113,7 +113,7 @@ private:
 
 	bool ActivateAbility(const FGameplayTag& AbilityTag) const;
 
-	// ? ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (InputTag ï¿½ï¿½ï¿½)
+	// ? ¹«±â °ø°Ý Àü¿ë (InputTag ±â¹Ý)
 	UFUNCTION(BlueprintCallable, Category = "SB|Abilities")
 	bool ActivateAbilityAttack(const FGameplayTag& InputTag) const;
 
@@ -136,8 +136,6 @@ public:
 
 	APlayerController_SB();
 
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
 	UPROPERTY(EditDefaultsOnly, Category = "SB|UI")
 	TSubclassOf<class USB_UIManager> UIManagerClass;
 
@@ -157,9 +155,4 @@ private:
 
 	void ToggleFullMap();
 
-	UFUNCTION(Exec)
-	void SB_SaveWorld();
-	
-	UFUNCTION(Exec)
-	void SB_LoadWorld();
 };
