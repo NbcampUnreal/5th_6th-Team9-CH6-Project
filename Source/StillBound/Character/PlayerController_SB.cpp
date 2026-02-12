@@ -13,6 +13,11 @@
 #include "Character/PlayerCharacter_SB.h"
 #include "Character/PlayerAttributeSet.h"
 #include "UI/USB_UIManager.h"
+#include "UI/UW_UIHUD.h"
+#include "UI/UW_Minimap.h"
+#include "UI/Map/MapWorldManager.h"
+#include "UI/UW_FullMap.h"
+#include "EngineUtils.h"
 #include "Weapons/WeaponBase.h"
 
 void APlayerController_SB::SetupInputComponent()
@@ -48,9 +53,11 @@ void APlayerController_SB::SetupInputComponent()
 	EnhancedInputComponent->BindAction(Hotbar3Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar3);
 	EnhancedInputComponent->BindAction(Hotbar4Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar4);
 	EnhancedInputComponent->BindAction(ToggleMenuAction, ETriggerEvent::Started, this, &ThisClass::ToggleMenu);
+	EnhancedInputComponent->BindAction(FullMapAction,ETriggerEvent::Started,this,&ThisClass::ToggleFullMap);
 }
 
 #pragma region ========================= Input - Movement =========================
+
 
 void APlayerController_SB::Move(const FInputActionValue& Value)
 {
@@ -317,6 +324,7 @@ void APlayerController_SB::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// UIManager 생성
 	if (UIManagerClass)
 	{
 		UIManager = NewObject<USB_UIManager>(this, UIManagerClass);
@@ -324,6 +332,22 @@ void APlayerController_SB::BeginPlay()
 		{
 			UIManager->Init(this);
 		}
+	}
+
+	// MapWorldManager 찾기 (월드에 배치된 것 1개)
+	for (TActorIterator<AMapWorldManager> It(GetWorld()); It; ++It)
+	{
+		MapWorldManager = *It;
+		break;
+	}
+
+	if (!MapWorldManager)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Minimap] MapWorldManager NOT FOUND"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Minimap] MapWorldManager FOUND: %s"), *MapWorldManager->GetName());
 	}
 }
 
@@ -343,6 +367,12 @@ void APlayerController_SB::OnPossess(APawn* InPawn)
 
 }
 
+APlayerController_SB::APlayerController_SB()
+{
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = true;
+}
+
 void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
 {
 	if (!UIManager)
@@ -358,4 +388,56 @@ void APlayerController_SB::OnStaminaChanged(float OldValue, float NewValue)
 	if (!UIManager) return;
 	UIManager->UpdateHUD();
 }
+
+void APlayerController_SB::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (!IsLocalController()) return;
+	if (!MapWorldManager || !UIManager) return;
+
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn) return;
+
+	const FVector WorldLoc = ControlledPawn->GetActorLocation();
+	const FVector2D UV = MapWorldManager->WorldToUV(WorldLoc);
+
+	if (UUW_UIHUD* HUD = UIManager->GetHUD())
+	{
+		if (UUW_Minimap* MinimapWidget = HUD->GetMiniMapWidget())
+		{
+			FVector2D PlayerUV = UV;
+			PlayerUV.X = FMath::Clamp(PlayerUV.X, 0.f, 1.f);
+			PlayerUV.Y = FMath::Clamp(PlayerUV.Y, 0.f, 1.f);
+
+			MinimapWidget->UpdateMapOffset(PlayerUV);
+
+			const float Yaw = ControlledPawn->GetActorRotation().Yaw;
+			MinimapWidget->UpdatePlayerIconRotation(Yaw);
+		}
+	}
+
+	if (UUW_FullMap* FullMap = UIManager->GetFullMapWidget())
+	{
+		if (FullMap->IsInViewport())
+		{
+			FVector2D PlayerUV = UV;
+			PlayerUV.X = FMath::Clamp(PlayerUV.X, 0.f, 1.f);
+			PlayerUV.Y = FMath::Clamp(PlayerUV.Y, 0.f, 1.f);
+
+			FullMap->UpdatePlayerPosition(PlayerUV);
+		}
+	}
+}
+
+void APlayerController_SB::ToggleFullMap()
+{
+	UE_LOG(LogTemp, Warning, TEXT("FullMap Key Pressed"));
+
+	if (UIManager)
+	{
+		UIManager->ToggleFullMap();
+	}
+}
+
 #pragma endregion 
