@@ -19,6 +19,7 @@
 #include "Items/Pickup.h"
 
 #include "Weapons/WeaponBase.h"
+#include "Subsystem/SBWorldSaveManagerSubsystem.h"
 
 
 APlayerCharacter_SB::APlayerCharacter_SB()
@@ -76,6 +77,12 @@ FInteractableData APlayerCharacter_SB::GetInteractableData_Implementation()
 void APlayerCharacter_SB::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
+	{
+		const bool bOk = Sub->LoadCurrentWorldAttributesToPawn(this);
+		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldAttributesToPawn -> %d"), bOk);
+	}
 
 	if (!AbilitySystemComponent) return;
 

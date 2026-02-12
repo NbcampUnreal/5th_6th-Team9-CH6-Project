@@ -121,6 +121,8 @@ public:
 
 	virtual void OnPossess(APawn* InPawn) override;
 
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 	UPROPERTY(EditDefaultsOnly, Category = "SB|UI")
 	TSubclassOf<class USB_UIManager> UIManagerClass;
 
@@ -136,5 +138,9 @@ public:
 	UFUNCTION()
 	void OnStaminaChanged(float OldValue, float NewValue);
 
+	UFUNCTION(Exec)
+	void SB_SaveWorld();
 
+	UFUNCTION(Exec)
+	void SB_LoadWorld();
 };

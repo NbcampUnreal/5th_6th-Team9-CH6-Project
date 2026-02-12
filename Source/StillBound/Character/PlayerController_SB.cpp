@@ -14,6 +14,7 @@
 #include "Character/PlayerAttributeSet.h"
 #include "UI/USB_UIManager.h"
 #include "Weapons/WeaponBase.h"
+#include "Subsystem/SBWorldSaveManagerSubsystem.h"
 
 void APlayerController_SB::SetupInputComponent()
 {
@@ -307,6 +308,16 @@ void APlayerController_SB::BeginPlay()
 {
 	Super::BeginPlay();
 
+	bShowMouseCursor = false;
+	bEnableClickEvents = false;
+	bEnableMouseOverEvents = false;
+
+	FInputModeGameOnly Mode;
+	SetInputMode(Mode);
+
+	SetIgnoreMoveInput(false);
+	SetIgnoreLookInput(false);
+
 	if (UIManagerClass)
 	{
 		UIManager = NewObject<USB_UIManager>(this, UIManagerClass);
@@ -314,6 +325,12 @@ void APlayerController_SB::BeginPlay()
 		{
 			UIManager->Init(this);
 		}
+	}
+
+	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] CurrentSlotId = %s"), *Sub->GetCurrentSlotId());
+		Sub->TouchCurrentWorldLastPlayed();
 	}
 }
 
@@ -327,10 +344,14 @@ void APlayerController_SB::OnPossess(APawn* InPawn)
 	UPlayerAttributeSet* AS = Char->GetPlayerAttributeSet();
 	if (!AS) return;
 
-	// Delegate만 연결
 	AS->OnHealthChanged.AddDynamic(this, &ThisClass::OnHealthChanged);
 	AS->OnStaminaChanged.AddDynamic(this, &ThisClass::OnStaminaChanged);
 
+	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
+	{
+		const bool bOk = Sub->LoadCurrentWorldTransformToPawn(InPawn);
+		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldTransformToPawn -> %d"), bOk);
+	}
 }
 
 void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
@@ -349,3 +370,42 @@ void APlayerController_SB::OnStaminaChanged(float OldValue, float NewValue)
 	UIManager->UpdateHUD();
 }
 #pragma endregion 
+
+#pragma region ===== World Save =====
+
+void APlayerController_SB::SB_SaveWorld()
+{
+	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
+	{
+		const bool bOk = Sub->SaveCurrentWorldFromPawn(GetPawn());
+		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] SB_SaveWorld -> %d"), bOk);
+	}
+}
+
+void APlayerController_SB::SB_LoadWorld()
+{
+	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
+	{
+		const bool bOk = Sub->LoadCurrentWorldToPawn(GetPawn());
+		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] SB_LoadWorld -> %d"), bOk);
+	}
+}
+
+void APlayerController_SB::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	APawn* P = GetPawn();
+
+	if (P)
+	{
+		if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
+		{
+			const bool bSaved = Sub->SaveCurrentWorldFromPawn(P);
+			Sub->TouchCurrentWorldLastPlayed();
+			UE_LOG(LogTemp, Warning, TEXT("[Gameplay] AutoSave(EndPlay) -> %d"), bSaved);
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
+#pragma endregion
