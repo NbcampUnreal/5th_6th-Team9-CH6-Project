@@ -48,8 +48,6 @@ class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB, public IInt
 public:
 	APlayerCharacter_SB();
 
-	UTextureRenderTarget2D* GetMiniMapTarget() const { return MiniMapTarget; }
-
 	FORCEINLINE bool IsInteracting() const { return GetWorldTimerManager().IsTimerActive(TimerHandle_Interaction) || InteractionData.bIsInteracting;};
 
 	FORCEINLINE UInventoryComponent* GetInventory() const { return PlayerInventory; };
@@ -113,24 +111,12 @@ public:
 
 	void EquipStartingWeapon(); // �߰�
 
-
-
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;
 
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	TObjectPtr<UCameraComponent> FollowCamera;
-
-	//Minimap Camera
-	UPROPERTY(VisibleAnywhere, Category = "MiniMap")
-	TObjectPtr<USpringArmComponent> MiniMapArm;
-
-	UPROPERTY(VisibleAnywhere, Category = "MiniMap")
-	TObjectPtr<USceneCaptureComponent2D> MiniMapCapture;
-
-	UPROPERTY(EditDefaultsOnly, Category = "MiniMap")
-	TObjectPtr<UTextureRenderTarget2D> MiniMapTarget;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Death")
 	TObjectPtr<UAnimMontage> DeathMontage;

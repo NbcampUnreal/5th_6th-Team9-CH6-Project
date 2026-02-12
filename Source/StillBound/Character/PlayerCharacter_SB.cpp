@@ -7,8 +7,6 @@
 #include "Character/PlayerAttributeSet.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "Components/SceneCaptureComponent2D.h"
-#include "Engine/TextureRenderTarget2D.h"
 #include "Inventory/InventoryComponent.h"
 #include "Interface/InteractionInterface.h"
 #include "NPC/DialogueComponent.h"
@@ -48,20 +46,9 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 
-	//minimap camera
-	MiniMapArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("MiniMapArm"));
-	MiniMapArm->SetupAttachment(GetRootComponent());
-	MiniMapArm->SetRelativeRotation(FRotator(-90.f, 0, 0));
-	MiniMapArm->bDoCollisionTest = false;
-
-	MiniMapCapture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("MiniMapCapture"));
-	MiniMapCapture->SetupAttachment(MiniMapArm);
-	MiniMapCapture->ProjectionType = ECameraProjectionMode::Orthographic;
-
 	PlayerInventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("PlayerInventory"));
 	PlayerInventory->SetSlotsCapacity(20);
 	PlayerInventory->SetWeightCapacity(50.f);
-
 
 	InteractionCheckFrequency = 0.1f;
 	InteractionCheckDistance = 225.f;
@@ -90,14 +77,6 @@ void APlayerCharacter_SB::BeginPlay()
 	const float MH = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 
 	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
-
-
-	if (MiniMapTarget)
-	{
-		MiniMapCapture->TextureTarget = MiniMapTarget;
-	}
-
-
 
 	EquipStartingWeapon();
 
@@ -150,7 +129,6 @@ void APlayerCharacter_SB::EquipStartingWeapon()
 
 
 }
-
 
 void APlayerCharacter_SB::Tick(float DeltaSeconds)
 {
