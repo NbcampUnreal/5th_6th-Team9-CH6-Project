@@ -65,17 +65,21 @@ void AEnemyAIController::OnPossess(APawn* InPawn)
 		return;
 	}
 
-	//  Home 위치 저장 (배치 위치 기준 정찰)
 	const FVector Home = InPawn->GetActorLocation();
 	BlackboardComponent->SetValueAsVector(HomeLocationKey, Home);
 
 	BlackboardComponent->SetValueAsVector(PatrolLocationKey, Home);
 
-	// BT 실행
 	RunBehaviorTree(BehaviorTree);
 
-	UE_LOG(LogTemp, Warning, TEXT("[EnemyAIController] Possessed. HomeLocation=%s Radius=%.1f"),
-		*Home.ToString(), PatrolRadius);
+	GetWorldTimerManager().ClearTimer(ChaseRangeTimerHandle);
+	GetWorldTimerManager().SetTimer(
+		ChaseRangeTimerHandle,
+		this,
+		&ThisClass::CheckChaseRange,
+		ChaseRangeCheckInterval,
+		true
+	);
 }
 
 void AEnemyAIController::OnTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
@@ -106,4 +110,34 @@ void AEnemyAIController::OnTargetPerceptionUpdated(AActor* Actor, FAIStimulus St
 	}
 
 	BlackboardComponent->SetValueAsObject(TargetActorKey, Player);
+}
+
+void AEnemyAIController::CheckChaseRange()
+{
+	if (!BlackboardComponent)
+	{
+		return;
+	}
+
+	APawn* MyPawn = GetPawn();
+	if (!MyPawn)
+	{
+		return;
+	}
+
+	AActor* Target = Cast<AActor>(BlackboardComponent->GetValueAsObject(TargetActorKey));
+	if (!Target)
+	{
+		return;
+	}
+
+	const FVector Home = BlackboardComponent->GetValueAsVector(HomeLocationKey);
+	const float DistFromHome = FVector::Dist(MyPawn->GetActorLocation(), Home);
+
+	if (DistFromHome > MaxChaseRangeFromHome)
+	{
+		BlackboardComponent->ClearValue(TargetActorKey);
+		BlackboardComponent->SetValueAsVector(PatrolLocationKey, Home);
+		StopMovement();
+	}
 }

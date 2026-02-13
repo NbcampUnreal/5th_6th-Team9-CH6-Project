@@ -22,8 +22,7 @@ EBTNodeResult::Type UBTTask_EnemyAttack::ExecuteTask(UBehaviorTreeComponent& Own
 
 	if (!AttackAbilityClass) return EBTNodeResult::Failed;
 
-	UAbilitySystemComponent* SourceASC =
-		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwnerPawn);
+	UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwnerPawn);
 	if (!SourceASC) return EBTNodeResult::Failed;
 
 	const bool bActivated = SourceASC->TryActivateAbilityByClass(AttackAbilityClass);

@@ -41,10 +41,29 @@ void ANPCCharacter::BeginPlay()
 
 	if (DialogueComponent)
 	{
+		if (DialogueComponent->MainMenuDataTable)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[%s] MainMenu Table Name: %s"),
+				*NPCName, *DialogueComponent->MainMenuDataTable->GetName());
+		}
 		DialogueComponent->OnDialogueStarted.AddDynamic(this, &ANPCCharacter::OnDialogueStart);
 		DialogueComponent->OnDialogueUpdated.AddDynamic(this, &ANPCCharacter::OnDialogueUpdate);
 		DialogueComponent->OnDialogueEnded.AddDynamic(this, &ANPCCharacter::OnDialogueEnd);
 	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] DialogueComponent is NULL in BeginPlay!"), *NPCName);
+	}
+	if (DialogueWidgetClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] DialogueWidgetClass: %s"),
+			*NPCName, *DialogueWidgetClass->GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] DialogueWidgetClass is NULL!"), *NPCName);
+	}
+
 	
 }
 
@@ -168,28 +187,30 @@ ANPCAIController* ANPCCharacter::GetNPCAIController() const
 
 void ANPCCharacter::OnDialogueStart(const FDialogueRow& DialogueData)
 {
-	// Widget 생성 (한 번만)
-	if (!DialogueWidget && DialogueWidgetClass)
+	if (!DialogueComponent) return;
+
+	if (!DialogueWidget)
 	{
+		if (!DialogueWidgetClass) return;
+
+		UE_LOG(LogTemp, Log, TEXT("[%s] Creating new DialogueWidget"), *NPCName);
 		DialogueWidget = CreateWidget<UDialogueWidget>(GetWorld(), DialogueWidgetClass);
 
-		if (DialogueWidget)
-		{
-			// 옵션 클릭 이벤트 바인딩
-			DialogueWidget->OnOptionClicked.AddDynamic(this, &ANPCCharacter::OnOptionSelected);
-		}
+		if (!DialogueWidget) return;
+
+		// 옵션 클릭 이벤트 바인딩
+		DialogueWidget->OnOptionClicked.AddDynamic(this, &ANPCCharacter::OnOptionSelected);
 	}
+	DialogueWidget->SetDialogueComponent(DialogueComponent);
 
 	// Widget 표시 및 업데이트
-	if (DialogueWidget)
+	if (!DialogueWidget->IsInViewport())
 	{
-		if (!DialogueWidget->IsInViewport())
-		{
-			DialogueWidget->AddToViewport(100);  // 높은 ZOrder
-		}
-
-		DialogueWidget->ShowDialogue(DialogueData);
+		UE_LOG(LogTemp, Log, TEXT("[%s] Adding DialogueWidget to viewport"), *NPCName);
+		DialogueWidget->AddToViewport(100);
 	}
+	DialogueWidget->ShowDialogue(DialogueData);
+
 }
 
 void ANPCCharacter::OnDialogueUpdate(const FDialogueRow& DialogueData)
