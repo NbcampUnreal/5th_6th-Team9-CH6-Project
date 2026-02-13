@@ -17,6 +17,8 @@
 #include "UI/UW_Minimap.h"
 #include "UI/Map/MapWorldManager.h"
 #include "UI/UW_FullMap.h"
+#include "Landscape.h"
+#include "EngineUtils.h"
 #include "EngineUtils.h"
 #include "Weapons/WeaponBase.h"
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
@@ -325,7 +327,6 @@ void APlayerController_SB::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// UIManager 생성
 
 	bShowMouseCursor = false;
 	bEnableClickEvents = false;
@@ -362,6 +363,17 @@ void APlayerController_SB::BeginPlay()
 		UE_LOG(LogTemp, Warning, TEXT("[Minimap] MapWorldManager FOUND: %s"), *MapWorldManager->GetName());
 	}
 
+	for (TActorIterator<ALandscape> It(GetWorld()); It; ++It)
+	{
+		ALandscape* Landscape = *It;
+
+		FBox Bounds = Landscape->GetComponentsBoundingBox(true);
+
+		UE_LOG(LogTemp, Warning, TEXT("Landscape Bounds Min: %s"), *Bounds.Min.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("Landscape Bounds Max: %s"), *Bounds.Max.ToString());
+
+		break;
+	}
 
 	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
 	{

@@ -20,7 +20,8 @@ public class StillBound : ModuleRules
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
-			"Slate",
+            "Landscape",
+            "Slate",
             "SlateCore",
             "MoviePlayer",
 
