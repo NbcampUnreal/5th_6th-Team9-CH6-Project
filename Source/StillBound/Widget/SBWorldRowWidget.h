@@ -26,5 +26,6 @@ protected:
     UPROPERTY(meta = (BindWidgetOptional)) UTextBlock* TXT_LastPlayed;
 
     virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
+
     virtual void NativeOnItemSelectionChanged(bool bIsSelected) override;
 };
