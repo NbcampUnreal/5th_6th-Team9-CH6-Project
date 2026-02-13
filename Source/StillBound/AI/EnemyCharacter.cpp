@@ -5,6 +5,7 @@
 #include "EnemyVisualRow.h"
 #include "Engine/DataTable.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "AI/AIAttributeSet.h"
 #include "AIController.h"
@@ -107,6 +108,24 @@ void AEnemyCharacter::ApplyVisualFromDataTable()
 	AttackMontage = FoundRow->AttackMontage;
 	DeathMontage = FoundRow->DeathMontage;
 	GetHitMontage = FoundRow->GetHitMontage;
+
+	if (UCapsuleComponent* Cap = GetCapsuleComponent())
+	{
+		const bool bHasCapsuleSize =
+			(FoundRow->CapsuleRadius > 0.f && FoundRow->CapsuleHalfHeight > 0.f);
+
+		if (bHasCapsuleSize)
+		{
+			Cap->SetCapsuleSize(FoundRow->CapsuleRadius, FoundRow->CapsuleHalfHeight, true);
+		}
+	}
+
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		const float SafeScale = (FoundRow->MeshScale > 0.f) ? FoundRow->MeshScale : 1.f; MeshComp->SetRelativeScale3D(FVector(SafeScale));
+
+		MeshComp->SetRelativeLocation(FoundRow->MeshRelativeLocation);
+	}
 }
 
 void AEnemyCharacter::HandleDeath()
@@ -121,4 +140,10 @@ void AEnemyCharacter::HandleDeath()
 
 	SetActorEnableCollision(false);
 	SetLifeSpan(0.1f);
+}
+
+void AEnemyCharacter::SetEnemyId(int32 NewId)
+{
+	EnemyId = NewId;
+	ApplyVisualFromDataTable();
 }

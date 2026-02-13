@@ -11,6 +11,7 @@
 class UInputMappingContext;
 class UInputAction;
 class USB_UIManager;
+class AMapWorldManager;
 struct FInputActionValue;
 
 UCLASS()
@@ -81,6 +82,16 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|ToggleMenu")
 	TObjectPtr<UInputAction> ToggleMenuAction;
 
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|UI")
+	TObjectPtr<UInputAction> FullMapAction;
+
+	/// =========================
+	/// UI Map
+	/// =========================
+	UPROPERTY()
+	TObjectPtr<AMapWorldManager> MapWorldManager;
+public:
+	virtual void Tick(float DeltaTime) override;
 
 
 private:
@@ -102,7 +113,7 @@ private:
 
 	bool ActivateAbility(const FGameplayTag& AbilityTag) const;
 
-	// ? ¹«±â °ø°Ý Àü¿ë (InputTag ±â¹Ý)
+	// ? ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (InputTag ï¿½ï¿½ï¿½)
 	UFUNCTION(BlueprintCallable, Category = "SB|Abilities")
 	bool ActivateAbilityAttack(const FGameplayTag& InputTag) const;
 
@@ -123,6 +134,10 @@ public:
 
 	virtual void OnPossess(APawn* InPawn) override;
 
+	APlayerController_SB();
+
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 	UPROPERTY(EditDefaultsOnly, Category = "SB|UI")
 	TSubclassOf<class USB_UIManager> UIManagerClass;
 
@@ -138,5 +153,13 @@ public:
 	UFUNCTION()
 	void OnStaminaChanged(float OldValue, float NewValue);
 
+private:
 
+	void ToggleFullMap();
+
+	UFUNCTION(Exec)
+	void SB_SaveWorld();
+	
+	UFUNCTION(Exec)
+	void SB_LoadWorld();
 };

@@ -43,7 +43,7 @@ public:
     UDialogueComponent* DialogueComponent;
 
     // === Widget ===
-    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
     TSubclassOf<UDialogueWidget> DialogueWidgetClass;
 
 protected:
