@@ -288,11 +288,26 @@ AEnemyCharacter* AAISpawnVolume::SpawnEnemyDeferred(int32 EnemyId, const FVector
 
 void AAISpawnVolume::HandleSpawnedActorDestroyed(AActor* DestroyedActor)
 {
-	AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(DestroyedActor);
-	if (!Enemy)
+	for (int32 i = AliveActors.Num() - 1; i >= 0; --i)
 	{
-		LastVacancyTime = GetWorld()->GetTimeSeconds();
-		return;
+		if (!AliveActors[i].IsValid() || AliveActors[i].Get() == DestroyedActor)
+		{
+			AliveActors.RemoveAtSwap(i);
+		}
+	}
+
+	if (AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(DestroyedActor))
+	{
+		const int32 EnemyId = Enemy->GetEnemyId();
+
+		if (int32* Cnt = AliveCountByEnemyId.Find(EnemyId))
+		{
+			*Cnt = FMath::Max(0, *Cnt - 1);
+			if (*Cnt == 0)
+			{
+				AliveCountByEnemyId.Remove(EnemyId);
+			}
+		}
 	}
 
 	LastVacancyTime = GetWorld()->GetTimeSeconds();
