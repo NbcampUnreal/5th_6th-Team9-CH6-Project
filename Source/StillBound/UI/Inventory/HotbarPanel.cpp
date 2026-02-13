@@ -20,7 +20,36 @@ void UHotbarPanel::NativeOnInitialized()
 	BuildHotbar();
 	RefreshHotbar();
 
+	UE_LOG(LogTemp, Warning, TEXT("[HotbarPanel] Initialized: %s  OwningPlayer=%s"),
+		*GetName(), *GetNameSafe(GetOwningPlayer()));
+}
 
+void UHotbarPanel::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	if (!PlayerCharacter)
+	{
+		PlayerCharacter = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
+	}
+
+	if (!InventoryReference && PlayerCharacter)
+	{
+		InventoryReference = PlayerCharacter->GetInventory();
+	}
+
+	if (!InventoryReference)
+	{
+		FTimerHandle Tmp;
+		GetWorld()->GetTimerManager().SetTimer(Tmp, this, &UHotbarPanel::RefreshHotbar, 0.0f, false);
+		return;
+	}
+
+	InventoryReference->OnHotbarUpdated.RemoveAll(this);
+	InventoryReference->OnHotbarUpdated.AddUObject(this, &UHotbarPanel::RefreshHotbar);
+
+	BuildHotbar();
+	RefreshHotbar();
 }
 
 void UHotbarPanel::BuildHotbar()
@@ -50,7 +79,7 @@ void UHotbarPanel::RefreshHotbar()
 	if (!InventoryReference) return;
 	if (HotbarSlotWidgets.Num() == 0) return;
 
-	const TArray<UItemBase*>& Hotbar = InventoryReference->GetHatbarContents();
+	const TArray<UItemBase*>& Hotbar = InventoryReference->GetHotbarSlots();
 
 	for (int32 i = 0; i < HotbarSize; ++i)
 	{

@@ -7,6 +7,7 @@
 #include "MainMenu.generated.h"
 
 class APlayerCharacter_SB;
+class UBorder;
 
 /**
  * 
@@ -21,7 +22,14 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 
+
 public:
 	UPROPERTY()
 	TObjectPtr<APlayerCharacter_SB> PlayerCharacter;
+
+	UPROPERTY(meta=(BindWidget))
+	TObjectPtr<UBorder> DropCatcher;
+
+	UFUNCTION(BlueprintCallable)
+	void EnableDropCatcher(bool bEnable);
 };

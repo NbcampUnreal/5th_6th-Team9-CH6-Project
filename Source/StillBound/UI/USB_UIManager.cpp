@@ -8,6 +8,7 @@
 #include "UI/MainMenu.h"
 #include "UI/UW_FullMap.h"
 #include "UI/Interaction/InteractionWidget.h"
+#include "UI/Inventory/HotbarPanel.h"
 
 void USB_UIManager::Init(APlayerController* InOwnerPC)
 {
@@ -36,6 +37,16 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 		InteractionWidget->AddToViewport(5);
 		InteractionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
+	
+	//if (HotbarPanelClass)
+	//{
+	//	HotbarPanelWidget = CreateWidget<UHotbarPanel>(OwnerPC, HotbarPanelClass);
+	//	if (HotbarPanelWidget)
+	//	{
+	//		/*HotbarPanelWidget->AddToViewport(12);*/
+	//		HotbarPanelWidget->SetVisibility(ESlateVisibility::Visible);
+	//	}
+	//}
 
 	if (FullMapClass)
 	{
@@ -136,7 +147,7 @@ void USB_UIManager::DisplayMenu()
 	if (MainMenuWidget)
 	{
 		bIsMenuVisible = true;
-		MainMenuWidget->SetVisibility(ESlateVisibility::Visible);
+		MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	}
 }
 
@@ -151,6 +162,31 @@ void USB_UIManager::HideMenu()
 
 void USB_UIManager::ToggleMenu()
 {
+	//if (!OwnerPC || !MainMenuWidget) return;
+
+	//bIsMenuVisible = !bIsMenuVisible;
+
+	//if (bIsMenuVisible)
+	//{
+	//	MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+	//	FInputModeGameAndUI Mode;
+	//	Mode.SetWidgetToFocus(MainMenuWidget->TakeWidget());
+	//	Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	//	Mode.SetHideCursorDuringCapture(false);
+
+	//	OwnerPC->SetInputMode(Mode);
+	//	OwnerPC->SetShowMouseCursor(true);
+
+	//	OwnerPC->FlushPressedKeys();
+	//}
+	//else
+	//{
+	//	MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+
+	//	OwnerPC->SetInputMode(FInputModeGameOnly());
+	//	OwnerPC->SetShowMouseCursor(false);
+	//}
 	if (bIsMenuVisible)
 	{
 		HideMenu();

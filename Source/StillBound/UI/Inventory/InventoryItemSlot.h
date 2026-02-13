@@ -20,9 +20,13 @@ class STILLBOUND_API UInventoryItemSlot : public UUserWidget
 	
 
 public:
+	virtual void NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
 	void InitSlot(ESlotContainer InContainer, int32 InIndex, UInventoryComponent* InInv);
 
 	void SetItemReference(UItemBase* ItemIn);
+
+	void DisableDropCatcher();
 
 	FORCEINLINE UItemBase* GetItemReference() const { return ItemReference; };
 

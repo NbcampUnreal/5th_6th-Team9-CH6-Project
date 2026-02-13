@@ -497,9 +497,75 @@ int32 UInventoryComponent::GetOccupiedSlotCount() const
 	return Count;
 }
 
+UItemBase* UInventoryComponent::GetItemAtIndex(int32 Index) const
+{
+	return InventorySlots.IsValidIndex(Index) ? InventorySlots[Index].Get() : nullptr;
+}
+
+int32 UInventoryComponent::RemoveAmountAtIndex(int32 Index, int32 Quantity)
+{
+	if (!InventorySlots.IsValidIndex(Index)) return 0;
+
+	UItemBase* Item = InventorySlots[Index].Get();
+	if (!Item) return 0;
+
+	const int32 Removed = FMath::Min(Quantity, Item->Quantity);
+	Item->SetQuantity(Item->Quantity - Removed);
+
+	InventoryTotalWeight -= Removed * Item->GetItemSingleWeight();
+
+	if (Item->Quantity <= 0)
+	{
+		InventorySlots[Index] = nullptr;
+	}
+
+	OnInventoryUpdated.Broadcast();
+	return Removed;
+}
+
+UItemBase* UInventoryComponent::GetItemInContainer(ESlotContainer InContainer, int32 Index) const
+{
+	const TArray<TObjectPtr<UItemBase>>& Arr = (InContainer == ESlotContainer::Inventory) ? InventorySlots : HotbarContents;
+
+	return Arr.IsValidIndex(Index) ? Arr[Index].Get() : nullptr;
+}
+
+int32 UInventoryComponent::RemoveAmountInContainer(ESlotContainer InContainer, int32 Index, int32 Quantity)
+{
+	TArray<TObjectPtr<UItemBase>>& Arr = (InContainer == ESlotContainer::Inventory) ? InventorySlots : HotbarContents;
+
+	if (!Arr.IsValidIndex(Index)) return 0;
+
+	UItemBase* Item = Arr[Index].Get();
+	if (!Item) return 0;
+
+	const int32 Removed = FMath::Min(Quantity, Item->Quantity);
+	Item->SetQuantity(Item->Quantity - Removed);
+
+	InventoryTotalWeight -= Removed * Item->GetItemSingleWeight();
+
+	if (Item->Quantity <= 0)
+	{
+		Arr[Index] = nullptr;
+	}
+
+	if (InContainer == ESlotContainer::Inventory)
+	{
+		OnInventoryUpdated.Broadcast();
+	}
+	
+	else
+	{
+		OnHotbarUpdated.Broadcast();
+	}
+
+	OnInventoryUpdated.Broadcast();
+
+	return Removed;
+}
+
 bool UInventoryComponent::MoveSlotItem(ESlotContainer FromContainer, int32 FromIndex, ESlotContainer ToContainer, int32 ToIndex, bool bAllowSwap)
 {
-
 	TArray<TObjectPtr<UItemBase>>& FromArr = (FromContainer == ESlotContainer::Inventory) ? InventorySlots : HotbarContents;
 	TArray<TObjectPtr<UItemBase>>& ToArr = (ToContainer == ESlotContainer::Inventory) ? InventorySlots : HotbarContents;
 
@@ -525,6 +591,10 @@ bool UInventoryComponent::MoveSlotItem(ESlotContainer FromContainer, int32 FromI
 
 	if (FromContainer == ESlotContainer::Hotbar || ToContainer == ESlotContainer::Hotbar)
 		OnHotbarUpdated.Broadcast();
+
+	UE_LOG(LogTemp, Warning, TEXT("[MoveSlotItem] From(%d,%d) To(%d,%d)  FromNum=%d ToNum=%d"),
+		(int32)FromContainer, FromIndex, (int32)ToContainer, ToIndex,
+		FromArr.Num(), ToArr.Num());
 
 	return true;
 }

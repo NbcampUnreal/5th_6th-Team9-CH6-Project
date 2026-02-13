@@ -93,6 +93,6 @@ public:
 
 public:
 
-    //·¹º§º° ÇÊ¿ä °æÇèÄ¡ °è»ê
+    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¿ï¿½ ï¿½ï¿½ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½
     float GetRequiredExpForLevel(int32 InLevel) const;
 };

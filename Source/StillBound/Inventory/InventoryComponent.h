@@ -122,6 +122,12 @@ public:
     UFUNCTION(Category = "Inventory")
     int32 GetOccupiedSlotCount() const;
 
+
+    UItemBase* GetItemAtIndex(int32 Index) const;
+    int32 RemoveAmountAtIndex(int32 Index, int32 Quantity);
+
+    UItemBase* GetItemInContainer(ESlotContainer InContainer, int32 Index) const;
+    int32 RemoveAmountInContainer(ESlotContainer InContainer, int32 Index, int32 Quantity);
     /// getters
     UFUNCTION(Category = "Inventory")
     FORCEINLINE float GetInventoryTotalWeight() const { return InventoryTotalWeight; };
@@ -132,16 +138,12 @@ public:
     UFUNCTION(Category = "Inventory")
     FORCEINLINE int32 GetSlotCapacity() const { return InventorySlotsCapacity; };
 
-    UFUNCTION(Category = "Inventory")
-    FORCEINLINE TArray<UItemBase*> GetInventoryContents() const { return InventoryContents; };
-
     FORCEINLINE const TArray<TObjectPtr<UItemBase>>& GetInventorySlots() const { return InventorySlots; };
 
     UFUNCTION(Category = "Horbar")
     FORCEINLINE int32 GetHotbarCapacity() const { return HotbarSlotsCapacity; };
 
-    UFUNCTION(Category = "Horbar")
-    FORCEINLINE TArray<UItemBase*> GetHatbarContents() const { return HotbarContents; };
+    FORCEINLINE const TArray<TObjectPtr<UItemBase>>& GetHotbarSlots() const { return HotbarContents; };
 
     bool MoveSlotItem(ESlotContainer FromContainer, int32 FromIndex, ESlotContainer ToContainer, int32 ToIndex, bool bAllowSwap);
 
@@ -165,9 +167,6 @@ protected:
 
     UPROPERTY(EditInstanceOnly, Category = "Inventory")
     float InventoryWeightCapacity;
-
-    UPROPERTY()
-    TArray<TObjectPtr<UItemBase>> InventoryContents;
 
     UPROPERTY()
     TArray<TObjectPtr<UItemBase>> InventorySlots;

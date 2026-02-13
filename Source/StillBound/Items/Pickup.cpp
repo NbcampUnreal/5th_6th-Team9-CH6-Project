@@ -102,7 +102,7 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 		{
 			if (UInventoryComponent* PlayerInventory = Taker->GetInventory())
 			{
-				const FItemAddResult AddResult = PlayerInventory->HandleAddItem(ItemReference);
+				const FItemAddResult AddResult = PlayerInventory->HandleAddItem_AutoHotbarFirst(ItemReference);
 
 				switch (AddResult.OperationResult)
 				{
