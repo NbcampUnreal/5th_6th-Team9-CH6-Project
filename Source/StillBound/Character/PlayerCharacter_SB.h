@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Character/BaseCharacter_SB.h"
 #include "Interface/InteractionInterface.h"
+#include "Data/InventoryTypes.h"
 #include "PlayerCharacter_SB.generated.h"
 
 class UItemBase;
@@ -54,7 +55,7 @@ public:
 
 	void UpdateInteractionWidget() const;
 
-	void DropItem(UItemBase* ItemToDrop, const int32 QuantityToDrop);
+	void DropItemFromSlot(ESlotContainer FromContainer, int32 FromIndex, int32 QuantityToDrop);
 
 protected:
 	virtual void BeginPlay() override;

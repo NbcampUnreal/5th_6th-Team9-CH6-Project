@@ -4,7 +4,8 @@
 #include "Blueprint/UserWidget.h"
 #include "InventoryPanel.generated.h"
 
-class UWrapBox;
+class UUniformGridPanel;
+class UUniformGridSlot;
 class UTextBlock;
 class APlayerCharacter_SB;
 class UInventoryComponent;
@@ -22,7 +23,7 @@ public:
 	void RefreshInventory();
 
 	UPROPERTY(meta=(BindWidget))
-	UWrapBox* InventoryWrapBox;
+	UUniformGridPanel* InventoryGrid;
 
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* WeightInfo;
@@ -39,10 +40,20 @@ public:
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UInventoryItemSlot> InventorySlotClass;
 
+	UPROPERTY()
+	TArray<TObjectPtr<UInventoryItemSlot>> SlotWidgets;
+
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 
 	void SetInfoText() const;
+
+	void BuildSlotGrid();
+
+private:
+	static constexpr int32 Cols = 6;
+	static constexpr int32 Rows = 8;
+	static constexpr int32 MaxSlots = Cols * Rows;
 
 };

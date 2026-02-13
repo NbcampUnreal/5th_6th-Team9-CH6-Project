@@ -10,6 +10,7 @@ class UMainMenu;
 class UInteractionWidget;
 struct FInteractableData;
 class UUW_FullMap;
+class UHotbarPanel;
 /**
  * 
  */
@@ -80,6 +81,10 @@ public:
 	void ShowInteractionWidget();
 	void HideInteractionWidget();
 	void UpdateInteractionWidget(const FInteractableData& InteractableData);
+
+
+	//getter
+	TObjectPtr<UMainMenu> GetMainMenuWidget() const { return MainMenuWidget; };
 
 protected:
 	///===============================================================================

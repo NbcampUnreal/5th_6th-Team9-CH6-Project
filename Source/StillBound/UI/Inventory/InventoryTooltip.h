@@ -40,6 +40,10 @@ public:
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* StackWeight;
 
+
+	UFUNCTION()
+	void RefreshFromSlot();
+
 protected:
 	virtual void NativeConstruct() override;
 

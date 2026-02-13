@@ -15,6 +15,7 @@
 #include "Items/Pickup.h"
 #include "Weapons/WeaponBase.h"
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
+#include "Items/ItemBase.h"
 
 
 APlayerCharacter_SB::APlayerCharacter_SB()
@@ -45,7 +46,7 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	FollowCamera->bUsePawnControlRotation = false;
 
 	PlayerInventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("PlayerInventory"));
-	PlayerInventory->SetSlotsCapacity(20);
+	PlayerInventory->SetSlotsCapacity(48);
 	PlayerInventory->SetWeightCapacity(50.f);
 
 	InteractionCheckFrequency = 0.1f;
@@ -163,14 +164,14 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 
 	if (LookDirection > 0)
 	{
-		DrawDebugLine(
+		/*DrawDebugLine(
 			GetWorld(),
 			TraceStart,
 			TraceEnd,
 			FColor::Red,
 			false,
 			1.f,
-			2.f);
+			2.f);*/
 
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(this);
@@ -322,16 +323,6 @@ void APlayerCharacter_SB::EndInteract()
 	InteractionData.bIsInteracting = false;
 	GetWorldTimerManager().ClearTimer(TimerHandle_Interaction);
 
-	InteractionData.CurrentInteractable = nullptr;
-	TargetInteractable = nullptr;
-
-	if (auto* PC = Cast<APlayerController_SB>(GetController()))
-	{
-		if (PC->UIManager)
-		{
-			PC->UIManager->HideInteractionWidget();
-		}
-	}
 }
 
 void APlayerCharacter_SB::Interact()
@@ -402,29 +393,46 @@ void APlayerCharacter_SB::UpdateInteractionWidget() const
 	}
 }
 
-void APlayerCharacter_SB::DropItem(UItemBase* ItemToDrop, const int32 QuantityToDrop)
+void APlayerCharacter_SB::DropItemFromSlot(ESlotContainer FromContainer, int32 FromIndex, int32 QuantityToDrop)
 {
-	if (PlayerInventory->FindMatchingItem(ItemToDrop))
+	if (!PlayerInventory) return;
+
+	UItemBase* ItemToDrop = PlayerInventory->GetItemInContainer(FromContainer, FromIndex);
+	if (!ItemToDrop)
 	{
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = this;
-		SpawnParams.bNoFail = true;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-		const FVector SpawnLocation{ GetActorLocation() + (GetActorForwardVector() * 50.f) };
-		const FTransform SpawnTransform(GetActorRotation(), SpawnLocation);
-
-		const int32 RemovedQuantity = PlayerInventory->RemoveAmountOfItem(ItemToDrop, QuantityToDrop);
-
-		if (!PickupClass) return;
-
-		APickup* Pickup = GetWorld()->SpawnActor<APickup>(PickupClass, SpawnTransform, SpawnParams);
-
-		Pickup->InitializeDrop(ItemToDrop, RemovedQuantity);
+		UE_LOG(LogTemp, Warning, TEXT("DropItemFromSlot: No item at %d / %d"), (int32)FromContainer, FromIndex);
+		return;
 	}
-	else
+
+	if (QuantityToDrop <= 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Item to drop was shomhow null."));
+		QuantityToDrop = ItemToDrop->Quantity;
+	}
+
+	UItemBase* DropTemplate = ItemToDrop;
+	if (QuantityToDrop < ItemToDrop->Quantity)
+	{
+		DropTemplate = ItemToDrop->CreateItemCopy();
+		DropTemplate->ResetItemFlags();
+		DropTemplate->SetQuantity(QuantityToDrop);
+	}
+
+	const int32 RemovedQuantity = PlayerInventory->RemoveAmountInContainer(FromContainer, FromIndex, QuantityToDrop);
+	if (RemovedQuantity <= 0) return;
+	if (!PickupClass) return;
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.bNoFail = true;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	const FVector SpawnLocation{ GetActorLocation() + (GetActorForwardVector() * 50.f) };
+	const FTransform SpawnTransform(GetActorRotation(), SpawnLocation);
+
+	APickup* Pickup = GetWorld()->SpawnActor<APickup>(PickupClass, SpawnTransform, SpawnParams);
+	if (Pickup)
+	{
+		Pickup->InitializeDrop(DropTemplate, RemovedQuantity);
 	}
 }
 

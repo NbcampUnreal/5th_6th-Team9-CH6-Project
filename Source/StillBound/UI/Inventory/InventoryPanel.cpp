@@ -4,7 +4,8 @@
 #include "UI/Inventory/InventoryItemSlot.h"
 #include "UI/Inventory/ItemDragDropOperation.h"
 #include "Components/TextBlock.h"
-#include "Components/WrapBox.h"
+#include "Components/UniformGridPanel.h"
+#include "Components/UniformGridSlot.h"
 
 
 void UInventoryPanel::NativeOnInitialized()
@@ -20,6 +21,9 @@ void UInventoryPanel::NativeOnInitialized()
 		{
 			InventoryReference->OnInventoryUpdated.AddUObject(this, &UInventoryPanel::RefreshInventory);
 			SetInfoText();
+
+			BuildSlotGrid();
+			RefreshInventory();
 		}
 	}
 }
@@ -28,27 +32,56 @@ void UInventoryPanel::SetInfoText() const
 {
 	const FString WeightInfoValue{ FString::SanitizeFloat(InventoryReference->GetInventoryTotalWeight()) + "/" + FString::SanitizeFloat(InventoryReference->GetWeightCapacity()) };
 
-	const FString CapacityInfoValue{ FString::FromInt(InventoryReference->GetInventoryContents().Num()) + "/" + FString::FromInt(InventoryReference->GetSlotCapacity()) };
+	const FString CapacityInfoValue{ FString::FromInt(InventoryReference->GetOccupiedSlotCount()) + "/" + FString::FromInt(InventoryReference->GetSlotCapacity()) };
 
 	WeightInfo->SetText(FText::FromString(WeightInfoValue));
 	CapacityInfo->SetText(FText::FromStringView(CapacityInfoValue));
 }
 
+void UInventoryPanel::BuildSlotGrid()
+{
+	if (!InventoryGrid || !InventorySlotClass) return;
+
+	if (SlotWidgets.Num() > 0) return;
+
+	InventoryGrid->ClearChildren();
+
+	SlotWidgets.Reserve(MaxSlots);
+
+	for (int32 Index = 0; Index < MaxSlots; ++Index)
+	{
+		UInventoryItemSlot* SlotWidget = CreateWidget<UInventoryItemSlot>(this, InventorySlotClass);
+		SlotWidget->InitSlot(ESlotContainer::Inventory, Index, InventoryReference);
+		SlotWidget->SetItemReference(nullptr);
+
+		const int32 Row = Index / Cols;
+		const int32 Col = Index % Cols;
+
+		InventoryGrid->AddChildToUniformGrid(SlotWidget, Row, Col);
+		InventoryGrid->SetSlotPadding(FMargin(4.f, 0.f));
+		SlotWidgets.Add(SlotWidget);
+
+		
+	}
+}
+
 void UInventoryPanel::RefreshInventory()
 {
-	if (InventoryReference && InventorySlotClass)
+	if (!InventoryReference || !InventorySlotClass) return;
+	if (SlotWidgets.Num() == 0) return;
+
+	const TArray<UItemBase*>& Contents = InventoryReference->GetInventorySlots();
+
+	for (int32 i = 0; i < MaxSlots; ++i)
 	{
-		InventoryWrapBox->ClearChildren();
-		for (UItemBase* const& InventoryItem : InventoryReference->GetInventoryContents())
-		{
-			UInventoryItemSlot* ItemSlot = CreateWidget<UInventoryItemSlot>(this, InventorySlotClass);
-			ItemSlot->SetItemReference(InventoryItem);
+		UInventoryItemSlot* SlotWidget = SlotWidgets[i];
+		if (!SlotWidget) continue;
 
-			InventoryWrapBox->AddChildToWrapBox(ItemSlot);
-		}
-
-		SetInfoText();
+		UItemBase* Item = Contents.IsValidIndex(i) ? Contents[i] : nullptr;
+		SlotWidget->SetItemReference(Item);
 	}
+
+	SetInfoText();
 }
 
 
@@ -60,11 +93,9 @@ bool UInventoryPanel::NativeOnDrop(const FGeometry& InGeometry, const FDragDropE
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Detected an item drop on InventoryPanel."));
 
-		// returning true will stop the drop operation at this widget
-		return true;
+		return false;
 	}
 
 	//returning false will cause the drop operation to fall through to underlying widgets (if any)
 	return false;
 }
-

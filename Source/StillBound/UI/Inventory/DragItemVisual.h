@@ -22,4 +22,6 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "Drag Item Visual", meta = (BindWidget))
 	UTextBlock* ItemQuantity;
+
+	virtual void NativeConstruct() override;
 };
