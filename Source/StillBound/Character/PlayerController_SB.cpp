@@ -1,4 +1,4 @@
-﻿
+
 #include "Character/PlayerController_SB.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
@@ -19,6 +19,7 @@
 #include "UI/UW_FullMap.h"
 #include "EngineUtils.h"
 #include "Weapons/WeaponBase.h"
+#include "Subsystem/SBWorldSaveManagerSubsystem.h"
 
 void APlayerController_SB::SetupInputComponent()
 {
@@ -325,6 +326,17 @@ void APlayerController_SB::BeginPlay()
 	Super::BeginPlay();
 
 	// UIManager 생성
+
+	bShowMouseCursor = false;
+	bEnableClickEvents = false;
+	bEnableMouseOverEvents = false;
+
+	FInputModeGameOnly Mode;
+	SetInputMode(Mode);
+
+	SetIgnoreMoveInput(false);
+	SetIgnoreLookInput(false);
+
 	if (UIManagerClass)
 	{
 		UIManager = NewObject<USB_UIManager>(this, UIManagerClass);
@@ -349,6 +361,13 @@ void APlayerController_SB::BeginPlay()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[Minimap] MapWorldManager FOUND: %s"), *MapWorldManager->GetName());
 	}
+
+
+	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] CurrentSlotId = %s"), *Sub->GetCurrentSlotId());
+		Sub->TouchCurrentWorldLastPlayed();
+	}
 }
 
 void APlayerController_SB::OnPossess(APawn* InPawn)
@@ -361,10 +380,14 @@ void APlayerController_SB::OnPossess(APawn* InPawn)
 	UPlayerAttributeSet* AS = Char->GetPlayerAttributeSet();
 	if (!AS) return;
 
-	// Delegate만 연결
 	AS->OnHealthChanged.AddDynamic(this, &ThisClass::OnHealthChanged);
 	AS->OnStaminaChanged.AddDynamic(this, &ThisClass::OnStaminaChanged);
 
+	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
+	{
+		const bool bOk = Sub->LoadCurrentWorldTransformToPawn(InPawn);
+		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldTransformToPawn -> %d"), bOk);
+	}
 }
 
 APlayerController_SB::APlayerController_SB()
@@ -388,20 +411,59 @@ void APlayerController_SB::OnStaminaChanged(float OldValue, float NewValue)
 	if (!UIManager) return;
 	UIManager->UpdateHUD();
 }
+#pragma endregion 
+
+#pragma region ===== World Save =====
+
+void APlayerController_SB::SB_SaveWorld()
+{
+	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
+	{
+		const bool bOk = Sub->SaveCurrentWorldFromPawn(GetPawn());
+		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] SB_SaveWorld -> %d"), bOk);
+	}
+}
+
+void APlayerController_SB::SB_LoadWorld()
+{
+	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
+	{
+		const bool bOk = Sub->LoadCurrentWorldToPawn(GetPawn());
+		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] SB_LoadWorld -> %d"), bOk);
+	}
+}
+
+void APlayerController_SB::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	APawn* P = GetPawn();
+
+	if (P)
+	{
+		if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
+		{
+			const bool bSaved = Sub->SaveCurrentWorldFromPawn(P);
+			Sub->TouchCurrentWorldLastPlayed();
+			UE_LOG(LogTemp, Warning, TEXT("[Gameplay] AutoSave(EndPlay) -> %d"), bSaved);
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+#pragma endregion
 
 void APlayerController_SB::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
 	if (!IsLocalController()) return;
+
 	if (!MapWorldManager || !UIManager) return;
 
 	APawn* ControlledPawn = GetPawn();
-	if (!ControlledPawn) return;
 
+	if (!ControlledPawn) return;
 	const FVector WorldLoc = ControlledPawn->GetActorLocation();
 	const FVector2D UV = MapWorldManager->WorldToUV(WorldLoc);
-
 	if (UUW_UIHUD* HUD = UIManager->GetHUD())
 	{
 		if (UUW_Minimap* MinimapWidget = HUD->GetMiniMapWidget())
@@ -409,9 +471,7 @@ void APlayerController_SB::Tick(float DeltaTime)
 			FVector2D PlayerUV = UV;
 			PlayerUV.X = FMath::Clamp(PlayerUV.X, 0.f, 1.f);
 			PlayerUV.Y = FMath::Clamp(PlayerUV.Y, 0.f, 1.f);
-
 			MinimapWidget->UpdateMapOffset(PlayerUV);
-
 			const float Yaw = ControlledPawn->GetActorRotation().Yaw;
 			MinimapWidget->UpdatePlayerIconRotation(Yaw);
 		}
@@ -424,7 +484,6 @@ void APlayerController_SB::Tick(float DeltaTime)
 			FVector2D PlayerUV = UV;
 			PlayerUV.X = FMath::Clamp(PlayerUV.X, 0.f, 1.f);
 			PlayerUV.Y = FMath::Clamp(PlayerUV.Y, 0.f, 1.f);
-
 			FullMap->UpdatePlayerPosition(PlayerUV);
 		}
 	}
@@ -433,11 +492,10 @@ void APlayerController_SB::Tick(float DeltaTime)
 void APlayerController_SB::ToggleFullMap()
 {
 	UE_LOG(LogTemp, Warning, TEXT("FullMap Key Pressed"));
-
 	if (UIManager)
 	{
 		UIManager->ToggleFullMap();
 	}
 }
 
-#pragma endregion 
+#pragma endregion
