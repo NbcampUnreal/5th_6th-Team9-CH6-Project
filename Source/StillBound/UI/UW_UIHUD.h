@@ -9,6 +9,7 @@ class UUW_StaminaBar;
 class UUW_ExpBar;
 class UUW_Minimap;
 class UHotbarPanel;
+class UInventoryComponent;
 
 /**
  * 
@@ -33,6 +34,8 @@ public:
 	void SetLevel(int32 Level);
 
 	UUW_Minimap* GetMiniMapWidget() const { return MiniMapWidget; }
+
+	void InitInventory(UInventoryComponent* InInv);
 
 protected:
 

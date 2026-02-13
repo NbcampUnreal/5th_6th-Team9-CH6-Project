@@ -50,7 +50,7 @@ void UInventoryPanel::BuildSlotGrid()
 
 	for (int32 Index = 0; Index < MaxSlots; ++Index)
 	{
-		UInventoryItemSlot* SlotWidget = CreateWidget<UInventoryItemSlot>(this, InventorySlotClass);
+		UInventoryItemSlot* SlotWidget = CreateWidget<UInventoryItemSlot>(GetOwningPlayer(), InventorySlotClass);
 		SlotWidget->InitSlot(ESlotContainer::Inventory, Index, InventoryReference);
 		SlotWidget->SetItemReference(nullptr);
 

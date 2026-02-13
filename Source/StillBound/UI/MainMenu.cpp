@@ -48,5 +48,6 @@ void UMainMenu::EnableDropCatcher(bool bEnable)
 {
 	if (!DropCatcher) return;
 
-	DropCatcher->SetVisibility(bEnable ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	/*DropCatcher->SetVisibility(bEnable ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);*/
+	DropCatcher->SetVisibility(ESlateVisibility::Collapsed);
 }

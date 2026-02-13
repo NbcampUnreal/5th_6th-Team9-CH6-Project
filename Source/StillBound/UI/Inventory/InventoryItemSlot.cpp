@@ -3,12 +3,14 @@
 #include "UI/Inventory/DragItemVisual.h"
 #include "UI/Inventory/ItemDragDropOperation.h"
 #include "UI/MainMenu.h"
+#include "UI/UW_UIHUD.h"
 #include "Items/ItemBase.h"
 #include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Inventory/InventoryComponent.h"
 #include "Character/PlayerController_SB.h"
+#include "Character/PlayerCharacter_SB.h"
 
 void UInventoryItemSlot::NativeOnInitialized()
 {
@@ -147,16 +149,27 @@ void UInventoryItemSlot::NativeOnDragDetected(const FGeometry& InGeometry, const
 bool UInventoryItemSlot::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
 	const UItemDragDropOperation* Drag = Cast<UItemDragDropOperation>(InOperation);
+
+	UE_LOG(LogTemp, Warning, TEXT("[SlotDrop] THIS=%s To=%d(%d) Inv=%s / From=%d(%d)"),
+		*GetName(),
+		(int32)Container, SlotIndex,
+		*GetNameSafe(InventoryRef),
+		Drag ? (int32)Drag->SourceContainer : -1,
+		Drag ? Drag->SourceIndex : -1);
+
 	if (!Drag || !InventoryRef)
 	{
 		DisableDropCatcher();
 		return false;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[SlotDrop] From: %d(%d) To: %d(%d)"),
-		(int32)Drag->SourceContainer, Drag->SourceIndex, (int32)Container, SlotIndex);
-
 	DisableDropCatcher();
+
+	//같은 슬롯이면 드랍은 처리된 것으로 간주(버리기 방지)
+	if (Drag->SourceContainer == Container && Drag->SourceIndex == SlotIndex)
+	{
+		return true;
+	}
 
 	bool bSuccess = InventoryRef->MoveSlotItem(
 		Drag->SourceContainer, 
@@ -172,7 +185,37 @@ void UInventoryItemSlot::NativeOnDragCancelled(const FDragDropEvent& InDragDropE
 {
 	Super::NativeOnDragCancelled(InDragDropEvent, InOperation);
 
-	DisableDropCatcher();
+	const UItemDragDropOperation* Drag = Cast<UItemDragDropOperation>(InOperation);
+	if (!Drag) return;
+
+	auto* PC = Cast<APlayerController_SB>(GetOwningPlayer());
+	if (!PC || !PC->UIManager) return;
+
+	const FVector2D ScreenPos = InDragDropEvent.GetScreenSpacePosition();
+
+	// 1) HUD 영역 안이면 버리지 않음 (슬롯 사이 빈칸 포함)
+	if (PC->UIManager->GetHUD() && PC->UIManager->GetHUD()->GetCachedGeometry().IsUnderLocation(ScreenPos))
+	{
+		return;
+	}
+
+	// 2) 메뉴가 떠있고 메뉴 영역 안이면 버리지 않음
+	if (PC->UIManager->GetMainMenuWidget() &&
+		PC->UIManager->GetMainMenuWidget()->GetVisibility() != ESlateVisibility::Collapsed &&
+		PC->UIManager->GetMainMenuWidget()->GetCachedGeometry().IsUnderLocation(ScreenPos))
+	{
+		return;
+	}
+
+	// 3) 월드 히트일 때만 버리기
+	FHitResult Hit;
+	const bool bHitWorld = PC->GetHitResultUnderCursor(ECC_Visibility, false, Hit);
+	if (!bHitWorld) return;
+
+	if (auto* Pawn = Cast<APlayerCharacter_SB>(PC->GetPawn()))
+	{
+		Pawn->DropItemFromSlot(Drag->SourceContainer, Drag->SourceIndex, -1);
+	}
 }
 
 void UInventoryItemSlot::InitSlot(ESlotContainer InContainer, int32 InIndex, UInventoryComponent* InInv)
@@ -180,6 +223,10 @@ void UInventoryItemSlot::InitSlot(ESlotContainer InContainer, int32 InIndex, UIn
 	Container = InContainer;
 	SlotIndex = InIndex;
 	InventoryRef = InInv;
+
+	UE_LOG(LogTemp, Warning, TEXT("[InitSlot] %s Container=%d Index=%d Inv=%s OwningPC=%s"),
+		*GetName(), (int32)Container, SlotIndex, *GetNameSafe(InventoryRef),
+		*GetNameSafe(GetOwningPlayer()));
 }
 
 void UInventoryItemSlot::SetItemReference(UItemBase* ItemIn)
