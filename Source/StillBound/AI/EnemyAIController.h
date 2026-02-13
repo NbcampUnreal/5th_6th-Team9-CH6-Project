@@ -50,4 +50,15 @@ protected:
 
     UFUNCTION()
     void OnTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus);
+
+protected:
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Leash")
+    float MaxChaseRangeFromHome = 2500.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Leash")
+    float ChaseRangeCheckInterval = 0.2f;
+
+    FTimerHandle ChaseRangeTimerHandle;
+
+    void CheckChaseRange();
 };
