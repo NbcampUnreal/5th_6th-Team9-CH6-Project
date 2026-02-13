@@ -26,8 +26,6 @@ public:
 
 	void SetItemReference(UItemBase* ItemIn);
 
-	void DisableDropCatcher();
-
 	FORCEINLINE UItemBase* GetItemReference() const { return ItemReference; };
 
 protected:

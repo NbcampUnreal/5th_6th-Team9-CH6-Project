@@ -4,6 +4,8 @@
 #include "UI/Inventory/ItemDragDropOperation.h"
 #include "UI/MainMenu.h"
 #include "UI/UW_UIHUD.h"
+#include "UI/Inventory/InventoryPanel.h"
+#include "UI/Inventory/HotbarPanel.h"
 #include "Items/ItemBase.h"
 #include "Components/Border.h"
 #include "Components/Image.h"
@@ -24,10 +26,6 @@ void UInventoryItemSlot::NativeOnInitialized()
 			SetToolTip(ToolTip);
 		}
 	}
-
-	//UInventoryTooltip* ToolTip = CreateWidget<UInventoryTooltip>(this, ToolTipClass);
-	//ToolTip->InventorySlotBeingHovered = this;
-	//SetToolTip(ToolTip);
 }
 
 void UInventoryItemSlot::NativeConstruct()
@@ -109,17 +107,6 @@ void UInventoryItemSlot::NativeOnDragDetected(const FGeometry& InGeometry, const
 		return;
 	}
 
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		if (auto* SBPC = Cast<APlayerController_SB>(PC))
-		{
-			if (SBPC->UIManager && SBPC->UIManager->GetMainMenuWidget())
-			{
-				SBPC->UIManager->GetMainMenuWidget()->EnableDropCatcher(true);
-			}
-		}
-	}
-
 	if (DragItemVisualClass)
 	{
 		const TObjectPtr<UDragItemVisual> DragVisul = CreateWidget<UDragItemVisual>(this, DragItemVisualClass);
@@ -157,13 +144,6 @@ bool UInventoryItemSlot::NativeOnDrop(const FGeometry& InGeometry, const FDragDr
 		Drag ? (int32)Drag->SourceContainer : -1,
 		Drag ? Drag->SourceIndex : -1);
 
-	if (!Drag || !InventoryRef)
-	{
-		DisableDropCatcher();
-		return false;
-	}
-
-	DisableDropCatcher();
 
 	//같은 슬롯이면 드랍은 처리된 것으로 간주(버리기 방지)
 	if (Drag->SourceContainer == Container && Drag->SourceIndex == SlotIndex)
@@ -193,24 +173,27 @@ void UInventoryItemSlot::NativeOnDragCancelled(const FDragDropEvent& InDragDropE
 
 	const FVector2D ScreenPos = InDragDropEvent.GetScreenSpacePosition();
 
-	// 1) HUD 영역 안이면 버리지 않음 (슬롯 사이 빈칸 포함)
-	if (PC->UIManager->GetHUD() && PC->UIManager->GetHUD()->GetCachedGeometry().IsUnderLocation(ScreenPos))
+	// 1) 핫바 위면 버리기 금지
+	if (PC->UIManager->GetHUD() &&
+		PC->UIManager->GetHUD()->GetHotbarPanel() &&
+		PC->UIManager->GetHUD()->GetHotbarPanel()->GetCachedGeometry().IsUnderLocation(ScreenPos))
 	{
 		return;
 	}
 
 	// 2) 메뉴가 떠있고 메뉴 영역 안이면 버리지 않음
-	if (PC->UIManager->GetMainMenuWidget() &&
-		PC->UIManager->GetMainMenuWidget()->GetVisibility() != ESlateVisibility::Collapsed &&
-		PC->UIManager->GetMainMenuWidget()->GetCachedGeometry().IsUnderLocation(ScreenPos))
+	if (UMainMenu* Menu = PC->UIManager->GetMainMenuWidget())
 	{
-		return;
+		if (Menu->GetVisibility() != ESlateVisibility::Collapsed)
+		{
+			// 메뉴 전체가 아니라 "인벤 패널" 위면 버리기 금지
+			if (Menu->GetInventoryPanel() &&
+				Menu->GetInventoryPanel()->GetCachedGeometry().IsUnderLocation(ScreenPos))
+			{
+				return;
+			}
+		}
 	}
-
-	// 3) 월드 히트일 때만 버리기
-	FHitResult Hit;
-	const bool bHitWorld = PC->GetHitResultUnderCursor(ECC_Visibility, false, Hit);
-	if (!bHitWorld) return;
 
 	if (auto* Pawn = Cast<APlayerCharacter_SB>(PC->GetPawn()))
 	{
@@ -288,16 +271,3 @@ void UInventoryItemSlot::SetItemReference(UItemBase* ItemIn)
 	}
 }
 
-void UInventoryItemSlot::DisableDropCatcher()
-{
-	if (auto* PC = GetOwningPlayer())
-	{
-		if (auto* MyPC = Cast<APlayerController_SB>(PC))
-		{
-			if (MyPC->UIManager && MyPC->UIManager->GetMainMenuWidget())
-			{
-				MyPC->UIManager->GetMainMenuWidget()->EnableDropCatcher(false);
-			}
-		}
-	}
-}

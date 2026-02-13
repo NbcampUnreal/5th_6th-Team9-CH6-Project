@@ -37,6 +37,8 @@ public:
 
 	void InitInventory(UInventoryComponent* InInv);
 
+	TObjectPtr<UHotbarPanel> GetHotbarPanel() const { return HotbarPanel; };
+
 protected:
 
 	UPROPERTY(meta = (BindWidget))
