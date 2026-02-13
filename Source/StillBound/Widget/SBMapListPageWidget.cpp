@@ -10,6 +10,8 @@
 #include "Widget/SBConfirmDialogWidget.h"
 #include "Widget/SBNameInputDialogWidget.h"
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/Pawn.h"
 
 void USBMapListPageWidget::NativeConstruct()
 {
