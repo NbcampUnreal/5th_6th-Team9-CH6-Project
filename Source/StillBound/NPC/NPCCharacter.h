@@ -11,6 +11,7 @@
 
 class UDialogueWidget;
 class ANPCAIController;
+class UShopComponent;
 
 UENUM(BlueprintType)
 enum class ENPCRegion : uint8
@@ -37,6 +38,8 @@ public:
     virtual void Interact_Implementation(APlayerCharacter_SB* PlayerCharacter) override;
     virtual FInteractableData GetInteractableData_Implementation() override;
     virtual float GetInteractionDistance_Implementation() override;
+
+    void OpenShop();
 
     // === 대화 컴포넌트 ===
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Dialogue")
@@ -90,6 +93,15 @@ protected:
 
     UPROPERTY(BlueprintReadOnly, Category = "NPC")
     AActor* CurrentInteractor = nullptr;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Shop")
+    UShopComponent* ShopComponent;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
+    TSubclassOf<class UShopWidget> ShopWidgetClass;
+
+    UPROPERTY()
+    class UShopWidget* ShopWidget = nullptr;
 
 private:
     uint8 LastNPCState = 0;

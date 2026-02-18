@@ -6,6 +6,8 @@
 #include "NPC/DialogueComponent.h"
 #include "NPC/DialogueWidget.h"
 #include "Components/CapsuleComponent.h"
+#include "ShopComponent.h"
+#include "ShopWidget.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 // Sets default values
@@ -25,6 +27,8 @@ ANPCCharacter::ANPCCharacter()
 	GetCapsuleComponent()->SetCollisionResponseToChannel(
 		ECollisionChannel::ECC_Pawn,
 		ECollisionResponse::ECR_Block);
+
+	ShopComponent = CreateDefaultSubobject<UShopComponent>(TEXT("ShopComponent"));
 
 }
 
@@ -178,6 +182,30 @@ FInteractableData ANPCCharacter::GetInteractableData_Implementation()
 float ANPCCharacter::GetInteractionDistance_Implementation()
 {
 	return 200.0f;
+}
+
+void ANPCCharacter::OpenShop()
+{
+	if (!ShopWidgetClass || !ShopComponent)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] Shop widget or component not set"), *NPCName);
+		return;
+	}
+
+	if (!ShopWidget)
+	{
+		ShopWidget = CreateWidget<UShopWidget>(GetWorld(), ShopWidgetClass);
+		if (!ShopWidget)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[%s] Failed to create shop widget"), *NPCName);
+			return;
+		}
+	}
+
+	ShopWidget->AddToViewport(100);
+	ShopWidget->InitializeShop(ShopComponent);
+
+	UE_LOG(LogTemp, Log, TEXT("[%s] Shop opened"), *NPCName);
 }
 
 ANPCAIController* ANPCCharacter::GetNPCAIController() const
