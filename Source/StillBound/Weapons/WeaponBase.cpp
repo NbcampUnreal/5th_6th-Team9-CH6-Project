@@ -87,6 +87,14 @@ void AWeaponBase::GrantToASC(UAbilitySystemComponent* ASC)
     }
 
     GrantedHandles.Reset();
+    //상태태그 추가
+  // 무기 BP의 WeaponTypeTag를 ASC에 퍼블리시
+    if (WeaponTypeTag.IsValid())
+    {
+        ASC->AddLooseGameplayTag(WeaponTypeTag);
+    }
+
+   
 
     UE_LOG(LogTemp, Warning, TEXT("[DBG] GrantToASC: Weapon=%s AbilitiesToGrant=%d OwnerHasAuthority=%d"),
         *GetName(), GrantedAbilities.Num(),
@@ -155,6 +163,13 @@ void AWeaponBase::RevokeFromASC(UAbilitySystemComponent* ASC)
     {
         GrantedHandles.Reset();
         return;
+    }
+
+    //상태태그 추가
+  // Equip 때 올린 WeaponTypeTag 회수
+    if (WeaponTypeTag.IsValid())
+    {
+        ASC->RemoveLooseGameplayTag(WeaponTypeTag);
     }
 
     for (const FActiveGameplayEffectHandle& Handle : GrantedHandles.EffectHandles)
