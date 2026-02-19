@@ -365,7 +365,6 @@ bool USBWorldSaveManagerSubsystem::LoadCurrentWorldToPawn(APawn* Pawn)
 
     bool bOk = true;
 
-    // Transform
     if (Save->bHasPlayerTransform)
     {
         Pawn->SetActorLocationAndRotation(
@@ -377,7 +376,7 @@ bool USBWorldSaveManagerSubsystem::LoadCurrentWorldToPawn(APawn* Pawn)
         );
     }
 
-    // ControlRotation
+    // ControlRotation (이거 작동 안하는거 같음 수정할 예정)
     if (Save->bHasControlRotation)
     {
         if (APlayerController* PC = Cast<APlayerController>(Pawn->GetController()))
