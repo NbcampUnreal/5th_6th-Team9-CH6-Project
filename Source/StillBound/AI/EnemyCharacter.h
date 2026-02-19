@@ -67,4 +67,11 @@ private:
 
     UPROPERTY()
     TObjectPtr<UBlackboardComponent> BlackboardComp;
+
+public:
+    UFUNCTION(BlueprintCallable, Category = "Enemy|Data")
+    void SetEnemyId(int32 NewId);
+
+    UFUNCTION(BlueprintPure, Category = "Enemy|Data")
+    int32 GetEnemyId() const { return EnemyId; }
 };

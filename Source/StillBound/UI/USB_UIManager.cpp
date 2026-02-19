@@ -6,7 +6,9 @@
 #include "Character/PlayerCharacter_SB.h"
 #include "Character/PlayerAttributeSet.h"
 #include "UI/MainMenu.h"
+#include "UI/UW_FullMap.h"
 #include "UI/Interaction/InteractionWidget.h"
+#include "UI/Inventory/HotbarPanel.h"
 
 void USB_UIManager::Init(APlayerController* InOwnerPC)
 {
@@ -36,16 +38,13 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 		InteractionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
+	if (FullMapClass)
+	{
+		FullMapWidget = CreateWidget<UUW_FullMap>(OwnerPC, FullMapClass);
+	}
+
 	ABaseCharacter_SB* Char = Cast<ABaseCharacter_SB>(OwnerPC->GetPawn());
 	if (!Char) return;
-
-	if (APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(Char))
-	{
-		if (UIHUD->GetMiniMapWidget() && Player->GetMiniMapTarget())
-		{
-			UIHUD->GetMiniMapWidget()->SetMiniMapTexture(Player->GetMiniMapTarget());
-		}
-	}
 
 	UPlayerAttributeSet* AS = Char->GetPlayerAttributeSet();
 	if (!AS) return;
@@ -54,7 +53,9 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 	AS->OnLevelChanged.AddDynamic(this, &USB_UIManager::OnLevelChanged);
 
 	UpdateHUD();
-
+	
+	auto* Chr = Cast<APlayerCharacter_SB>(Char);
+	UIHUD->InitInventory(Chr->GetInventory());
 }
 
 void USB_UIManager::SetHP(float Current, float Max)
@@ -80,6 +81,26 @@ void USB_UIManager::SetLevel(int32 Level)
 {
 	if (!UIHUD) return;
 	UIHUD->SetLevel(Level);
+}
+
+void USB_UIManager::ToggleFullMap()
+{
+	if (!FullMapWidget)
+	{
+		UE_LOG(LogTemp, Error, TEXT("FullMapWidget is NULL"));
+		return;
+	}
+
+	if (FullMapWidget->IsInViewport())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Removing FullMap"));
+		FullMapWidget->RemoveFromParent();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Adding FullMap"));
+		FullMapWidget->AddToViewport(50);
+	}
 }
 
 void USB_UIManager::UpdateHUD()
@@ -118,7 +139,7 @@ void USB_UIManager::DisplayMenu()
 	if (MainMenuWidget)
 	{
 		bIsMenuVisible = true;
-		MainMenuWidget->SetVisibility(ESlateVisibility::Visible);
+		MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	}
 }
 

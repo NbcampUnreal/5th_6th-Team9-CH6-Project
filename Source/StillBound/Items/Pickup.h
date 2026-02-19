@@ -47,17 +47,20 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Pickup|Item Reference")
 	TObjectPtr<UItemBase> ItemReference;
 
-	UPROPERTY(EditInstanceOnly, Category = "Pickup|Item Initialization")
-	UDataTable* ItemDataTable;
+	//UPROPERTY(EditInstanceOnly, Category = "Pickup|Item Initialization")
+	//UDataTable* ItemDataTable;
 
-	UPROPERTY(EditInstanceOnly, Category = "Pickup|Item Initialization")
-	FName DesiredItemID;
+	//UPROPERTY(EditInstanceOnly, Category = "Pickup|Item Initialization")
+	//FName DesiredItemID;
 
 	UPROPERTY(EditInstanceOnly, Category = "Pickup|Item Initialization")
 	int32 ItemQuantity;
 
 	UPROPERTY(VisibleAnywhere, Category = "Pickup|Interaction")
 	FInteractableData InstanceInteractableData;
+
+	UPROPERTY(EditInstanceOnly, Category = "Pickup|Item Initialization")
+	FDataTableRowHandle ItemRowHandle;
 
 	///===============================================================================
 	/// FUNCTIONS

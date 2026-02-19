@@ -2,9 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Data/InventoryTypes.h"
 #include "InventoryComponent.generated.h"
 
 DECLARE_MULTICAST_DELEGATE(FOnInventoryUpdated);
+DECLARE_MULTICAST_DELEGATE(FOnHotbarUpdated);
 
 class UItemBase;
 
@@ -78,6 +80,7 @@ public:
     /// PROPERTIES & VARIABLES
     ///===============================================================================
     FOnInventoryUpdated OnInventoryUpdated;
+    FOnHotbarUpdated OnHotbarUpdated;
 
     ///===============================================================================
     /// FUNCTIONS
@@ -87,7 +90,6 @@ public:
     UFUNCTION(Category = "Inventory")
     FItemAddResult HandleAddItem(UItemBase* InputItem);
 
-
     UFUNCTION(Category = "Inventory")
     UItemBase* FindMatchingItem(UItemBase* ItemIn) const;
     UFUNCTION(Category = "Inventory")
@@ -95,6 +97,15 @@ public:
     UFUNCTION(Category = "Inventory")
     UItemBase* FindNextPartialStack(UItemBase* ItemIn) const;
 
+    UFUNCTION(Category = "Inventory")
+    UItemBase* FindNextPartialStackInHotbar(UItemBase* ItemIn) const;
+
+
+    UFUNCTION(Category = "Inventory")
+    int32 FindFirstEmptyInventorySlot() const;
+
+    UFUNCTION(Category = "Inventory")
+    int32 FindFirstEmptyHotbarIndex() const;
 
     UFUNCTION(Category = "Inventory")
     void RemoveSingleInstanceOfItem(UItemBase* ItemToRemove);
@@ -105,7 +116,18 @@ public:
     UFUNCTION(Category = "Inventory")
     void SplitExistingStack(UItemBase* ItemIn, const int32 AmountToSplit);
 
+    UFUNCTION(Category = "Inventory")
+    FItemAddResult HandleAddItem_AutoHotbarFirst(UItemBase* InputItem);
 
+    UFUNCTION(Category = "Inventory")
+    int32 GetOccupiedSlotCount() const;
+
+
+    UItemBase* GetItemAtIndex(int32 Index) const;
+    int32 RemoveAmountAtIndex(int32 Index, int32 Quantity);
+
+    UItemBase* GetItemInContainer(ESlotContainer InContainer, int32 Index) const;
+    int32 RemoveAmountInContainer(ESlotContainer InContainer, int32 Index, int32 Quantity);
     /// getters
     UFUNCTION(Category = "Inventory")
     FORCEINLINE float GetInventoryTotalWeight() const { return InventoryTotalWeight; };
@@ -116,9 +138,15 @@ public:
     UFUNCTION(Category = "Inventory")
     FORCEINLINE int32 GetSlotCapacity() const { return InventorySlotsCapacity; };
 
-    UFUNCTION(Category = "Inventory")
-    FORCEINLINE TArray<UItemBase*> GetInventoryContents() const { return InventoryContents; };
-    
+    FORCEINLINE const TArray<TObjectPtr<UItemBase>>& GetInventorySlots() const { return InventorySlots; };
+
+    UFUNCTION(Category = "Horbar")
+    FORCEINLINE int32 GetHotbarCapacity() const { return HotbarSlotsCapacity; };
+
+    FORCEINLINE const TArray<TObjectPtr<UItemBase>>& GetHotbarSlots() const { return HotbarContents; };
+
+    bool MoveSlotItem(ESlotContainer FromContainer, int32 FromIndex, ESlotContainer ToContainer, int32 ToIndex, bool bAllowSwap);
+
 
     /// setters
     UFUNCTION(Category = "Inventory")
@@ -140,7 +168,14 @@ protected:
     UPROPERTY(EditInstanceOnly, Category = "Inventory")
     float InventoryWeightCapacity;
 
-    TArray<TObjectPtr<UItemBase>> InventoryContents;
+    UPROPERTY()
+    TArray<TObjectPtr<UItemBase>> InventorySlots;
+
+    UPROPERTY(EditInstanceOnly, Category="Hotbar")
+    int32 HotbarSlotsCapacity = 8;
+
+    UPROPERTY(EditInstanceOnly, Category = "Hotbar")
+    TArray<TObjectPtr<UItemBase>> HotbarContents;
 
     ///===============================================================================
     /// FUNCTIONS

@@ -9,6 +9,8 @@ class UUW_UIHUD;
 class UMainMenu;
 class UInteractionWidget;
 struct FInteractableData;
+class UUW_FullMap;
+class UHotbarPanel;
 /**
  * 
  */
@@ -25,7 +27,12 @@ public:
 	void SetStamina(float Current, float Max);
 	void SetExp(float Current, float Required);
 	void SetLevel(int32 Level);
+	void ToggleFullMap();
 	void UpdateHUD();
+
+	UUW_FullMap* GetFullMapWidget() const { return FullMapWidget; }
+	UUW_UIHUD* GetHUD() const { return UIHUD; }
+
 private:
 
 	UPROPERTY()
@@ -36,6 +43,12 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<UUW_UIHUD> UIHUDClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUW_FullMap> FullMapClass;
+
+	UPROPERTY()
+	TObjectPtr<UUW_FullMap> FullMapWidget;
 
 	UFUNCTION()
 	void OnExpChanged(float OldValue, float NewValue);
@@ -68,6 +81,10 @@ public:
 	void ShowInteractionWidget();
 	void HideInteractionWidget();
 	void UpdateInteractionWidget(const FInteractableData& InteractableData);
+
+
+	//getter
+	TObjectPtr<UMainMenu> GetMainMenuWidget() const { return MainMenuWidget; };
 
 protected:
 	///===============================================================================

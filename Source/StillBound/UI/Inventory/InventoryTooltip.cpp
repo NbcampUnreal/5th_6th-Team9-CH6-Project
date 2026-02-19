@@ -7,7 +7,18 @@ void UInventoryTooltip::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	if (!InventorySlotBeingHovered)
+	{
+		SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
 	UItemBase* ItemBeingHovered = InventorySlotBeingHovered->GetItemReference();
+	if (!ItemBeingHovered)
+	{
+		SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
 
 	switch (ItemBeingHovered->ItemType)
 	{
@@ -55,4 +66,32 @@ void UInventoryTooltip::NativeConstruct()
 	{
 		MaxStackSize->SetVisibility(ESlateVisibility::Collapsed);
 	}
+}
+
+void UInventoryTooltip::RefreshFromSlot()
+{
+	if (!InventorySlotBeingHovered)
+	{
+		SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	UItemBase* Item = InventorySlotBeingHovered->GetItemReference();
+	if (!Item)
+	{
+		SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	SetVisibility(ESlateVisibility::Visible);
+
+	ItemName->SetText(Item->TextData.Name);
+	DamageValue->SetText(FText::AsNumber(Item->ItemStatistics.DamageValue));
+	ArmorRating->SetText(FText::AsNumber(Item->ItemStatistics.ArmorRating));
+	UsageText->SetText(Item->TextData.UsageText);
+	ItemDescription->SetText(Item->TextData.Description);
+	
+	const FString WeightInfo = FString::Printf(TEXT("Weight: %s"), *FString::SanitizeFloat(Item->GetItemStackWeight()));
+
+	StackWeight->SetText(FText::FromString(WeightInfo));
 }

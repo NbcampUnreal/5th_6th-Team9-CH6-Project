@@ -19,6 +19,52 @@ enum class EDialogueType : uint8
     Information UMETA(DisplayName = "Information")
 };
 
+UENUM(BlueprintType)
+enum class EMenuType : uint8
+{
+    None        UMETA(DisplayName = "None"),
+    Dialogue    UMETA(DisplayName = "Dialogue"),
+    Quest       UMETA(DisplayName = "Quest"),
+    Trade       UMETA(DisplayName = "Trade"),
+    Exit        UMETA(DisplayName = "EXIT")
+};
+
+UENUM(BlueprintType)
+enum class EConditionType : uint8
+{
+    None            UMETA(DisplayName = "조건 없음"),
+    HasItem         UMETA(DisplayName = "아이템 보유"),
+    HasGold         UMETA(DisplayName = "골드 보유"),
+    QuestCompleted  UMETA(DisplayName = "퀘스트 완료"),
+    QuestActive     UMETA(DisplayName = "퀘스트 진행 중")
+};
+
+USTRUCT(BlueprintType)
+struct FDialogueCondition
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Condition")
+    EConditionType ConditionType = EConditionType::None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Condition")
+    FString ConditionValue;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Condition")
+    int32 RequiredAmount = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Condition")
+    bool bInvert = false;
+
+    FDialogueCondition()
+        : ConditionType(EConditionType::None)
+        , ConditionValue("")
+        , RequiredAmount(1)
+        , bInvert(false)
+    {
+    }
+};
+
 USTRUCT(BlueprintType)
 struct FDialogueOption
 {
@@ -32,13 +78,18 @@ struct FDialogueOption
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 NextDialogueID = 0;
 
-    // 조건 (나중에 확장용)
+    // 메뉴 전환 (다른 테이블로 이동)
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FString RequiredCondition;
+    EMenuType SwitchToMenu = EMenuType::None;
+
+    // 조건
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FDialogueCondition RequiredCondition;
 
     FDialogueOption()
         : OptionText(FText::FromString(TEXT("계속")))
         , NextDialogueID(0)
+        , SwitchToMenu(EMenuType::None)
     {
     }
 };
@@ -77,11 +128,5 @@ struct FDialogueRow : public FTableRowBase
 
     FDialogueRow()
     {
-        /*기본 선택지 추가
-        FDialogueOption DefaultOption;
-        DefaultOption.OptionText = FText::FromString(TEXT("플레이어가 선택할 답변"));
-        DefaultOption.NextDialogueID = 0; // 대화 종료
-        Options.Add(DefaultOption);
-        */
     }
 };

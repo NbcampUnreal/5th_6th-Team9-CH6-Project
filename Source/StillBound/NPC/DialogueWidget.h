@@ -17,6 +17,7 @@ class UTextBlock;
 class UVerticalBox;
 class UBotton;
 class UDialogueComponent;
+class UDialogueOptionButton;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDialogueOptionSelected, int32, OptionIndex);
 
@@ -29,6 +30,9 @@ public:
 	//대화 데이터 표시
 	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	void ShowDialogue(const FDialogueRow& DialogueData);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Dialogue")
+	void OnMenuTypeChanged(EMenuType NewMenuType);
 
 	//대화 달기
 	UFUNCTION(BlueprintCallable, Category = "Dialogue")
@@ -70,6 +74,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Dialogue")
 	FDialogueRow CurrentDialogueData;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* TXT_MenuTitle;
 
 private:
 	UPROPERTY()

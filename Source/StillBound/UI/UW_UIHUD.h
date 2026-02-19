@@ -8,6 +8,8 @@ class UUW_HPBar;
 class UUW_StaminaBar;
 class UUW_ExpBar;
 class UUW_Minimap;
+class UHotbarPanel;
+class UInventoryComponent;
 
 /**
  * 
@@ -33,6 +35,10 @@ public:
 
 	UUW_Minimap* GetMiniMapWidget() const { return MiniMapWidget; }
 
+	void InitInventory(UInventoryComponent* InInv);
+
+	TObjectPtr<UHotbarPanel> GetHotbarPanel() const { return HotbarPanel; };
+
 protected:
 
 	UPROPERTY(meta = (BindWidget))
@@ -46,5 +52,9 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UUW_Minimap> MiniMapWidget;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UHotbarPanel> HotbarPanel;
+	
 
 };

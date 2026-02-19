@@ -9,7 +9,7 @@ APickup::APickup()
 	PrimaryActorTick.bCanEverTick = false;
 
 	PickupMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PickupMesh"));
-	PickupMesh->SetSimulatePhysics(false);
+	PickupMesh->SetSimulatePhysics(true);
 	SetRootComponent(PickupMesh);
 }
 
@@ -28,9 +28,9 @@ FInteractableData APickup::GetInteractableData_Implementation()
 
 void APickup::InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int32 InQuantity)
 {
-	if (ItemDataTable && !DesiredItemID.IsNone())
+	if (!ItemRowHandle.IsNull())
 	{
-		const FItemDataRow* ItemData = ItemDataTable->FindRow<FItemDataRow>(DesiredItemID, DesiredItemID.ToString());
+		const FItemDataRow* ItemData = ItemRowHandle.GetRow<FItemDataRow>(ItemRowHandle.RowName.ToString());
 
 		ItemReference = NewObject<UItemBase>(this, BaseClass);
 
@@ -41,6 +41,7 @@ void APickup::InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int
 		ItemReference->TextData = ItemData->TextData;
 		ItemReference->AssetData = ItemData->AssetData;
 
+		ItemReference->NumericData.bIsStackable = ItemData->NumericData.MaxStackSize > 1;
 		InQuantity <= 0 ? ItemReference->SetQuantity(1) : ItemReference->SetQuantity(InQuantity);
 
 		PickupMesh->SetStaticMesh(ItemData->AssetData.Mesh);
@@ -101,7 +102,7 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 		{
 			if (UInventoryComponent* PlayerInventory = Taker->GetInventory())
 			{
-				const FItemAddResult AddResult = PlayerInventory->HandleAddItem(ItemReference);
+				const FItemAddResult AddResult = PlayerInventory->HandleAddItem_AutoHotbarFirst(ItemReference);
 
 				switch (AddResult.OperationResult)
 				{
@@ -130,23 +131,22 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 	}
 }
 
+#if WITH_EDITOR
 void APickup::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName ChangedPropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
-	if (ChangedPropertyName == GET_MEMBER_NAME_CHECKED(APickup, DesiredItemID))
+	if (ChangedPropertyName == GET_MEMBER_NAME_CHECKED(FDataTableRowHandle, RowName))
 	{
-		if (ItemDataTable)
+		if (!ItemRowHandle.IsNull())
 		{
-			if (const FItemDataRow* ItemData = ItemDataTable->FindRow<FItemDataRow>(DesiredItemID, DesiredItemID.ToString()))
-			{
-				PickupMesh->SetStaticMesh(ItemData->AssetData.Mesh);
-			}
+			const FItemDataRow* ItemData = ItemRowHandle.GetRow<FItemDataRow>(ItemRowHandle.RowName.ToString());
+			PickupMesh->SetStaticMesh(ItemData->AssetData.Mesh);
 		}
 	}
-
 }
+#endif 
 
 
