@@ -37,16 +37,6 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 		InteractionWidget->AddToViewport(5);
 		InteractionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
-	
-	//if (HotbarPanelClass)
-	//{
-	//	HotbarPanelWidget = CreateWidget<UHotbarPanel>(OwnerPC, HotbarPanelClass);
-	//	if (HotbarPanelWidget)
-	//	{
-	//		/*HotbarPanelWidget->AddToViewport(12);*/
-	//		HotbarPanelWidget->SetVisibility(ESlateVisibility::Visible);
-	//	}
-	//}
 
 	if (FullMapClass)
 	{
@@ -63,7 +53,9 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 	AS->OnLevelChanged.AddDynamic(this, &USB_UIManager::OnLevelChanged);
 
 	UpdateHUD();
-
+	
+	auto* Chr = Cast<APlayerCharacter_SB>(Char);
+	UIHUD->InitInventory(Chr->GetInventory());
 }
 
 void USB_UIManager::SetHP(float Current, float Max)
@@ -162,31 +154,6 @@ void USB_UIManager::HideMenu()
 
 void USB_UIManager::ToggleMenu()
 {
-	//if (!OwnerPC || !MainMenuWidget) return;
-
-	//bIsMenuVisible = !bIsMenuVisible;
-
-	//if (bIsMenuVisible)
-	//{
-	//	MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-
-	//	FInputModeGameAndUI Mode;
-	//	Mode.SetWidgetToFocus(MainMenuWidget->TakeWidget());
-	//	Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	//	Mode.SetHideCursorDuringCapture(false);
-
-	//	OwnerPC->SetInputMode(Mode);
-	//	OwnerPC->SetShowMouseCursor(true);
-
-	//	OwnerPC->FlushPressedKeys();
-	//}
-	//else
-	//{
-	//	MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
-
-	//	OwnerPC->SetInputMode(FInputModeGameOnly());
-	//	OwnerPC->SetShowMouseCursor(false);
-	//}
 	if (bIsMenuVisible)
 	{
 		HideMenu();

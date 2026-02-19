@@ -18,9 +18,10 @@ public:
 	UFUNCTION()
 	void RefreshHotbar();
 
+	void InitWithInventory(UInventoryComponent* InInv);
+
 protected:
 	virtual void NativeOnInitialized() override;
-	virtual void NativeConstruct() override;
 
 	void BuildHotbar();
 

@@ -1,6 +1,5 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "Weapons/GameAbility/WeaponGameplayAbility.h"
 
 #include "Weapons/WeaponBase.h"
@@ -13,21 +12,24 @@
 
 UWeaponGameplayAbility::UWeaponGameplayAbility()
 {
-    // 싱글플레이 기준: LocalOnly로 두면 예측/서버 이슈 없이 깔끔함
+    // 싱글플레이 기준: LocalOnly
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalOnly;
 
-    // 보통 무기 공격은 인스턴스가 필요 (상태/타이머/히트목록 유지)
+    // 무기 공격은 상태(히트목록/타이머 등)가 필요하니 인스턴스 권장
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
-    //  기본 데미지 GE 기본값 지정 (BP에서 다른 GE로 교체도 가능)
+    // 기본 데미지 GE (BP에서 교체 가능)
     BaseDamageEffectClass = UGE_WeaponDamage_Instant::StaticClass();
 }
 
-FGameplayTag UWeaponGameplayAbility::GetDataDamageTag() // 
+FGameplayTag UWeaponGameplayAbility::GetDataDamageTag()
 {
-    static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TEXT("Data.EnemyDamage"), /*ErrorIfNotFound*/ false);
+    static const FGameplayTag Tag =
+        FGameplayTag::RequestGameplayTag(TEXT("Data.EnemyDamage"), /*ErrorIfNotFound*/ false);
+
     ensureMsgf(Tag.IsValid(),
         TEXT("[GAS] GameplayTag 'Data.EnemyDamage' is not registered. Add it in Project Settings > GameplayTags or DefaultGameplayTags.ini"));
+
     return Tag;
 }
 
@@ -49,7 +51,6 @@ AWeaponBase* UWeaponGameplayAbility::GetWeaponFromSourceObject() const
     return Cast<AWeaponBase>(SourceObj);
 }
 
-
 bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     AActor* TargetActor,
     TSubclassOf<UGameplayEffect> EffectClass,
@@ -58,7 +59,6 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     float Chance
 ) const
 {
-    // [DEBUG ADD HERE] 입력 검증 로그
     if (!TargetActor || !EffectClass)
     {
         if (bDebugGE)
@@ -69,6 +69,7 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
         return false;
     }
 
+    // 확률 발동
     if (Chance < 1.0f)
     {
         const float Roll = FMath::FRand();
@@ -79,13 +80,15 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     }
 
     UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
-    if (!SourceASC) {
+    if (!SourceASC)
+    {
         if (bDebugGE)
         {
             UE_LOG(LogTemp, Warning, TEXT("[GE] SourceASC is null"));
         }
         return false;
     }
+
     UAbilitySystemComponent* TargetASC =
         UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
     if (!TargetASC)
@@ -100,6 +103,7 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     AActor* Avatar = GetAvatarActorFromActorInfo();
     AWeaponBase* Weapon = GetWeaponFromSourceObject();
 
+    // 컨텍스트: instigator / source object 세팅
     FGameplayEffectContextHandle Ctx = SourceASC->MakeEffectContext();
     if (Avatar)
     {
@@ -111,7 +115,7 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     }
 
     FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(EffectClass, Level, Ctx);
-    if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid()) // ✅ Data 유효성까지 체크
+    if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
     {
         if (bDebugGE)
         {
@@ -120,7 +124,7 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
         return false;
     }
 
-
+    // SetByCaller 주입
     for (const auto& KVP : SetByCallerMagnitudes)
     {
         if (KVP.Key.IsValid())
@@ -139,7 +143,7 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     return true;
 }
 
-bool UWeaponGameplayAbility::ApplyBaseDamageToTargetActor( // ✅ FIX: 구현 추가
+bool UWeaponGameplayAbility::ApplyBaseDamageToTargetActor(
     AActor* TargetActor,
     float DamageValue,
     float Level,
@@ -153,7 +157,6 @@ bool UWeaponGameplayAbility::ApplyBaseDamageToTargetActor( // ✅ FIX: 구현 �
 
     if (!BaseDamageEffectClass)
     {
-        // 기본 데미지 GE가 지정되지 않았다면 적용 불가
         return false;
     }
 
@@ -164,7 +167,7 @@ bool UWeaponGameplayAbility::ApplyBaseDamageToTargetActor( // ✅ FIX: 구현 �
     }
 
     TMap<FGameplayTag, float> Mags;
-    Mags.Add(DamageTag, DamageValue); // SetByCaller(Data.Damage) 주입
+    Mags.Add(DamageTag, DamageValue);
 
     return ApplyEffectToTargetActor(
         TargetActor,

@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -10,32 +8,36 @@
 
 class UAnimMontage;
 class UGameplayEffect;
-class UGameplayAbility;
-class UAbilitySystemComponent;
+class UBoxComponent;
+class UStaticMeshComponent;
+/**
+ * 근접 무기 오버랩(히트박스) 설정
+ * - 소켓/트랜스폼은 코드에서 건드리지 않는다. (BP에서 직접 잡는 전제)
+ * - BP에서 커스텀 콜리전 채널을 선택할 수 있게 노출한다.
+ */
 USTRUCT(BlueprintType)
-struct FMeleeSweepConfig
+struct FMeleeOverlapConfig
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Sweep")
-    FName TraceStartSocket = TEXT("TraceStart");
+    /** 히트박스 크기(Extent). 필요 없으면 BP에서 HitBox 컴포넌트로 직접 조절하고, GA에서 ApplyOverlapConfig 안 불러도 됨 */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Overlap")
+    FVector BoxExtent = FVector(8.f, 20.f, 50.f);
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Sweep")
-    FName TraceEndSocket = TEXT("TraceEnd");
+    /** 히트박스의 ObjectType (필요 시 커스텀 Object Channel 선택 가능) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Overlap")
+    TEnumAsByte<ECollisionChannel> HitBoxObjectType = ECC_WorldDynamic;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Sweep")
-    float MaxDistance = 180.f;
+    /** 오버랩 대상 채널(= 상대의 ObjectType 채널). 커스텀 채널을 BP에서 선택 가능 */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Overlap")
+    TEnumAsByte<ECollisionChannel> OverlapTargetChannel = ECC_Pawn;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Sweep")
-    float Radius = 14.f;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Sweep")
-    TEnumAsByte<ECollisionChannel> TraceChannel = ECC_Pawn;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Sweep")
+    /** 같은 액터를 1회만 타격 (실제 필터링은 GA에서 사용) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Overlap")
     bool bHitEachActorOnce = true;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Sweep")
+    /** 첫 타격만 인정(히트 후 히트박스를 바로 끔) (실제 처리는 GA에서) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Overlap")
     bool bHitFirstTargetOnly = true;
 };
 
@@ -68,18 +70,14 @@ struct FWeaponAttackProfile
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Attack")
     float MontagePlayRate = 1.0f;
 
+    /** ? 오버랩 기반(소켓/트랜스폼은 건드리지 않음) */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Attack")
-    FMeleeSweepConfig Sweep;
+    FMeleeOverlapConfig Overlap;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Melee|Attack")
     TArray<FOnHitGameplayEffectSpec> OnHitTargetEffects;
 };
 
-/**
- * 근접 무기 베이스(스윕 방식)
- * - “GA 실행”과 “프로파일 데이터 제공”까지 담당
- * - 실제 공격 실행(몽타주/스윕/OnHit 적용)은 GA가 담당
- */
 UCLASS(Abstract, Blueprintable)
 class STILLBOUND_API AMeleeWeaponBase : public AWeaponBase
 {
@@ -88,15 +86,30 @@ class STILLBOUND_API AMeleeWeaponBase : public AWeaponBase
 public:
     AMeleeWeaponBase();
 
-    // GA가 무기에서 프로파일을 가져가는 API
     UFUNCTION(BlueprintCallable, Category = "Weapon|Melee")
     bool GetAttackProfile(FGameplayTag AttackTag, FWeaponAttackProfile& OutProfile) const;
 
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Melee|Mesh")
+    UStaticMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
+
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Melee|Overlap")
+    UBoxComponent* GetHitBox() const { return HitBox; }
+
+    /** 프로파일의 Overlap 설정을 히트박스에 반영(크기/채널만). 트랜스폼은 건드리지 않음 */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Melee|Overlap")
+    void ApplyOverlapConfig(const FMeleeOverlapConfig& Config);
+
+    /** 공격 중에만 히트박스 On/Off */
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Melee|Overlap")
+    void SetHitBoxEnabled(bool bEnabled);
+
 protected:
-   
-    // 공격 프로파일 테이블: Attack.Light → (몽타주/속도/범위/효과)
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Melee|Mesh", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UStaticMeshComponent> WeaponMesh;
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Melee|Data")
     TMap<FGameplayTag, FWeaponAttackProfile> AttackProfiles;
 
-
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Melee|Overlap", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UBoxComponent> HitBox;
 };

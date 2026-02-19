@@ -24,34 +24,6 @@ void UHotbarPanel::NativeOnInitialized()
 		*GetName(), *GetNameSafe(GetOwningPlayer()));
 }
 
-void UHotbarPanel::NativeConstruct()
-{
-	Super::NativeConstruct();
-
-	if (!PlayerCharacter)
-	{
-		PlayerCharacter = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
-	}
-
-	if (!InventoryReference && PlayerCharacter)
-	{
-		InventoryReference = PlayerCharacter->GetInventory();
-	}
-
-	if (!InventoryReference)
-	{
-		FTimerHandle Tmp;
-		GetWorld()->GetTimerManager().SetTimer(Tmp, this, &UHotbarPanel::RefreshHotbar, 0.0f, false);
-		return;
-	}
-
-	InventoryReference->OnHotbarUpdated.RemoveAll(this);
-	InventoryReference->OnHotbarUpdated.AddUObject(this, &UHotbarPanel::RefreshHotbar);
-
-	BuildHotbar();
-	RefreshHotbar();
-}
-
 void UHotbarPanel::BuildHotbar()
 {
 	if (!HotbarGrid || !HotbarSlotClass) return;
@@ -62,7 +34,7 @@ void UHotbarPanel::BuildHotbar()
 
 	for (int32 Index = 0; Index < HotbarSize; ++Index)
 	{
-		UInventoryItemSlot* SlotWidget = CreateWidget<UInventoryItemSlot>(this, HotbarSlotClass);
+		UInventoryItemSlot* SlotWidget = CreateWidget<UInventoryItemSlot>(GetOwningPlayer(), HotbarSlotClass);
 		if (!SlotWidget) continue;
 
 		SlotWidget->InitSlot(ESlotContainer::Hotbar, Index, InventoryReference);
@@ -89,5 +61,17 @@ void UHotbarPanel::RefreshHotbar()
 		UItemBase* Item = Hotbar.IsValidIndex(i) ? Hotbar[i] : nullptr;
 		SlotWidget->SetItemReference(Item);
 	}
+}
+
+void UHotbarPanel::InitWithInventory(UInventoryComponent* InInv)
+{
+	InventoryReference = InInv;
+	if (!InventoryReference) return;
+
+	InventoryReference->OnHotbarUpdated.RemoveAll(this);
+	InventoryReference->OnHotbarUpdated.AddUObject(this, &UHotbarPanel::RefreshHotbar);
+
+	BuildHotbar();
+	RefreshHotbar();
 }
 
