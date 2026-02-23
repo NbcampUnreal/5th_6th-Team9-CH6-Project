@@ -26,6 +26,8 @@ public:
 
 	void SetItemReference(UItemBase* ItemIn);
 
+	void SetSelectedVisual(bool bSelected);
+
 	FORCEINLINE UItemBase* GetItemReference() const { return ItemReference; };
 
 protected:
@@ -40,6 +42,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category="Inventory Slot")
 	UItemBase* ItemReference;
+
+	UPROPERTY(VisibleAnywhere, Category = "Inventory Slot", meta = (BindWidgetOptional))
+	UImage* SelectedFrame;
 
 	UPROPERTY(VisibleAnywhere, Category = "Inventory Slot", meta = (BindWidget))
 	UBorder* ItemBorder;

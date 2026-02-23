@@ -122,7 +122,6 @@ public:
     UFUNCTION(Category = "Inventory")
     int32 GetOccupiedSlotCount() const;
 
-
     UItemBase* GetItemAtIndex(int32 Index) const;
     int32 RemoveAmountAtIndex(int32 Index, int32 Quantity);
 

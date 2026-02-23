@@ -90,6 +90,9 @@ public:
 	void BeginInteract();
 	void EndInteract();
 	void Interact();
+	void SelectHotbarIndex(int32 NewIndex);
+	void HandleHotbarSelectionChanged();
+	void UseSelectedHotbarItem();
 
 	UFUNCTION(BlueprintCallable)
 	void Die();
@@ -112,6 +115,8 @@ public:
 
 	void EquipStartingWeapon(); // �߰�
 
+	int32 CurrentHotbarIndex = 0;
+
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;
@@ -124,4 +129,6 @@ private:
 
 	bool bIsDead = false;
 
+	UPROPERTY()
+	TObjectPtr<UItemBase> SelectedConsumable = nullptr;
 };

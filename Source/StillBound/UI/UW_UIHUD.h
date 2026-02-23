@@ -39,6 +39,8 @@ public:
 
 	TObjectPtr<UHotbarPanel> GetHotbarPanel() const { return HotbarPanel; };
 
+	void SetSelectedHotbarIndex(int32 Index);
+
 protected:
 
 	UPROPERTY(meta = (BindWidget))

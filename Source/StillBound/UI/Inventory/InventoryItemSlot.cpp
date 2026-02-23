@@ -207,9 +207,6 @@ void UInventoryItemSlot::InitSlot(ESlotContainer InContainer, int32 InIndex, UIn
 	SlotIndex = InIndex;
 	InventoryRef = InInv;
 
-	UE_LOG(LogTemp, Warning, TEXT("[InitSlot] %s Container=%d Index=%d Inv=%s OwningPC=%s"),
-		*GetName(), (int32)Container, SlotIndex, *GetNameSafe(InventoryRef),
-		*GetNameSafe(GetOwningPlayer()));
 }
 
 void UInventoryItemSlot::SetItemReference(UItemBase* ItemIn)
@@ -268,6 +265,22 @@ void UInventoryItemSlot::SetItemReference(UItemBase* ItemIn)
 	{
 		SetToolTip(ToolTip);
 		ToolTip->RefreshFromSlot();
+	}
+}
+
+void UInventoryItemSlot::SetSelectedVisual(bool bSelected)
+{
+	if (Container != ESlotContainer::Hotbar)
+	{
+		if (SelectedFrame)
+		{
+			SelectedFrame->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		return;
+	}
+	if (SelectedFrame)
+	{
+		SelectedFrame->SetVisibility(bSelected ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 }
 

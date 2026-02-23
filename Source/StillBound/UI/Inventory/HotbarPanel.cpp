@@ -73,5 +73,23 @@ void UHotbarPanel::InitWithInventory(UInventoryComponent* InInv)
 
 	BuildHotbar();
 	RefreshHotbar();
+
+	SetSelectedIndex(0);
 }
+
+void UHotbarPanel::SetSelectedIndex(int32 NewSelectedIndex)
+{
+	SelectedIndex = NewSelectedIndex;
+
+	if (HotbarSlotWidgets.Num() == 0) return;
+
+	for (int32 i = 0; i < HotbarSlotWidgets.Num(); ++i)
+	{
+		if (UInventoryItemSlot* SlotWidget = HotbarSlotWidgets[i])
+		{
+			SlotWidget->SetSelectedVisual(i == SelectedIndex);
+		}
+	}
+}
+
 
