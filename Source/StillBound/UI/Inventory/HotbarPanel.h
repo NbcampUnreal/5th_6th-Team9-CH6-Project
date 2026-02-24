@@ -20,6 +20,8 @@ public:
 
 	void InitWithInventory(UInventoryComponent* InInv);
 
+	void SetSelectedIndex(int32 NewSelectedIndex);
+
 protected:
 	virtual void NativeOnInitialized() override;
 
@@ -42,5 +44,7 @@ protected:
 
 private:
 	static constexpr int32 HotbarSize = 8;
+
+	int32 SelectedIndex = 0;
 
 };
