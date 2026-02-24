@@ -81,7 +81,7 @@ void APlayerCharacter_SB::BeginPlay()
 
 	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
 
-	EquipStartingWeapon();
+	//EquipStartingWeapon();
 
 
 }
@@ -132,6 +132,33 @@ void APlayerCharacter_SB::EquipStartingWeapon()
 
 
 }
+
+void APlayerCharacter_SB::UnequipWeapon(bool bDestroyWeaponActor)
+{
+	if (!EquippedWeapon) return;
+
+	UE_LOG(LogTemp, Warning, TEXT("[Unequip] Weapon=%s Destroy=%d"),
+		*GetNameSafe(EquippedWeapon), (int32)bDestroyWeaponActor);
+
+	// 1) ASC에서 GA/GE 회수 + WeaponTypeTag 제거 (WeaponBase.cpp에 이미 구현됨)
+	EquippedWeapon->Unequip();
+
+	// 2) 손 소켓에서 분리
+	EquippedWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+	// (선택) 충돌/표시 처리 필요하면 여기서
+	// EquippedWeapon->SetActorEnableCollision(false);
+	// EquippedWeapon->SetActorHiddenInGame(true);
+
+	// 3) 액터를 유지할지(재사용/인벤토리) 파괴할지 결정
+	if (bDestroyWeaponActor)
+	{
+		EquippedWeapon->Destroy();
+	}
+
+	EquippedWeapon = nullptr;
+}
+
 
 void APlayerCharacter_SB::Tick(float DeltaSeconds)
 {
@@ -412,7 +439,7 @@ void APlayerCharacter_SB::HandleHotbarSelectionChanged()
 	{
 		// 무기장착해제 로직 작성
 		//UnequipWeapon();
-
+		UnequipWeapon();
 		return;
 	}
 
@@ -421,6 +448,7 @@ void APlayerCharacter_SB::HandleHotbarSelectionChanged()
 	case EItemType::Weapon:
 		//무기장착코드작성
 		//EquipWeaponFromItem(Item);
+		EquipStartingWeapon();
 		break;
 
 	case EItemType::Tool:

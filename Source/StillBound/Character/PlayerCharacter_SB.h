@@ -109,6 +109,9 @@ public:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "SB|Weapon")
 	TObjectPtr<AWeaponBase> EquippedWeapon;
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void UnequipWeapon(bool bDestroyWeaponActor = true);
+
 	// ? PC�� ���� ���⸦ ������ �� �ְ� Getter ����
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	AWeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
