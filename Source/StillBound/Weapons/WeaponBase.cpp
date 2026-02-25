@@ -7,6 +7,7 @@
 #include "GameplayAbilitySpec.h"
 #include "GameplayEffect.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Items/ItemBase.h"
 
 // Sets default values
 AWeaponBase::AWeaponBase()
@@ -192,8 +193,15 @@ void AWeaponBase::RevokeFromASC(UAbilitySystemComponent* ASC)
 }
 
 
+void AWeaponBase::InitFromItem(const UItemBase* Item)
+{
+    if (!Item) return;
 
+    //  마스터 아이템 테이블의 DamageValue를 사용
+    WeaponDamage = Item->ItemStatistics.DamageValue;
 
+   
+}
 
 
 // Called when the game starts or when spawned

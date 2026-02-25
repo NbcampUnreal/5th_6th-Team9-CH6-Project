@@ -112,11 +112,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void UnequipWeapon(bool bDestroyWeaponActor = true);
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	bool EquipWeaponFromItem(UItemBase* Item);
+
 	// ? PC�� ���� ���⸦ ������ �� �ְ� Getter ����
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	AWeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
 
-	void EquipStartingWeapon(); // �߰�
+	
 
 	int32 CurrentHotbarIndex = 0;
 
