@@ -187,20 +187,15 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 		{
 			AActor* HitActor = TraceHit.GetActor();
 
-			// [�ٽ�] 1. �� �ڽ�(this)�̸� ����, 2. ��ȿ�� �������� Ȯ��
 			if (HitActor && HitActor != this)
 			{
-				// �������̽��� ������ �ִ�?
 				if (HitActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
 				{
-					// ���ο� ����-> FoundInteractable ȣ��
 					if (HitActor != InteractionData.CurrentInteractable)
 					{
 						FoundInteractable(HitActor);
 					}
 
-					// � ��찣��?�������̽��� �ִ� ���͸� ������
-					// �ؿ� �ִ� NoInteractableFound()�� ���� �� �ǵ��� Ż��
 					return;
 				}
 			}
@@ -307,7 +302,7 @@ void APlayerCharacter_SB::BeginInteract()
 					TimerHandle_Interaction,
 					this,
 					&APlayerCharacter_SB::Interact,
-					TargetData.InteractionDuration, // �޾ƿ� �������� �ð� ���?
+					TargetData.InteractionDuration, 
 					false);
 			}
 		}
@@ -350,11 +345,9 @@ void APlayerCharacter_SB::Interact()
 		return;
 	}
 
-	// 1. NPC���� Ȯ��
 	UDialogueComponent* DialogueComp = TargetActor->FindComponentByClass<UDialogueComponent>();
 	if (DialogueComp)
 	{
-		// ��ȣ�ۿ� ������Ʈ ����
 		if (auto* PC = Cast<APlayerController_SB>(GetController()))
 		{
 			if (PC->UIManager)
@@ -363,18 +356,18 @@ void APlayerCharacter_SB::Interact()
 			}
 		}
 
-		// ���� ���ε�
 		DialogueComp->OnDialogueEnded.RemoveAll(this);
 		DialogueComp->OnDialogueEnded.AddDynamic(this, &APlayerCharacter_SB::EndInteract);
 	
 		InteractionData.bIsInteracting = true;
 	}
-		IInteractionInterface::Execute_Interact(TargetActor, this);
-		//�������϶�
-		if (DialogueComp == nullptr)
-		{
-			EndInteract();
-		}
+
+	IInteractionInterface::Execute_Interact(TargetActor, this);
+
+	if (DialogueComp == nullptr)
+	{
+		EndInteract();
+	}
 }
 
 void APlayerCharacter_SB::SelectHotbarIndex(int32 NewIndex)
@@ -432,7 +425,6 @@ void APlayerCharacter_SB::HandleHotbarSelectionChanged()
 	case EItemType::Ammo:
 	case EItemType::Consumable:
 		SelectedConsumable = Item;
-		UE_LOG(LogTemp, Warning, TEXT("ddddd"));
 		break;
 
 	case EItemType::Material:
@@ -469,6 +461,21 @@ void APlayerCharacter_SB::UseSelectedHotbarItem()
 		SelectedConsumable = Cur;
 	}
 }
+
+void APlayerCharacter_SB::OpenCraftingUI(FName InStationTag, UDataTable* InRecipeTable)
+{
+	APlayerController_SB* PlayerController = Cast<APlayerController_SB>(GetController());
+	USB_UIManager* UI = PlayerController->UIManager;
+
+	if (!UI || !GetInventory() || !InRecipeTable) return;
+
+	GetInventory()->CurrentStationTag = InStationTag;
+	GetInventory()->RecipeDataTable = InRecipeTable;
+
+	//UI매니저에게 작업대 UI보이도록 호출
+	//UI->ShowCraftingPanel(InventoryComponent);
+}
+
 
 void APlayerCharacter_SB::UpdateInteractionWidget() const
 {
