@@ -3,12 +3,13 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "ShopComponent.h"
 #include "ShopItemSlot.generated.h"
 
 class UImage;
 class UTextBlock;
 class UButton;
+class ANPCCharacter;
+struct FItemDataRow;
 
 UCLASS()
 class STILLBOUND_API UShopItemSlot : public UUserWidget
@@ -19,8 +20,7 @@ protected:
     virtual void NativeConstruct() override;
 
 public:
-    UFUNCTION(BlueprintCallable, Category = "Shop")
-    void SetShopItemData(const FShopItemData& Data, UShopComponent* Shop);
+    void SetShopItemData(FItemDataRow* ItemData, int32 InPrice, ANPCCharacter* NPC);
 
 protected:
     UPROPERTY(meta = (BindWidget))
@@ -39,10 +39,13 @@ protected:
     UButton* BTN_Buy;
 
 private:
+    
     UPROPERTY()
-    UShopComponent* ShopComponentRef = nullptr;
+    ANPCCharacter* NPCRef = nullptr;
 
-    FShopItemData ItemData;
+    FName ItemID;
+    int32 Price = 0;
+    int32 Stock = -1;
 
     UFUNCTION()
     void OnBuyButtonClicked();

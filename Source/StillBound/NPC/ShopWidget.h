@@ -5,7 +5,7 @@
 #include "Blueprint/UserWidget.h"
 #include "ShopWidget.generated.h"
 
-class UShopComponent;
+class ANPCCharacter;
 class UInventoryComponent;
 class UTextBlock;
 class UButton;
@@ -23,7 +23,7 @@ protected:
 
 public:
     UFUNCTION(BlueprintCallable, Category = "Shop")
-    void InitializeShop(UShopComponent* Shop);
+    void InitializeShop(ANPCCharacter* NPC);
 
     UFUNCTION(BlueprintCallable, Category = "Shop")
     void CloseShop();
@@ -72,7 +72,7 @@ protected:
 
 private:
     UPROPERTY()
-    UShopComponent* ShopComponent = nullptr;
+    ANPCCharacter* NPCCharacter = nullptr;
 
     UPROPERTY()
     UInventoryComponent* PlayerInventory = nullptr;

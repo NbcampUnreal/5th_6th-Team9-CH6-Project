@@ -6,12 +6,17 @@
 #include "GameFramework/Character.h"
 #include "Interface/InteractionInterface.h"
 #include "Character/PlayerCharacter_SB.h"
+#include "Data/ItemData.h"
 #include "DialogueComponent.h"
 #include "NPCCharacter.generated.h"
 
 class UDialogueWidget;
 class ANPCAIController;
-class UShopComponent;
+class UInventoryComponent;
+class UDialogueComponent;
+class UWidgetComponent;
+class UShopWidget;
+struct FItemDataRow;
 
 UENUM(BlueprintType)
 enum class ENPCRegion : uint8
@@ -48,6 +53,48 @@ public:
     // === Widget ===
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
     TSubclassOf<UDialogueWidget> DialogueWidgetClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
+    FText ShopName;
+
+    // NPC가 판매할 아이템 타입들
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
+    TArray<EItemType> SellableItemTypes;
+
+    // 최대 판매 아이템 수 (랜덤 선택)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
+    int32 MaxShopItems = 10;
+
+    // Low-tier만 판매 (Weapon, Tool)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
+    bool bOnlyLowTierEquipment = true;
+
+    //  Low-tier 키워드 (이름에 포함되면 Low-tier로 판단)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
+    TArray<FString> LowTierKeywords;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
+    float PriceMultiplier = 1.0f;  // 가격 배율
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
+    UDataTable* ItemDataTable;
+
+    UFUNCTION(BlueprintCallable, Category = "Shop")
+    bool SellItemToPlayer(FName ItemID, int32 Quantity);
+
+    UFUNCTION(BlueprintPure, Category = "Shop")
+    int32 GetItemPrice(FName ItemID) const;
+
+    FItemDataRow* GetItemData(FName ItemID) const;
+
+    // 플레이어로부터 아이템 구매 (새로 추가)
+    UFUNCTION(BlueprintCallable, Category = "Shop")
+    bool BuyItemFromPlayer(UItemBase* Item, int32 Quantity, int32& OutGoldReceived);
+
+    // NPC 상점 아이템 리스트 가져오기
+    UFUNCTION(BlueprintPure, Category = "Shop")
+    TArray<FName> GetShopItemList() const { return SellableItemIDs; }
+
 
 protected:
     virtual void BeginPlay() override;
@@ -94,14 +141,8 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "NPC")
     AActor* CurrentInteractor = nullptr;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Shop")
-    UShopComponent* ShopComponent;
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
-    TSubclassOf<class UShopWidget> ShopWidgetClass;
-
-    UPROPERTY()
-    class UShopWidget* ShopWidget = nullptr;
+    TSubclassOf<UShopWidget> ShopWidgetClass;
 
 private:
     uint8 LastNPCState = 0;
@@ -109,4 +150,17 @@ private:
     // Widget 인스턴스
     UPROPERTY()
     UDialogueWidget* DialogueWidget = nullptr;
+
+    UPROPERTY()
+    UShopWidget* ShopWidget = nullptr;
+
+    // 실제 판매할 아이템 ID 목록 (BeginPlay에서 자동 생성)
+    TArray<FName> SellableItemIDs;
+
+    // Low-tier 아이템인지 판단
+    bool IsLowTierItem(const FItemDataRow* ItemData) const;
+
+    // 상점 아이템 초기화
+    void InitializeShopItems();
+
 };

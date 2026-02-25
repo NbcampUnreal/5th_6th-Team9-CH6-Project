@@ -1,10 +1,11 @@
 // ShopWidget.cpp
 #include "ShopWidget.h"
-#include "ShopComponent.h"
+#include "NPC/NPCCharacter.h"
 #include "Inventory/InventoryComponent.h"
 #include "ShopItemSlot.h"
 #include "UI/Inventory/InventoryItemSlot.h"
 #include "Character/PlayerCharacter_SB.h"
+#include "Data/ItemData.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/WrapBox.h"
@@ -47,11 +48,6 @@ void UShopWidget::NativeConstruct()
 void UShopWidget::NativeDestruct()
 {
     // 델리게이트 해제
-    if (ShopComponent)
-    {
-        ShopComponent->OnShopInventoryUpdated.RemoveDynamic(this, &UShopWidget::RefreshShop);
-    }
-
     if (PlayerInventory)
     {
         PlayerInventory->OnInventoryUpdated.RemoveAll(this);
@@ -60,15 +56,15 @@ void UShopWidget::NativeDestruct()
     Super::NativeDestruct();
 }
 
-void UShopWidget::InitializeShop(UShopComponent* Shop)
+void UShopWidget::InitializeShop(ANPCCharacter* NPC)
 {
-    if (!Shop)
+    if (!NPC)
     {
-        UE_LOG(LogTemp, Error, TEXT("ShopWidget: Invalid ShopComponent"));
+        UE_LOG(LogTemp, Error, TEXT("ShopWidget: Invalid NPC"));
         return;
     }
 
-    ShopComponent = Shop;
+    NPCCharacter = NPC;
 
     // 플레이어 인벤토리
     APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(
@@ -88,17 +84,16 @@ void UShopWidget::InitializeShop(UShopComponent* Shop)
     // 상점 이름
     if (TXT_ShopName)
     {
-        TXT_ShopName->SetText(ShopComponent->ShopName);
+        TXT_ShopName->SetText(NPCCharacter->ShopName);
     }
 
     // 델리게이트 바인딩
-    ShopComponent->OnShopInventoryUpdated.AddDynamic(this, &UShopWidget::RefreshShop);
     PlayerInventory->OnInventoryUpdated.AddUObject(this, &UShopWidget::RefreshShop);
 
     // 초기 표시
     RefreshShop();
 
-    UE_LOG(LogTemp, Log, TEXT("ShopWidget: Initialized shop '%s'"), *ShopComponent->ShopName.ToString());
+    UE_LOG(LogTemp, Log, TEXT("ShopWidget: Initialized shop '%s'"), *NPCCharacter->ShopName.ToString());
 }
 
 void UShopWidget::CloseShop()
@@ -147,22 +142,32 @@ void UShopWidget::OnSellTabClicked()
 
 void UShopWidget::DisplayShopItems()
 {
-    if (!WB_ShopItems || !ShopItemSlotClass || !ShopComponent) return;
+    if (!WB_ShopItems || !ShopItemSlotClass || !NPCCharacter) return;
 
     WB_ShopItems->ClearChildren();
 
-    for (const FShopItemData& ShopItem : ShopComponent->GetShopInventory())
+    for (const FName& ItemID : NPCCharacter->SellableItemIDs)
     {
+        FItemDataRow* ItemData = NPCCharacter->GetItemData(ItemID);
+        if (!ItemData)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Item %s not found in DataTable"), *ItemID.ToString());
+            continue;
+        }
+        // 가격 계산
+        int32 Price = NPCCharacter->GetItemPrice(ItemID);
+
+        // 슬롯 생성
         UShopItemSlot* ItemSlot = CreateWidget<UShopItemSlot>(this, ShopItemSlotClass);
         if (ItemSlot)
         {
-            ItemSlot->SetShopItemData(ShopItem, ShopComponent);
+            ItemSlot->SetShopItemData(ItemData, Price, NPCCharacter);
             WB_ShopItems->AddChildToWrapBox(ItemSlot);
         }
     }
 
     UE_LOG(LogTemp, Log, TEXT("ShopWidget: Displayed %d shop items"),
-        ShopComponent->GetShopInventory().Num());
+        NPCCharacter->SellableItemIDs.Num());
 }
 
 void UShopWidget::DisplayPlayerInventory()

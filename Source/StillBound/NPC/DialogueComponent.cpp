@@ -168,8 +168,7 @@ bool UDialogueComponent::SelectOption(int32 OptionIndex)
 				NPC->OpenShop();
 				// 대화창은 유지하거나 닫기 (선택)
 				// EndDialogue(); // 대화창 닫으려면 주석 해제
-			}
-			return true;
+			}  
 		}
 		else
 		{

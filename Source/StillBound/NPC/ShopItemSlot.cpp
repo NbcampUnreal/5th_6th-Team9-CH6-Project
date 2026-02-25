@@ -1,5 +1,6 @@
 #include "ShopItemSlot.h"
-#include "ShopComponent.h"
+#include "NPC/NPCCharacter.h"
+#include "Data/ItemData.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
@@ -14,25 +15,23 @@ void UShopItemSlot::NativeConstruct()
     }
 }
 
-void UShopItemSlot::SetShopItemData(const FShopItemData& Data, UShopComponent* Shop)
+void UShopItemSlot::SetShopItemData(FItemDataRow* ItemData, int32 InPrice, ANPCCharacter* NPC)
 {
-    ItemData = Data;
-    ShopComponentRef = Shop;
+    if (!ItemData || !NPC) return;
 
-    if (!ShopComponentRef) return;
-
-    const int32 BuyPrice = ShopComponentRef->GetBuyPrice(Data.ItemID);
-    const int32 Stock = ShopComponentRef->GetItemStock(Data.ItemID);
+    ItemID = ItemData->ID;
+    Price = InPrice;
+    NPCRef = NPC;
 
     if (TXT_ItemName)
     {
-        TXT_ItemName->SetText(FText::FromName(Data.ItemID));
+        TXT_ItemName->SetText(FText::FromName(ItemID));
     }
 
     if (TXT_ItemPrice)
     {
         TXT_ItemPrice->SetText(FText::Format(
-            FText::FromString(TEXT("{0}G")), BuyPrice));
+            FText::FromString(TEXT("{0}G")), Price));
     }
 
     if (TXT_ItemStock)
@@ -46,12 +45,26 @@ void UShopItemSlot::SetShopItemData(const FShopItemData& Data, UShopComponent* S
 
 void UShopItemSlot::OnBuyButtonClicked()
 {
-    if (!ShopComponentRef) return;
+    if (!NPCRef) return;
 
-    int32 GoldSpent = 0;
-    if (ShopComponentRef->BuyItemFromShop(ItemData.ItemID, 1, GoldSpent))
+    bool bSuccess = NPCRef->SellItemToPlayer(ItemID, 1);
+
+    if (bSuccess)
     {
-        UE_LOG(LogTemp, Log, TEXT("Purchased %s for %d gold"),
-            *ItemData.ItemID.ToString(), GoldSpent);
+        UE_LOG(LogTemp, Log, TEXT("Purchased %s"), *ItemID.ToString());
+
+        if (Stock > 0)
+        {
+            Stock--;
+            if (TXT_ItemStock)
+            {
+                TXT_ItemStock->SetText(FText::AsNumber(Stock));
+
+            }
+        }
     }
-}
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ShopItemSlot: Purchase failed"));
+    }
+} 
