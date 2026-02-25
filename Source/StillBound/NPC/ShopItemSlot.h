@@ -8,6 +8,7 @@
 class UImage;
 class UTextBlock;
 class UButton;
+class UShopTooltip;
 class ANPCCharacter;
 struct FItemDataRow;
 
@@ -19,6 +20,13 @@ class STILLBOUND_API UShopItemSlot : public UUserWidget
 protected:
     virtual void NativeConstruct() override;
 
+    virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+    virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+
+    // ÅøÆÁ À§Á¬
+    UPROPERTY(EditAnywhere, Category = "UI")
+    TSubclassOf< UShopTooltip> TooltipClass;
+    
 public:
     void SetShopItemData(FItemDataRow* ItemData, int32 InPrice, ANPCCharacter* NPC);
 
@@ -49,4 +57,8 @@ private:
 
     UFUNCTION()
     void OnBuyButtonClicked();
+
+    UPROPERTY()
+    UShopTooltip* ShopTooltipWidget = nullptr;
+
 };

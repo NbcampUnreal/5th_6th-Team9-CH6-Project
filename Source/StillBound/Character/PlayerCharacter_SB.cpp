@@ -131,6 +131,39 @@ void APlayerCharacter_SB::EquipStartingWeapon()
 
 }
 
+bool APlayerCharacter_SB::ModifyGold(int32 Amount)
+{
+	// 골드 차감 시 부족 체크
+	if (Amount < 0 && CurrentGold + Amount < 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Not enough gold! Have: %d, Need: %d"),
+			CurrentGold, -Amount);
+		return false;
+	}
+
+	// 골드 증가 시 최대치 체크
+	if (Amount > 0)
+	{
+		CurrentGold = FMath::Min(CurrentGold + Amount, MaxGold);
+	}
+	else
+	{
+		CurrentGold += Amount;
+	}
+
+	// 이벤트 발동
+	OnGoldChanged.Broadcast(CurrentGold);
+
+	UE_LOG(LogTemp, Log, TEXT("Gold changed: %+d (Total: %d)"), Amount, CurrentGold);
+	return true;
+}
+
+void APlayerCharacter_SB::SetGold(int32 NewAmount)
+{
+	CurrentGold = FMath::Clamp(NewAmount, 0, MaxGold);
+	OnGoldChanged.Broadcast(CurrentGold);
+}
+
 void APlayerCharacter_SB::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);

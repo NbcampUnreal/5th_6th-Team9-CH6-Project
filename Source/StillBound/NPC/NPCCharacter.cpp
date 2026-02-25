@@ -86,8 +86,15 @@ void ANPCCharacter::InitializeShopItems()
 
 	SellableItemIDs.Empty();
 	TArray<FName> AllRowNames = ItemDataTable->GetRowNames();
-	TArray<FName> FilteredItems;
 
+	// 판매할 아이템 타입 (기획서 기준)
+	TArray<EItemType> AllowedTypes = {
+		EItemType::Tool,       // 도구
+		EItemType::Weapon,     // 무기 (Low-tier만)
+		EItemType::Consumable  // 소비 아이템
+	};
+
+	int32 FilteredCount = 0;
 
 	// 1단계: 조건에 맞는 아이템 필터링
 	for (FName RowName : AllRowNames)
@@ -96,61 +103,28 @@ void ANPCCharacter::InitializeShopItems()
 
 		if (!ItemData || ItemData->ID.IsNone() || ItemData->ItemStatistics.SellValue <= 0)
 			continue;
-
 		// ItemType 필터
-		if (!SellableItemTypes.Contains(ItemData->ItemType))
+		if (!AllowedTypes.Contains(ItemData->ItemType))
 			continue;
 
-		// Low-tier 필터 (Weapon, Tool만)
-		if (bOnlyLowTierEquipment &&
-			(ItemData->ItemType == EItemType::Weapon || ItemData->ItemType == EItemType::Tool))
+		// IsLowTierItem() 함수 사용!
+		if (ItemData->ItemType == EItemType::Weapon || ItemData->ItemType == EItemType::Tool)
 		{
 			if (!IsLowTierItem(ItemData))
-				continue;
+				continue;  // High-tier는 제외
 		}
 
-		FilteredItems.Add(RowName);
+		SellableItemIDs.Add(RowName);
+		FilteredCount++;
+
+		UE_LOG(LogTemp, Verbose, TEXT("  Added: %s (%s) - %d gold"),
+			*ItemData->TextData.Name.ToString(),
+			*RowName.ToString(),
+			GetItemPrice(RowName));
 	}
 
-	// 2단계: 랜덤 선택 (최대 MaxShopItems개)
-	if (FilteredItems.Num() > MaxShopItems)
-	{
-		// 랜덤 셔플
-		for (int32 i = FilteredItems.Num() - 1; i > 0; i--)
-		{
-			int32 j = FMath::RandRange(0, i);
-			FilteredItems.Swap(i, j);
-		}
-
-		// 앞에서 MaxShopItems개만 선택
-		for (int32 i = 0; i < MaxShopItems; i++)
-		{
-			SellableItemIDs.Add(FilteredItems[i]);
-		}
-	}
-	else
-	{
-		SellableItemIDs = FilteredItems;
-	}
-
-	// 3단계: 로그 출력
-	UE_LOG(LogTemp, Log, TEXT("[%s] Shop initialized with %d items:"),
-		*NPCName, SellableItemIDs.Num());
-
-	for (int32 i = 0; i < SellableItemIDs.Num(); i++)
-	{
-		FItemDataRow* ItemData = ItemDataTable->FindRow<FItemDataRow>(
-			SellableItemIDs[i], TEXT("ShopInit"));
-
-		if (ItemData)
-		{
-			UE_LOG(LogTemp, Log, TEXT("  [%d] %s (%s) - %d gold"),
-				i,
-				*ItemData->TextData.Name.ToString(),
-				*SellableItemIDs[i].ToString(),
-				GetItemPrice(SellableItemIDs[i]));
-		}
-	}
+	UE_LOG(LogTemp, Log, TEXT("[%s] Shop initialized: %d/%d items"),
+		*NPCName, FilteredCount, AllRowNames.Num());
 }
 
 bool ANPCCharacter::IsLowTierItem(const FItemDataRow* ItemData) const
@@ -163,7 +137,8 @@ bool ANPCCharacter::IsLowTierItem(const FItemDataRow* ItemData) const
 	// 키워드 검사
 	for (const FString& Keyword : LowTierKeywords)
 	{
-		if (ItemName.Contains(Keyword) || ItemID.Contains(Keyword))
+		if (ItemName.Contains(Keyword, ESearchCase::IgnoreCase) ||
+			ItemID.Contains(Keyword, ESearchCase::IgnoreCase))
 		{
 			return true;
 		}
@@ -348,11 +323,16 @@ bool ANPCCharacter::SellItemToPlayer(FName ItemID, int32 Quantity)
 
 bool ANPCCharacter::BuyItemFromPlayer(UItemBase* Item, int32 Quantity, int32& OutGoldReceived)
 {
-	if (!Item || Quantity <= 0)
+	if (!Item || Quantity <= 0) return false;
+
+	// 판매 불가 아이템 체크 (SellValue == 0)
+	if (Item->ItemStatistics.SellValue <= 0)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Invalid item or quantity"));
+		UE_LOG(LogTemp, Warning, TEXT("Item cannot be sold: %s"),
+			*Item->TextData.Name.ToString());
 		return false;
 	}
+
 	APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(
 		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 
@@ -369,8 +349,8 @@ bool ANPCCharacter::BuyItemFromPlayer(UItemBase* Item, int32 Quantity, int32& Ou
 		return false;
 	}
 
-	// 구매 가격 계산 (판매 가격의 50%)
-	int32 BuyBackPrice = FMath::FloorToInt(Item->ItemStatistics.SellValue * 0.5f);
+	// 구매 가격 계산 (판매 가격의 80%)
+	int32 BuyBackPrice = FMath::FloorToInt(Item->ItemStatistics.SellValue * 0.8f);
 	int32 TotalPrice = BuyBackPrice * Quantity;
 
 	// 플레이어 인벤토리에서 제거
@@ -379,7 +359,7 @@ bool ANPCCharacter::BuyItemFromPlayer(UItemBase* Item, int32 Quantity, int32& Ou
 	if (RemovedAmount > 0)
 	{
 		// TODO: 골드 지급
-		OutGoldReceived = TotalPrice;
+		OutGoldReceived = BuyBackPrice * RemovedAmount;
 
 		UE_LOG(LogTemp, Log, TEXT("NPC bought %d x %s from player for %d gold"),
 			RemovedAmount, *Item->TextData.Name.ToString(), TotalPrice);
@@ -418,29 +398,6 @@ FItemDataRow* ANPCCharacter::GetItemData(FName ItemID) const
 	return Row;
 }
 
-void ANPCCharacter::OpenShop()
-{
-	if (!ShopWidgetClass)
-	{
-		UE_LOG(LogTemp, Error, TEXT("[%s] ShopWidgetClass not set"), *NPCName);
-		return;
-	}
-
-	if (!ShopWidget)
-	{
-		ShopWidget = CreateWidget<UShopWidget>(GetWorld(), ShopWidgetClass);
-		if (!ShopWidget)
-		{
-			UE_LOG(LogTemp, Error, TEXT("[%s] Failed to create shop widget"), *NPCName);
-			return;
-		}
-	}
-	ShopWidget->AddToViewport(100);
-
-	ShopWidget->InitializeShop(this);
-	UE_LOG(LogTemp, Log, TEXT("[%s] Shop opened"), *NPCName);
-}
-
 ANPCAIController* ANPCCharacter::GetNPCAIController() const
 {
 	return Cast<ANPCAIController>(GetController());
@@ -473,6 +430,29 @@ void ANPCCharacter::OnDialogueStart(const FDialogueRow& DialogueData)
 	DialogueWidget->ShowDialogue(DialogueData);
 
 }
+void ANPCCharacter::OpenShop()
+{
+	if (!ShopWidgetClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] ShopWidgetClass not set"), *NPCName);
+		return;
+	}
+
+	if (!ShopWidget)
+	{
+		ShopWidget = CreateWidget<UShopWidget>(GetWorld(), ShopWidgetClass);
+		if (!ShopWidget)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[%s] Failed to create shop widget"), *NPCName);
+			return;
+		}
+	}
+	ShopWidget->AddToViewport(100);
+
+	ShopWidget->InitializeShop(this);
+	UE_LOG(LogTemp, Log, TEXT("[%s] Shop opened"), *NPCName);
+}
+
 
 void ANPCCharacter::OnDialogueUpdate(const FDialogueRow& DialogueData)
 {

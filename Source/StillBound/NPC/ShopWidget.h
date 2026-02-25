@@ -31,6 +31,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Shop")
     void RefreshShop();
 
+    // 아이템 구매 (골드 체크 포함)
+    UFUNCTION(BlueprintCallable, Category = "Shop")
+    bool BuyItem(FName ItemID, int32 Quantity = 1);
+
+    // 아이템 판매 (드래그 앤 드롭)
+    UFUNCTION(BlueprintCallable, Category = "Shop")
+    bool SellItem(UItemBase* Item, int32 Quantity);
+
 protected:
     // ========== 바인드 위젯 ==========
 
@@ -94,4 +102,12 @@ private:
     void DisplayPlayerInventory();
     void UpdateGoldDisplay();
     void SwitchTab(bool bBuyTab);
+
+    // 재고 리셋 타이머
+    FTimerHandle RestockTimerHandle;
+
+    UPROPERTY(EditAnywhere, Category = "Shop")
+    float RestockIntervalSeconds = 600.0f;  // 10분
+
+    void OnRestockTimer();
 };

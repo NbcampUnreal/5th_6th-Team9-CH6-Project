@@ -91,9 +91,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Shop")
     bool BuyItemFromPlayer(UItemBase* Item, int32 Quantity, int32& OutGoldReceived);
 
+    // 상점 초기화
+    void InitializeShopItems();
+
     // NPC 상점 아이템 리스트 가져오기
     UFUNCTION(BlueprintPure, Category = "Shop")
-    TArray<FName> GetShopItemList() const { return SellableItemIDs; }
+    const TArray<FName>& GetShopItemList() const { return SellableItemIDs; }
 
 
 protected:
@@ -159,8 +162,5 @@ private:
 
     // Low-tier 아이템인지 판단
     bool IsLowTierItem(const FItemDataRow* ItemData) const;
-
-    // 상점 아이템 초기화
-    void InitializeShopItems();
 
 };

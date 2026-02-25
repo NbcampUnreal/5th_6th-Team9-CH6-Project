@@ -6,6 +6,7 @@
 #include "UI/Inventory/InventoryItemSlot.h"
 #include "Character/PlayerCharacter_SB.h"
 #include "Data/ItemData.h"
+#include "Items/ItemBase.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/WrapBox.h"
@@ -94,7 +95,36 @@ void UShopWidget::InitializeShop(ANPCCharacter* NPC)
     RefreshShop();
 
     UE_LOG(LogTemp, Log, TEXT("ShopWidget: Initialized shop '%s'"), *NPCCharacter->ShopName.ToString());
+
+    // 재고 리셋 타이머 시작
+    if (GetWorld())
+    {
+        GetWorld()->GetTimerManager().SetTimer(
+            RestockTimerHandle,
+            this,
+            &UShopWidget::OnRestockTimer,
+            RestockIntervalSeconds,
+            true  // 반복
+        );
+
+        UE_LOG(LogTemp, Log, TEXT("Restock timer started (%.0f seconds)"),
+            RestockIntervalSeconds);
+    }
 }
+
+void UShopWidget::OnRestockTimer()
+{
+    if (!NPCCharacter) return;
+
+    // NPC의 상점 아이템 재초기화
+    NPCCharacter->InitializeShopItems();
+
+    // UI 새로고침
+    RefreshShop();
+
+    UE_LOG(LogTemp, Log, TEXT("Shop restocked!"));
+}
+
 
 void UShopWidget::CloseShop()
 {
@@ -125,6 +155,72 @@ void UShopWidget::RefreshShop()
     UpdateGoldDisplay();
 }
 
+bool UShopWidget::BuyItem(FName ItemID, int32 Quantity)
+{
+    if (!NPCCharacter || !PlayerInventory) return false;
+
+    // 1. 가격 계산
+    int32 UnitPrice = NPCCharacter->GetItemPrice(ItemID);
+    int32 TotalPrice = UnitPrice * Quantity;
+
+    // 2. 골드 체크
+    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(
+        UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+
+    if (!Player || !Player->HasEnoughGold(TotalPrice))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Not enough gold! Need: %d, Have: %d"),
+            TotalPrice, Player ? Player->GetGold() : 0);
+
+        // TODO: "골드 부족" UI 표시
+        return false;
+    }
+    //  3. 아이템 구매 시도
+    if (NPCCharacter->SellItemToPlayer(ItemID, Quantity))
+    {
+        // 4. 골드 차감
+        Player->ModifyGold(-TotalPrice);
+
+        UE_LOG(LogTemp, Log, TEXT("Bought %d x %s for %d gold"),
+            Quantity, *ItemID.ToString(), TotalPrice);
+
+        // 5. UI 새로고침
+        RefreshShop();
+        return true;
+    }
+
+    return false;
+}
+
+bool UShopWidget::SellItem(UItemBase* Item, int32 Quantity)
+{
+    if (!NPCCharacter || !Item) return false;
+
+    int32 GoldReceived = 0;
+
+    // NPC에게 아이템 판매
+    if (NPCCharacter->BuyItemFromPlayer(Item, Quantity, GoldReceived))
+    {
+        // 골드 지급
+        APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(
+            UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+
+        if (Player)
+        {
+            Player->ModifyGold(GoldReceived);
+        }
+
+        UE_LOG(LogTemp, Log, TEXT("Sold %d x %s for %d gold"),
+            Quantity, *Item->TextData.Name.ToString(), GoldReceived);
+
+        // UI 새로고침
+        RefreshShop();
+        return true;
+    }
+
+    return false;
+}
+
 void UShopWidget::OnCloseButtonClicked()
 {
     CloseShop();
@@ -146,8 +242,17 @@ void UShopWidget::DisplayShopItems()
 
     WB_ShopItems->ClearChildren();
 
-    for (const FName& ItemID : NPCCharacter->SellableItemIDs)
+    // Getter 함수로 가져오기!
+    const TArray<FName>& ShopItems = NPCCharacter->GetShopItemList();
+
+    UE_LOG(LogTemp, Log, TEXT("Shop items count: %d"), ShopItems.Num());
+
+    // 순회
+    for (int32 i = 0; i < ShopItems.Num(); i++)
     {
+        const FName& ItemID = ShopItems[i];
+        UE_LOG(LogTemp, Log, TEXT("Processing item %d: %s"), i, *ItemID.ToString());
+
         FItemDataRow* ItemData = NPCCharacter->GetItemData(ItemID);
         if (!ItemData)
         {
@@ -166,8 +271,7 @@ void UShopWidget::DisplayShopItems()
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("ShopWidget: Displayed %d shop items"),
-        NPCCharacter->SellableItemIDs.Num());
+    UE_LOG(LogTemp, Log, TEXT("ShopWidget: Displayed %d shop items"), ShopItems.Num());
 }
 
 void UShopWidget::DisplayPlayerInventory()

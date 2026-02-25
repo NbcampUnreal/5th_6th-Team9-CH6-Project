@@ -6,6 +6,8 @@
 #include "Interface/InteractionInterface.h"
 #include "PlayerCharacter_SB.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGoldChanged, int32, NewGold);
+
 class UItemBase;
 
 USTRUCT()
@@ -93,23 +95,38 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void Die();
 
-	// ===== ���� ���� ���� (BP���� ����) =====
+	// ===== 기본 무기 설정 (BP에서 설정) =====
+	// 게임 시작 시 생성할 무기 클래스
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SB|Weapon")
 	TSubclassOf<AWeaponBase> StartingWeaponClass;
 
-	// ĳ���� ���̷�Ż�޽�(��)�� ���� ���ϸ�
+	// 캐릭터 스켈레탈 메시(손)에 설정된 소켓 이름
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SB|Weapon")
 	FName StartingWeaponSocketName = TEXT("WeaponSocket");
-
-	// ��Ÿ�� ������ ����
+	
+	// 런타임에 생성된 무기 인스턴스
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "SB|Weapon")
 	TObjectPtr<AWeaponBase> EquippedWeapon;
 
-	// ? PC�� ���� ���⸦ ������ �� �ְ� Getter ����
+	// PC(플레이어 컨트롤러) 등 외부에서 현재 무기를 참조할 수 있는 Getter
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	AWeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
 
-	void EquipStartingWeapon(); // �߰�
+	// 시작 무기 장착 로직 실행 함수
+	void EquipStartingWeapon(); 
+
+	// 골드 시스템
+	UFUNCTION(BlueprintCallable, Category = "Player|Gold")
+	int32 GetGold() const { return CurrentGold; }
+
+	UFUNCTION(BlueprintCallable, Category = "Player|Gold")
+	bool ModifyGold(int32 Amount);
+
+	UFUNCTION(BlueprintCallable, Category = "Player|Gold")
+	void SetGold(int32 NewAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "Player|Gold")
+	bool HasEnoughGold(int32 Amount) const { return CurrentGold >= Amount; }
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
@@ -123,4 +140,15 @@ private:
 
 	bool bIsDead = false;
 
+	// 골드 변수
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Gold",
+		meta = (ClampMin = "0", AllowPrivateAccess="true"))
+	int32 CurrentGold = 1000;  // 시작 골드
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Gold", meta = (AllowPrivateAccess = "true"))
+	int32 MaxGold = 999999;
+
+	// 골드 변경 이벤트
+	UPROPERTY(BlueprintAssignable, Category = "Player|Gold")
+	FOnGoldChanged OnGoldChanged;
 };

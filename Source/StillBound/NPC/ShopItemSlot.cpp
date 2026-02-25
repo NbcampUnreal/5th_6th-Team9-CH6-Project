@@ -1,6 +1,7 @@
 #include "ShopItemSlot.h"
 #include "NPC/NPCCharacter.h"
 #include "Data/ItemData.h"
+#include "Shop/ShopTooltip.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
@@ -12,6 +13,41 @@ void UShopItemSlot::NativeConstruct()
     if (BTN_Buy)
     {
         BTN_Buy->OnClicked.AddDynamic(this, &UShopItemSlot::OnBuyButtonClicked);
+    }
+}
+
+void UShopItemSlot::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+    Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
+
+    if (!TooltipClass || !NPCRef) return;
+
+    // 툴팁 생성
+    if (!ShopTooltipWidget)
+    {
+        ShopTooltipWidget = CreateWidget<UShopTooltip>(this, TooltipClass);
+    }
+
+    if (ShopTooltipWidget)
+    {
+        // 아이템 정보 + 가격 표시
+        FItemDataRow* ItemData = NPCRef->GetItemData(ItemID);
+        if (ItemData)
+        {
+            ShopTooltipWidget->SetItemInfo(ItemData, Price);
+            ShopTooltipWidget->AddToViewport(999);
+        }
+    }
+}
+
+void UShopItemSlot::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
+{
+    Super::NativeOnMouseLeave(InMouseEvent);
+
+    // 툴팁 제거
+    if (ShopTooltipWidget && ShopTooltipWidget->IsInViewport())
+    {
+        ShopTooltipWidget->RemoveFromParent();
     }
 }
 
