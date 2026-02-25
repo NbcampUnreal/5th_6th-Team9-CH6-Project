@@ -12,7 +12,8 @@
 class UAbilitySystemComponent;
 class UGameplayAbility;
 class UGameplayEffect;
-class USkeletalMeshComponent;
+class USceneComponent;
+class UItemBase;
 
 USTRUCT(BlueprintType)
 struct FWeaponAbilityGrant
@@ -84,17 +85,26 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Weapon")
     bool ActivateByInputTag(FGameplayTag InputTag);
 
-    UFUNCTION(BlueprintCallable, Category = "Weapon")
-    USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
+     UFUNCTION(BlueprintCallable, Category = "Weapon")
+    USceneComponent* GetWeaponRoot() const { return Root; }
 
 
+    // 아이템 데이터(스탯 등) 주입
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Init")
+    virtual void InitFromItem(const UItemBase* Item);
+
+    UFUNCTION(BlueprintPure, Category = "Weapon|Stats")
+    float GetWeaponDamage() const { return WeaponDamage; }
 
 protected:
 	// Called when the game starts or when spawned
-	
+    // 
+      //  DT에서 주입받은 데미지 캐시
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon|Stats")
+    float WeaponDamage = 0.f;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
-    TObjectPtr<USkeletalMeshComponent> WeaponMesh;
+    TObjectPtr<USceneComponent> Root;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Tags")
     FGameplayTag WeaponTypeTag;

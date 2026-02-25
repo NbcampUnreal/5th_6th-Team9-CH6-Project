@@ -15,6 +15,8 @@
 #include "Items/Pickup.h"
 #include "Weapons/WeaponBase.h"
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
+#include "Items/ItemBase.h"
+#include "UI/UW_UIHUD.h"
 
 
 APlayerCharacter_SB::APlayerCharacter_SB()
@@ -45,7 +47,7 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	FollowCamera->bUsePawnControlRotation = false;
 
 	PlayerInventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("PlayerInventory"));
-	PlayerInventory->SetSlotsCapacity(20);
+	PlayerInventory->SetSlotsCapacity(48);
 	PlayerInventory->SetWeightCapacity(50.f);
 
 	InteractionCheckFrequency = 0.1f;
@@ -79,89 +81,89 @@ void APlayerCharacter_SB::BeginPlay()
 
 	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
 
-	EquipStartingWeapon();
-
 
 }
 
-void APlayerCharacter_SB::EquipStartingWeapon()
+bool APlayerCharacter_SB::EquipWeaponFromItem(UItemBase* Item)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[Equip] Called. Pawn=%s HasAuthority=%d StartingWeaponClass=%s"),
-		*GetName(), HasAuthority(), *GetNameSafe(StartingWeaponClass));
+	if (!Item || Item->ItemType != EItemType::Weapon) return false;
+	if (!AbilitySystemComponent) { UE_LOG(LogTemp, Error, TEXT("[Equip] ASC is NULL")); return false; }
 
-	if (EquippedWeapon) { UE_LOG(LogTemp, Warning, TEXT("[Equip] Already equipped")); return; }
-	if (!StartingWeaponClass) { UE_LOG(LogTemp, Error, TEXT("[Equip] StartingWeaponClass is NULL (BP ����Ʈ/GM DefaultPawnClass Ȯ��)")); return; }
-	if (!AbilitySystemComponent) { UE_LOG(LogTemp, Error, TEXT("[Equip] ASC is NULL")); return; }
+	// DT에서 지정한 무기 BP
+	if (Item->EquipWeaponClass.IsNull())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Equip] EquipWeaponClass is NULL. ItemID=%s"), *Item->ID.ToString());
+		return false;
+	}
+
+	TSubclassOf<AWeaponBase> WeaponClass = Item->EquipWeaponClass.LoadSynchronous();
+	if (!WeaponClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Equip] EquipWeaponClass load failed. ItemID=%s"), *Item->ID.ToString());
+		return false;
+	}
 
 	USkeletalMeshComponent* MeshComp = GetMesh();
-	if (!MeshComp) { UE_LOG(LogTemp, Error, TEXT("[Equip] MeshComp NULL")); return; }
+	if (!MeshComp) return false;
 
-	UE_LOG(LogTemp, Warning, TEXT("[Equip] SocketExists(%s)=%d"),
-		*StartingWeaponSocketName.ToString(),
-		MeshComp->DoesSocketExist(StartingWeaponSocketName));
+	// 교체 장착
+	if (EquippedWeapon)
+	{
+		UnequipWeapon(true);
+	}
 
 	FActorSpawnParameters Params;
 	Params.Owner = this;
 	Params.Instigator = this;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	AWeaponBase* NewWeapon = GetWorld()->SpawnActor<AWeaponBase>(StartingWeaponClass, Params);
-	if (!NewWeapon) return;
+	AWeaponBase* NewWeapon = GetWorld()->SpawnActor<AWeaponBase>(WeaponClass, Params);
+	if (!NewWeapon) return false;
 
-	// 1) �� ���Ͽ� ����
 	NewWeapon->AttachToComponent(
 		MeshComp,
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 		StartingWeaponSocketName
 	);
 
-	// (����) ���� �浹 ���?������
-	// NewWeapon->SetActorEnableCollision(false);
+	// ✅ DT 스탯(데미지)을 무기에 주입 (5번에서 추가할 함수)
+	NewWeapon->InitFromItem(Item);
 
-	// 2) ASC�� ���� GA/GE �ο� (Spec.SourceObject=this(weapon) ����)
+	// ✅ GA/GE 부여 (Spec.SourceObject=this 유지)
 	NewWeapon->Equip(this, AbilitySystemComponent);
 
 	EquippedWeapon = NewWeapon;
 
-	UE_LOG(LogTemp, Log, TEXT("[Player] StartingWeapon Equipped: %s -> Socket(%s)"),
-		*GetNameSafe(NewWeapon), *StartingWeaponSocketName.ToString());
+	UE_LOG(LogTemp, Log, TEXT("[Equip] Equipped %s (ItemID=%s, Damage=%.2f)"),
+		*GetNameSafe(NewWeapon), *Item->ID.ToString(), NewWeapon->GetWeaponDamage());
 
-	UE_LOG(LogTemp, Warning, TEXT("[Equip] ASC=%s"), *GetNameSafe(AbilitySystemComponent));
-
-
-}
-
-bool APlayerCharacter_SB::ModifyGold(int32 Amount)
-{
-	// 골드 차감 시 부족 체크
-	if (Amount < 0 && CurrentGold + Amount < 0)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Not enough gold! Have: %d, Need: %d"),
-			CurrentGold, -Amount);
-		return false;
-	}
-
-	// 골드 증가 시 최대치 체크
-	if (Amount > 0)
-	{
-		CurrentGold = FMath::Min(CurrentGold + Amount, MaxGold);
-	}
-	else
-	{
-		CurrentGold += Amount;
-	}
-
-	// 이벤트 발동
-	OnGoldChanged.Broadcast(CurrentGold);
-
-	UE_LOG(LogTemp, Log, TEXT("Gold changed: %+d (Total: %d)"), Amount, CurrentGold);
 	return true;
 }
 
-void APlayerCharacter_SB::SetGold(int32 NewAmount)
+void APlayerCharacter_SB::UnequipWeapon(bool bDestroyWeaponActor)
 {
-	CurrentGold = FMath::Clamp(NewAmount, 0, MaxGold);
-	OnGoldChanged.Broadcast(CurrentGold);
+	if (!EquippedWeapon) return;
+
+	UE_LOG(LogTemp, Warning, TEXT("[Unequip] Weapon=%s Destroy=%d"),
+		*GetNameSafe(EquippedWeapon), (int32)bDestroyWeaponActor);
+
+	// 1) ASC에서 GA/GE 회수 + WeaponTypeTag 제거 (WeaponBase.cpp에 이미 구현됨)
+	EquippedWeapon->Unequip();
+
+	// 2) 손 소켓에서 분리
+	EquippedWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+	// (선택) 충돌/표시 처리 필요하면 여기서
+	// EquippedWeapon->SetActorEnableCollision(false);
+	// EquippedWeapon->SetActorHiddenInGame(true);
+
+	// 3) 액터를 유지할지(재사용/인벤토리) 파괴할지 결정
+	if (bDestroyWeaponActor)
+	{
+		EquippedWeapon->Destroy();
+	}
+
+	EquippedWeapon = nullptr;
 }
 
 void APlayerCharacter_SB::Tick(float DeltaSeconds)
@@ -196,14 +198,14 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 
 	if (LookDirection > 0)
 	{
-		DrawDebugLine(
+		/*DrawDebugLine(
 			GetWorld(),
 			TraceStart,
 			TraceEnd,
 			FColor::Red,
 			false,
 			1.f,
-			2.f);
+			2.f);*/
 
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(this);
@@ -355,16 +357,6 @@ void APlayerCharacter_SB::EndInteract()
 	InteractionData.bIsInteracting = false;
 	GetWorldTimerManager().ClearTimer(TimerHandle_Interaction);
 
-	InteractionData.CurrentInteractable = nullptr;
-	TargetInteractable = nullptr;
-
-	if (auto* PC = Cast<APlayerController_SB>(GetController()))
-	{
-		if (PC->UIManager)
-		{
-			PC->UIManager->HideInteractionWidget();
-		}
-	}
 }
 
 void APlayerCharacter_SB::Interact()
@@ -418,6 +410,100 @@ void APlayerCharacter_SB::Interact()
 		}
 }
 
+void APlayerCharacter_SB::SelectHotbarIndex(int32 NewIndex)
+{
+	if (!PlayerInventory) return;
+
+	const int32 HotbarSize = PlayerInventory->GetHotbarCapacity();
+	if (HotbarSize <= 0) return;
+
+	NewIndex = (NewIndex % HotbarSize + HotbarSize) % HotbarSize;
+	
+	const bool bChanged = (CurrentHotbarIndex != NewIndex);
+	CurrentHotbarIndex = NewIndex;
+
+	if (auto* PC = Cast<APlayerController_SB>(GetController()))
+	{
+		if (PC->UIManager && PC->UIManager->GetHUD())
+		{
+			PC->UIManager->GetHUD()->SetSelectedHotbarIndex(CurrentHotbarIndex);
+		}
+	}
+
+	HandleHotbarSelectionChanged();
+}
+
+void APlayerCharacter_SB::HandleHotbarSelectionChanged()
+{
+	SelectedConsumable = nullptr;
+
+	if (!PlayerInventory) return;
+	
+	UItemBase* Item = PlayerInventory->GetItemInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex);
+
+	if (!Item)
+	{
+		// 무기장착해제 로직 작성
+		//UnequipWeapon();
+		UnequipWeapon();
+		
+		return;
+	}
+
+	switch (Item->ItemType)
+	{
+	case EItemType::Weapon:
+		//무기장착코드작성
+		EquipWeaponFromItem(Item);
+		break;
+
+	case EItemType::Tool:
+		//도구장착코드작성
+		//EquipToolFromItem(Item);
+		break;
+
+	case EItemType::Armor:
+	case EItemType::Ammo:
+	case EItemType::Consumable:
+		SelectedConsumable = Item;
+		UE_LOG(LogTemp, Warning, TEXT("ddddd"));
+		break;
+
+	case EItemType::Material:
+	case EItemType::Building:
+	default:
+		break;
+	}
+}
+
+void APlayerCharacter_SB::UseSelectedHotbarItem()
+{
+	if (!PlayerInventory) return;
+
+	if (!SelectedConsumable) return;
+	if (SelectedConsumable->ItemType != EItemType::Consumable) return;
+
+	UItemBase* Cur = PlayerInventory->GetItemInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex);
+	if (!Cur || Cur != SelectedConsumable) return;
+
+
+	// 아이템 효과적용코드작성부분
+	//ApplyConsumableEffectByID(Cur->ID);
+
+
+	PlayerInventory->RemoveAmountInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex, 1);
+
+	Cur = PlayerInventory->GetItemInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex);
+	if (!Cur)
+	{
+		SelectedConsumable = nullptr;
+	}
+	else
+	{
+		SelectedConsumable = Cur;
+	}
+}
+
 void APlayerCharacter_SB::UpdateInteractionWidget() const
 {
 	UObject* InteractableObject = TargetInteractable.GetObject();
@@ -435,29 +521,46 @@ void APlayerCharacter_SB::UpdateInteractionWidget() const
 	}
 }
 
-void APlayerCharacter_SB::DropItem(UItemBase* ItemToDrop, const int32 QuantityToDrop)
+void APlayerCharacter_SB::DropItemFromSlot(ESlotContainer FromContainer, int32 FromIndex, int32 QuantityToDrop)
 {
-	if (PlayerInventory->FindMatchingItem(ItemToDrop))
+	if (!PlayerInventory) return;
+
+	UItemBase* ItemToDrop = PlayerInventory->GetItemInContainer(FromContainer, FromIndex);
+	if (!ItemToDrop)
 	{
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = this;
-		SpawnParams.bNoFail = true;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-		const FVector SpawnLocation{ GetActorLocation() + (GetActorForwardVector() * 50.f) };
-		const FTransform SpawnTransform(GetActorRotation(), SpawnLocation);
-
-		const int32 RemovedQuantity = PlayerInventory->RemoveAmountOfItem(ItemToDrop, QuantityToDrop);
-
-		if (!PickupClass) return;
-
-		APickup* Pickup = GetWorld()->SpawnActor<APickup>(PickupClass, SpawnTransform, SpawnParams);
-
-		Pickup->InitializeDrop(ItemToDrop, RemovedQuantity);
+		UE_LOG(LogTemp, Warning, TEXT("DropItemFromSlot: No item at %d / %d"), (int32)FromContainer, FromIndex);
+		return;
 	}
-	else
+
+	if (QuantityToDrop <= 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Item to drop was shomhow null."));
+		QuantityToDrop = ItemToDrop->Quantity;
+	}
+
+	UItemBase* DropTemplate = ItemToDrop;
+	if (QuantityToDrop < ItemToDrop->Quantity)
+	{
+		DropTemplate = ItemToDrop->CreateItemCopy();
+		DropTemplate->ResetItemFlags();
+		DropTemplate->SetQuantity(QuantityToDrop);
+	}
+
+	const int32 RemovedQuantity = PlayerInventory->RemoveAmountInContainer(FromContainer, FromIndex, QuantityToDrop);
+	if (RemovedQuantity <= 0) return;
+	if (!PickupClass) return;
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.bNoFail = true;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	const FVector SpawnLocation{ GetActorLocation() + (GetActorForwardVector() * 50.f) };
+	const FTransform SpawnTransform(GetActorRotation(), SpawnLocation);
+
+	APickup* Pickup = GetWorld()->SpawnActor<APickup>(PickupClass, SpawnTransform, SpawnParams);
+	if (Pickup)
+	{
+		Pickup->InitializeDrop(DropTemplate, RemovedQuantity);
 	}
 }
 
@@ -491,4 +594,37 @@ void APlayerCharacter_SB::Die()
 		PlayAnimMontage(DeathMontage, 1.5f);
 		return;
 	}
+}
+
+bool APlayerCharacter_SB::ModifyGold(int32 Amount)
+{
+	// 골드 차감 시 부족 체크
+	if (Amount < 0 && CurrentGold + Amount < 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Not enough gold! Have: %d, Need: %d"),
+			CurrentGold, -Amount);
+		return false;
+	}
+
+	// 골드 증가 시 최대치 체크
+	if (Amount > 0)
+	{
+		CurrentGold = FMath::Min(CurrentGold + Amount, MaxGold);
+	}
+	else
+	{
+		CurrentGold += Amount;
+	}
+
+	// 이벤트 발동
+	OnGoldChanged.Broadcast(CurrentGold);
+
+	UE_LOG(LogTemp, Log, TEXT("Gold changed: %+d (Total: %d)"), Amount, CurrentGold);
+	return true;
+}
+
+void APlayerCharacter_SB::SetGold(int32 NewAmount)
+{
+	CurrentGold = FMath::Clamp(NewAmount, 0, MaxGold);
+	OnGoldChanged.Broadcast(CurrentGold);
 }

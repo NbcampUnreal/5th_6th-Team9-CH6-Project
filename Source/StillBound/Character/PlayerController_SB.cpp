@@ -22,6 +22,7 @@
 #include "EngineUtils.h"
 #include "Weapons/WeaponBase.h"
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
+#include "Inventory/InventoryComponent.h"
 
 void APlayerController_SB::SetupInputComponent()
 {
@@ -51,10 +52,19 @@ void APlayerController_SB::SetupInputComponent()
 
 	EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &ThisClass::Attack);
 	EnhancedInputComponent->BindAction(SkillAction, ETriggerEvent::Triggered, this, &ThisClass::Skill);
-	EnhancedInputComponent->BindAction(Hotbar1Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar1);
-	EnhancedInputComponent->BindAction(Hotbar2Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar2);
-	EnhancedInputComponent->BindAction(Hotbar3Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar3);
-	EnhancedInputComponent->BindAction(Hotbar4Action, ETriggerEvent::Triggered, this, &ThisClass::SelectHotbar4);
+
+	EnhancedInputComponent->BindAction(MouseWheelAction, ETriggerEvent::Triggered, this, &ThisClass::OnMouseWheel);
+	EnhancedInputComponent->BindAction(UseHotbarAction, ETriggerEvent::Started, this, &ThisClass::OnUseHotbar);
+	EnhancedInputComponent->BindAction(HotbarSelectAction_1, ETriggerEvent::Started, this, &ThisClass::OnHotbar1);
+	EnhancedInputComponent->BindAction(HotbarSelectAction_2, ETriggerEvent::Started, this, &ThisClass::OnHotbar2);
+	EnhancedInputComponent->BindAction(HotbarSelectAction_3, ETriggerEvent::Started, this, &ThisClass::OnHotbar3);
+	EnhancedInputComponent->BindAction(HotbarSelectAction_4, ETriggerEvent::Started, this, &ThisClass::OnHotbar4);
+	EnhancedInputComponent->BindAction(HotbarSelectAction_5, ETriggerEvent::Started, this, &ThisClass::OnHotbar5);
+	EnhancedInputComponent->BindAction(HotbarSelectAction_6, ETriggerEvent::Started, this, &ThisClass::OnHotbar6);
+	EnhancedInputComponent->BindAction(HotbarSelectAction_7, ETriggerEvent::Started, this, &ThisClass::OnHotbar7);
+	EnhancedInputComponent->BindAction(HotbarSelectAction_8, ETriggerEvent::Started, this, &ThisClass::OnHotbar8);
+	EnhancedInputComponent->BindAction(HotbarSelectAction_9, ETriggerEvent::Started, this, &ThisClass::OnHotbar9);
+
 	EnhancedInputComponent->BindAction(ToggleMenuAction, ETriggerEvent::Started, this, &ThisClass::ToggleMenu);
 	EnhancedInputComponent->BindAction(FullMapAction,ETriggerEvent::Started,this,&ThisClass::ToggleFullMap);
 }
@@ -298,26 +308,83 @@ void APlayerController_SB::Attack()
 
 void APlayerController_SB::Skill()
 {
+
 }
 
 #pragma endregion
 
 #pragma region ========================= Input - Hotbar =========================
 
-void APlayerController_SB::SelectHotbar1()
+void APlayerController_SB::OnMouseWheel(const FInputActionValue& Value)
 {
+	float Axis = Value.Get<float>();
+	if (FMath::IsNearlyZero(Axis)) return;
+
+	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
+	Char->SelectHotbarIndex(Char->CurrentHotbarIndex + (Axis > 0.f ? -1 : 1));
 }
 
-void APlayerController_SB::SelectHotbar2()
+void APlayerController_SB::OnHotbar1()
 {
+	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
+	Char->SelectHotbarIndex(0);
 }
 
-void APlayerController_SB::SelectHotbar3()
+void APlayerController_SB::OnHotbar2()
 {
+	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
+	Char->SelectHotbarIndex(1);
 }
 
-void APlayerController_SB::SelectHotbar4()
+void APlayerController_SB::OnHotbar3()
 {
+	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
+	Char->SelectHotbarIndex(2);
+}
+
+void APlayerController_SB::OnHotbar4()
+{
+	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
+	Char->SelectHotbarIndex(3);
+}
+
+void APlayerController_SB::OnHotbar5()
+{
+	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
+	Char->SelectHotbarIndex(4);
+}
+
+void APlayerController_SB::OnHotbar6()
+{
+	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
+	Char->SelectHotbarIndex(5);
+}
+
+void APlayerController_SB::OnHotbar7()
+{
+	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
+	Char->SelectHotbarIndex(6);
+}
+
+void APlayerController_SB::OnHotbar8()
+{
+	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
+	Char->SelectHotbarIndex(7);
+}
+
+void APlayerController_SB::OnHotbar9()
+{
+	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
+	Char->SelectHotbarIndex(8);
+}
+
+void APlayerController_SB::OnUseHotbar(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Warning, TEXT("[UseHotbar] Started"));
+
+	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
+
+	Char->UseSelectedHotbarItem();
 }
 
 #pragma endregion

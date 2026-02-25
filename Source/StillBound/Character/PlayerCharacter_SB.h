@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Character/BaseCharacter_SB.h"
 #include "Interface/InteractionInterface.h"
+#include "Data/InventoryTypes.h"
 #include "PlayerCharacter_SB.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGoldChanged, int32, NewGold);
@@ -56,7 +57,7 @@ public:
 
 	void UpdateInteractionWidget() const;
 
-	void DropItem(UItemBase* ItemToDrop, const int32 QuantityToDrop);
+	void DropItemFromSlot(ESlotContainer FromContainer, int32 FromIndex, int32 QuantityToDrop);
 
 protected:
 	virtual void BeginPlay() override;
@@ -91,6 +92,9 @@ public:
 	void BeginInteract();
 	void EndInteract();
 	void Interact();
+	void SelectHotbarIndex(int32 NewIndex);
+	void HandleHotbarSelectionChanged();
+	void UseSelectedHotbarItem();
 
 	UFUNCTION(BlueprintCallable)
 	void Die();
@@ -115,6 +119,18 @@ public:
 	// 시작 무기 장착 로직 실행 함수
 	void EquipStartingWeapon(); 
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void UnequipWeapon(bool bDestroyWeaponActor = true);
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	bool EquipWeaponFromItem(UItemBase* Item);
+
+	// ? PC�� ���� ���⸦ ������ �� �ְ� Getter ����
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	AWeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
+
+	int32 CurrentHotbarIndex = 0;
+
 	// 골드 시스템
 	UFUNCTION(BlueprintCallable, Category = "Player|Gold")
 	int32 GetGold() const { return CurrentGold; }
@@ -127,6 +143,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Player|Gold")
 	bool HasEnoughGold(int32 Amount) const { return CurrentGold >= Amount; }
+
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
@@ -151,4 +168,8 @@ private:
 	// 골드 변경 이벤트
 	UPROPERTY(BlueprintAssignable, Category = "Player|Gold")
 	FOnGoldChanged OnGoldChanged;
+
+	UPROPERTY()
+	TObjectPtr<UItemBase> SelectedConsumable = nullptr;
+
 };

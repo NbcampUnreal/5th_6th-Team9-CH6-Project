@@ -8,6 +8,7 @@
 #include "UI/MainMenu.h"
 #include "UI/UW_FullMap.h"
 #include "UI/Interaction/InteractionWidget.h"
+#include "UI/Inventory/HotbarPanel.h"
 
 void USB_UIManager::Init(APlayerController* InOwnerPC)
 {
@@ -52,7 +53,9 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 	AS->OnLevelChanged.AddDynamic(this, &USB_UIManager::OnLevelChanged);
 
 	UpdateHUD();
-
+	
+	auto* Chr = Cast<APlayerCharacter_SB>(Char);
+	UIHUD->InitInventory(Chr->GetInventory());
 }
 
 void USB_UIManager::SetHP(float Current, float Max)
@@ -136,7 +139,7 @@ void USB_UIManager::DisplayMenu()
 	if (MainMenuWidget)
 	{
 		bIsMenuVisible = true;
-		MainMenuWidget->SetVisibility(ESlateVisibility::Visible);
+		MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	}
 }
 

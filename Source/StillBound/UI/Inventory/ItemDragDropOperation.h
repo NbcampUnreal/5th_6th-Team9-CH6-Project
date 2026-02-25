@@ -2,10 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/DragDropOperation.h"
+#include "Data/InventoryTypes.h"
 #include "ItemDragDropOperation.generated.h"
 
 class UItemBase;
-class UInventoryComponent;
 
 UCLASS()
 class STILLBOUND_API UItemDragDropOperation : public UDragDropOperation
@@ -14,9 +14,12 @@ class STILLBOUND_API UItemDragDropOperation : public UDragDropOperation
 
 public:
 	UPROPERTY()
-	UItemBase* SourceItem;
+	TObjectPtr<UItemBase> SourceItem = nullptr;
 
 	UPROPERTY()
-	UInventoryComponent* SourceInventory;
+	ESlotContainer SourceContainer = ESlotContainer::Inventory;
+
+	UPROPERTY()
+	int32 SourceIndex = INDEX_NONE;
 	
 };

@@ -7,6 +7,7 @@
 #include "GameplayAbilitySpec.h"
 #include "GameplayEffect.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Items/ItemBase.h"
 
 // Sets default values
 AWeaponBase::AWeaponBase()
@@ -14,8 +15,8 @@ AWeaponBase::AWeaponBase()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
-	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
-	SetRootComponent(WeaponMesh);
+    Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+    SetRootComponent(Root);
 }
 
 void AWeaponBase::Equip(AActor* NewOwner, UAbilitySystemComponent* InASC)
@@ -87,6 +88,14 @@ void AWeaponBase::GrantToASC(UAbilitySystemComponent* ASC)
     }
 
     GrantedHandles.Reset();
+    //상태태그 추가
+  // 무기 BP의 WeaponTypeTag를 ASC에 퍼블리시
+    if (WeaponTypeTag.IsValid())
+    {
+        ASC->AddLooseGameplayTag(WeaponTypeTag);
+    }
+
+   
 
     UE_LOG(LogTemp, Warning, TEXT("[DBG] GrantToASC: Weapon=%s AbilitiesToGrant=%d OwnerHasAuthority=%d"),
         *GetName(), GrantedAbilities.Num(),
@@ -157,6 +166,13 @@ void AWeaponBase::RevokeFromASC(UAbilitySystemComponent* ASC)
         return;
     }
 
+    //상태태그 추가
+  // Equip 때 올린 WeaponTypeTag 회수
+    if (WeaponTypeTag.IsValid())
+    {
+        ASC->RemoveLooseGameplayTag(WeaponTypeTag);
+    }
+
     for (const FActiveGameplayEffectHandle& Handle : GrantedHandles.EffectHandles)
     {
         if (Handle.IsValid())
@@ -177,8 +193,15 @@ void AWeaponBase::RevokeFromASC(UAbilitySystemComponent* ASC)
 }
 
 
+void AWeaponBase::InitFromItem(const UItemBase* Item)
+{
+    if (!Item) return;
 
+    //  마스터 아이템 테이블의 DamageValue를 사용
+    WeaponDamage = Item->ItemStatistics.DamageValue;
 
+   
+}
 
 
 // Called when the game starts or when spawned
