@@ -18,9 +18,12 @@ public:
 	UFUNCTION()
 	void RefreshHotbar();
 
+	void InitWithInventory(UInventoryComponent* InInv);
+
+	void SetSelectedIndex(int32 NewSelectedIndex);
+
 protected:
 	virtual void NativeOnInitialized() override;
-	virtual void NativeConstruct() override;
 
 	void BuildHotbar();
 
@@ -41,5 +44,7 @@ protected:
 
 private:
 	static constexpr int32 HotbarSize = 8;
+
+	int32 SelectedIndex = 0;
 
 };

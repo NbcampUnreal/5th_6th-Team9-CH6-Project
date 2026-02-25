@@ -7,7 +7,7 @@
 #include "MainMenu.generated.h"
 
 class APlayerCharacter_SB;
-class UBorder;
+class UInventoryPanel;
 
 /**
  * 
@@ -20,16 +20,14 @@ class STILLBOUND_API UMainMenu : public UUserWidget
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
-	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
-
 
 public:
 	UPROPERTY()
 	TObjectPtr<APlayerCharacter_SB> PlayerCharacter;
 
-	UPROPERTY(meta=(BindWidget))
-	TObjectPtr<UBorder> DropCatcher;
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UInventoryPanel> WBP_InventoryPanel;
 
-	UFUNCTION(BlueprintCallable)
-	void EnableDropCatcher(bool bEnable);
+	TObjectPtr<UInventoryPanel> GetInventoryPanel() const { return WBP_InventoryPanel; };
+
 };

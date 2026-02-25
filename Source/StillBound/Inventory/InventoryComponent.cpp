@@ -492,7 +492,17 @@ int32 UInventoryComponent::GetOccupiedSlotCount() const
 	int32 Count = 0;
 	for (const TObjectPtr<UItemBase>& Ptr : InventorySlots)
 	{
-		if (Ptr != nullptr) ++Count;
+		if (Ptr)
+		{
+			++Count;
+		}
+	}
+	for (const TObjectPtr<UItemBase>& Ptr : HotbarContents)
+	{
+		if (Ptr)
+		{
+			++Count;
+		}
 	}
 	return Count;
 }

@@ -16,6 +16,7 @@
 #include "Weapons/WeaponBase.h"
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Items/ItemBase.h"
+#include "UI/UW_UIHUD.h"
 
 
 APlayerCharacter_SB::APlayerCharacter_SB()
@@ -80,7 +81,7 @@ void APlayerCharacter_SB::BeginPlay()
 
 	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
 
-	EquipStartingWeapon();
+	//EquipStartingWeapon();
 
 
 }
@@ -131,6 +132,33 @@ void APlayerCharacter_SB::EquipStartingWeapon()
 
 
 }
+
+void APlayerCharacter_SB::UnequipWeapon(bool bDestroyWeaponActor)
+{
+	if (!EquippedWeapon) return;
+
+	UE_LOG(LogTemp, Warning, TEXT("[Unequip] Weapon=%s Destroy=%d"),
+		*GetNameSafe(EquippedWeapon), (int32)bDestroyWeaponActor);
+
+	// 1) ASC에서 GA/GE 회수 + WeaponTypeTag 제거 (WeaponBase.cpp에 이미 구현됨)
+	EquippedWeapon->Unequip();
+
+	// 2) 손 소켓에서 분리
+	EquippedWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+	// (선택) 충돌/표시 처리 필요하면 여기서
+	// EquippedWeapon->SetActorEnableCollision(false);
+	// EquippedWeapon->SetActorHiddenInGame(true);
+
+	// 3) 액터를 유지할지(재사용/인벤토리) 파괴할지 결정
+	if (bDestroyWeaponActor)
+	{
+		EquippedWeapon->Destroy();
+	}
+
+	EquippedWeapon = nullptr;
+}
+
 
 void APlayerCharacter_SB::Tick(float DeltaSeconds)
 {
@@ -374,6 +402,100 @@ void APlayerCharacter_SB::Interact()
 		{
 			EndInteract();
 		}
+}
+
+void APlayerCharacter_SB::SelectHotbarIndex(int32 NewIndex)
+{
+	if (!PlayerInventory) return;
+
+	const int32 HotbarSize = PlayerInventory->GetHotbarCapacity();
+	if (HotbarSize <= 0) return;
+
+	NewIndex = (NewIndex % HotbarSize + HotbarSize) % HotbarSize;
+	
+	const bool bChanged = (CurrentHotbarIndex != NewIndex);
+	CurrentHotbarIndex = NewIndex;
+
+	if (auto* PC = Cast<APlayerController_SB>(GetController()))
+	{
+		if (PC->UIManager && PC->UIManager->GetHUD())
+		{
+			PC->UIManager->GetHUD()->SetSelectedHotbarIndex(CurrentHotbarIndex);
+		}
+	}
+
+	HandleHotbarSelectionChanged();
+}
+
+void APlayerCharacter_SB::HandleHotbarSelectionChanged()
+{
+	SelectedConsumable = nullptr;
+
+	if (!PlayerInventory) return;
+	
+	UItemBase* Item = PlayerInventory->GetItemInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex);
+
+	if (!Item)
+	{
+		// 무기장착해제 로직 작성
+		//UnequipWeapon();
+		UnequipWeapon();
+		return;
+	}
+
+	switch (Item->ItemType)
+	{
+	case EItemType::Weapon:
+		//무기장착코드작성
+		//EquipWeaponFromItem(Item);
+		EquipStartingWeapon();
+		break;
+
+	case EItemType::Tool:
+		//도구장착코드작성
+		//EquipToolFromItem(Item);
+		break;
+
+	case EItemType::Armor:
+	case EItemType::Ammo:
+	case EItemType::Consumable:
+		SelectedConsumable = Item;
+		UE_LOG(LogTemp, Warning, TEXT("ddddd"));
+		break;
+
+	case EItemType::Material:
+	case EItemType::Building:
+	default:
+		break;
+	}
+}
+
+void APlayerCharacter_SB::UseSelectedHotbarItem()
+{
+	if (!PlayerInventory) return;
+
+	if (!SelectedConsumable) return;
+	if (SelectedConsumable->ItemType != EItemType::Consumable) return;
+
+	UItemBase* Cur = PlayerInventory->GetItemInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex);
+	if (!Cur || Cur != SelectedConsumable) return;
+
+
+	// 아이템 효과적용코드작성부분
+	//ApplyConsumableEffectByID(Cur->ID);
+
+
+	PlayerInventory->RemoveAmountInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex, 1);
+
+	Cur = PlayerInventory->GetItemInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex);
+	if (!Cur)
+	{
+		SelectedConsumable = nullptr;
+	}
+	else
+	{
+		SelectedConsumable = Cur;
+	}
 }
 
 void APlayerCharacter_SB::UpdateInteractionWidget() const

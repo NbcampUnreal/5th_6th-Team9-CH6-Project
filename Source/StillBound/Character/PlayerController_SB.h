@@ -68,16 +68,37 @@ private:
 	/// Input - Hotbar
 	/// =========================
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Hotbar")
-	TObjectPtr<UInputAction> Hotbar1Action;
+	TObjectPtr<UInputAction> MouseWheelAction;
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Hotbar")
-	TObjectPtr<UInputAction> Hotbar2Action;
+	TObjectPtr<UInputAction> HotbarSelectAction_1;
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Hotbar")
-	TObjectPtr<UInputAction> Hotbar3Action;
+	TObjectPtr<UInputAction> HotbarSelectAction_2;
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Hotbar")
-	TObjectPtr<UInputAction> Hotbar4Action;
+	TObjectPtr<UInputAction> HotbarSelectAction_3;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Hotbar")
+	TObjectPtr<UInputAction> HotbarSelectAction_4;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Hotbar")
+	TObjectPtr<UInputAction> HotbarSelectAction_5;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Hotbar")
+	TObjectPtr<UInputAction> HotbarSelectAction_6;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Hotbar")
+	TObjectPtr<UInputAction> HotbarSelectAction_7;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Hotbar")
+	TObjectPtr<UInputAction> HotbarSelectAction_8;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Hotbar")
+	TObjectPtr<UInputAction> HotbarSelectAction_9
+		;
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Hotbar")
+	TObjectPtr<UInputAction> UseHotbarAction;
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|ToggleMenu")
 	TObjectPtr<UInputAction> ToggleMenuAction;
@@ -121,12 +142,19 @@ private:
 
 	void Skill();
 
-	void SelectHotbar1();
-	void SelectHotbar2();
-	void SelectHotbar3();
-	void SelectHotbar4();
-
 	void ToggleMenu();
+
+	void OnMouseWheel(const FInputActionValue& Value);
+	void OnHotbar1();
+	void OnHotbar2();
+	void OnHotbar3();
+	void OnHotbar4();
+	void OnHotbar5();
+	void OnHotbar6();
+	void OnHotbar7();
+	void OnHotbar8();
+	void OnHotbar9();
+	void OnUseHotbar(const FInputActionValue& Value);
 
 public:
 

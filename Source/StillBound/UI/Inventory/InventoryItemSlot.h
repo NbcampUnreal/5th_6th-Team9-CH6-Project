@@ -26,7 +26,7 @@ public:
 
 	void SetItemReference(UItemBase* ItemIn);
 
-	void DisableDropCatcher();
+	void SetSelectedVisual(bool bSelected);
 
 	FORCEINLINE UItemBase* GetItemReference() const { return ItemReference; };
 
@@ -42,6 +42,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category="Inventory Slot")
 	UItemBase* ItemReference;
+
+	UPROPERTY(VisibleAnywhere, Category = "Inventory Slot", meta = (BindWidgetOptional))
+	UImage* SelectedFrame;
 
 	UPROPERTY(VisibleAnywhere, Category = "Inventory Slot", meta = (BindWidget))
 	UBorder* ItemBorder;

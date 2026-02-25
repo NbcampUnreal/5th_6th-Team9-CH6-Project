@@ -3,12 +3,16 @@
 #include "UI/Inventory/DragItemVisual.h"
 #include "UI/Inventory/ItemDragDropOperation.h"
 #include "UI/MainMenu.h"
+#include "UI/UW_UIHUD.h"
+#include "UI/Inventory/InventoryPanel.h"
+#include "UI/Inventory/HotbarPanel.h"
 #include "Items/ItemBase.h"
 #include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Inventory/InventoryComponent.h"
 #include "Character/PlayerController_SB.h"
+#include "Character/PlayerCharacter_SB.h"
 
 void UInventoryItemSlot::NativeOnInitialized()
 {
@@ -22,10 +26,6 @@ void UInventoryItemSlot::NativeOnInitialized()
 			SetToolTip(ToolTip);
 		}
 	}
-
-	//UInventoryTooltip* ToolTip = CreateWidget<UInventoryTooltip>(this, ToolTipClass);
-	//ToolTip->InventorySlotBeingHovered = this;
-	//SetToolTip(ToolTip);
 }
 
 void UInventoryItemSlot::NativeConstruct()
@@ -107,17 +107,6 @@ void UInventoryItemSlot::NativeOnDragDetected(const FGeometry& InGeometry, const
 		return;
 	}
 
-	if (APlayerController* PC = GetOwningPlayer())
-	{
-		if (auto* SBPC = Cast<APlayerController_SB>(PC))
-		{
-			if (SBPC->UIManager && SBPC->UIManager->GetMainMenuWidget())
-			{
-				SBPC->UIManager->GetMainMenuWidget()->EnableDropCatcher(true);
-			}
-		}
-	}
-
 	if (DragItemVisualClass)
 	{
 		const TObjectPtr<UDragItemVisual> DragVisul = CreateWidget<UDragItemVisual>(this, DragItemVisualClass);
@@ -147,16 +136,20 @@ void UInventoryItemSlot::NativeOnDragDetected(const FGeometry& InGeometry, const
 bool UInventoryItemSlot::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
 	const UItemDragDropOperation* Drag = Cast<UItemDragDropOperation>(InOperation);
-	if (!Drag || !InventoryRef)
+
+	UE_LOG(LogTemp, Warning, TEXT("[SlotDrop] THIS=%s To=%d(%d) Inv=%s / From=%d(%d)"),
+		*GetName(),
+		(int32)Container, SlotIndex,
+		*GetNameSafe(InventoryRef),
+		Drag ? (int32)Drag->SourceContainer : -1,
+		Drag ? Drag->SourceIndex : -1);
+
+
+	//같은 슬롯이면 드랍은 처리된 것으로 간주(버리기 방지)
+	if (Drag->SourceContainer == Container && Drag->SourceIndex == SlotIndex)
 	{
-		DisableDropCatcher();
-		return false;
+		return true;
 	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[SlotDrop] From: %d(%d) To: %d(%d)"),
-		(int32)Drag->SourceContainer, Drag->SourceIndex, (int32)Container, SlotIndex);
-
-	DisableDropCatcher();
 
 	bool bSuccess = InventoryRef->MoveSlotItem(
 		Drag->SourceContainer, 
@@ -172,7 +165,40 @@ void UInventoryItemSlot::NativeOnDragCancelled(const FDragDropEvent& InDragDropE
 {
 	Super::NativeOnDragCancelled(InDragDropEvent, InOperation);
 
-	DisableDropCatcher();
+	const UItemDragDropOperation* Drag = Cast<UItemDragDropOperation>(InOperation);
+	if (!Drag) return;
+
+	auto* PC = Cast<APlayerController_SB>(GetOwningPlayer());
+	if (!PC || !PC->UIManager) return;
+
+	const FVector2D ScreenPos = InDragDropEvent.GetScreenSpacePosition();
+
+	// 1) 핫바 위면 버리기 금지
+	if (PC->UIManager->GetHUD() &&
+		PC->UIManager->GetHUD()->GetHotbarPanel() &&
+		PC->UIManager->GetHUD()->GetHotbarPanel()->GetCachedGeometry().IsUnderLocation(ScreenPos))
+	{
+		return;
+	}
+
+	// 2) 메뉴가 떠있고 메뉴 영역 안이면 버리지 않음
+	if (UMainMenu* Menu = PC->UIManager->GetMainMenuWidget())
+	{
+		if (Menu->GetVisibility() != ESlateVisibility::Collapsed)
+		{
+			// 메뉴 전체가 아니라 "인벤 패널" 위면 버리기 금지
+			if (Menu->GetInventoryPanel() &&
+				Menu->GetInventoryPanel()->GetCachedGeometry().IsUnderLocation(ScreenPos))
+			{
+				return;
+			}
+		}
+	}
+
+	if (auto* Pawn = Cast<APlayerCharacter_SB>(PC->GetPawn()))
+	{
+		Pawn->DropItemFromSlot(Drag->SourceContainer, Drag->SourceIndex, -1);
+	}
 }
 
 void UInventoryItemSlot::InitSlot(ESlotContainer InContainer, int32 InIndex, UInventoryComponent* InInv)
@@ -180,6 +206,7 @@ void UInventoryItemSlot::InitSlot(ESlotContainer InContainer, int32 InIndex, UIn
 	Container = InContainer;
 	SlotIndex = InIndex;
 	InventoryRef = InInv;
+
 }
 
 void UInventoryItemSlot::SetItemReference(UItemBase* ItemIn)
@@ -241,16 +268,19 @@ void UInventoryItemSlot::SetItemReference(UItemBase* ItemIn)
 	}
 }
 
-void UInventoryItemSlot::DisableDropCatcher()
+void UInventoryItemSlot::SetSelectedVisual(bool bSelected)
 {
-	if (auto* PC = GetOwningPlayer())
+	if (Container != ESlotContainer::Hotbar)
 	{
-		if (auto* MyPC = Cast<APlayerController_SB>(PC))
+		if (SelectedFrame)
 		{
-			if (MyPC->UIManager && MyPC->UIManager->GetMainMenuWidget())
-			{
-				MyPC->UIManager->GetMainMenuWidget()->EnableDropCatcher(false);
-			}
+			SelectedFrame->SetVisibility(ESlateVisibility::Collapsed);
 		}
+		return;
+	}
+	if (SelectedFrame)
+	{
+		SelectedFrame->SetVisibility(bSelected ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 }
+

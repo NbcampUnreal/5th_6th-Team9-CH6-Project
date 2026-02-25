@@ -90,6 +90,9 @@ public:
 	void BeginInteract();
 	void EndInteract();
 	void Interact();
+	void SelectHotbarIndex(int32 NewIndex);
+	void HandleHotbarSelectionChanged();
+	void UseSelectedHotbarItem();
 
 	UFUNCTION(BlueprintCallable)
 	void Die();
@@ -106,11 +109,16 @@ public:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "SB|Weapon")
 	TObjectPtr<AWeaponBase> EquippedWeapon;
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void UnequipWeapon(bool bDestroyWeaponActor = true);
+
 	// ? PC�� ���� ���⸦ ������ �� �ְ� Getter ����
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	AWeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
 
 	void EquipStartingWeapon(); // �߰�
+
+	int32 CurrentHotbarIndex = 0;
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
@@ -124,4 +132,6 @@ private:
 
 	bool bIsDead = false;
 
+	UPROPERTY()
+	TObjectPtr<UItemBase> SelectedConsumable = nullptr;
 };

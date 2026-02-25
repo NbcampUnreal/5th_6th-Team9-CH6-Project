@@ -11,7 +11,6 @@ class AWeaponBase;
 class UGameplayEffect;
 class UAbilitySystemComponent;
 
-
 UCLASS(Abstract)
 class STILLBOUND_API UWeaponGameplayAbility : public UGameplayAbility
 {
@@ -40,7 +39,7 @@ protected:
         float Chance = 1.0f
     ) const;
 
-    /** ✅ FIX: "기본 데미지"를 모든 무기가 공통으로 적용할 수 있게 상위 헬퍼 추가 */
+    /** 기본 데미지(공통) 적용 헬퍼 */
     bool ApplyBaseDamageToTargetActor(
         AActor* TargetActor,
         float DamageValue,
@@ -49,14 +48,15 @@ protected:
     ) const;
 
 protected:
-    /** ✅ FIX: 기본 데미지에 사용할 GE (기본값: UGE_WeaponDamage_Instant) */
+    /** 기본 데미지에 사용할 GE (기본값: UGE_WeaponDamage_Instant) */
     UPROPERTY(EditDefaultsOnly, Category = "Weapon|GA|Damage")
     TSubclassOf<UGameplayEffect> BaseDamageEffectClass;
 
-    // [DEBUG ADD HERE] GE 적용 디버그 로그 토글
+    /** GE 적용 디버그 로그 토글 */
     UPROPERTY(EditDefaultsOnly, Category = "Weapon|GA|Debug")
     bool bDebugGE = true;
 
 public:
+    /** SetByCaller에 사용할 데미지 태그 */
     static FGameplayTag GetDataDamageTag();
 };

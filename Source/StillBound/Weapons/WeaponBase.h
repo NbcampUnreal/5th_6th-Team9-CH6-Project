@@ -12,7 +12,7 @@
 class UAbilitySystemComponent;
 class UGameplayAbility;
 class UGameplayEffect;
-class USkeletalMeshComponent;
+class USceneComponent;
 
 USTRUCT(BlueprintType)
 struct FWeaponAbilityGrant
@@ -84,8 +84,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Weapon")
     bool ActivateByInputTag(FGameplayTag InputTag);
 
-    UFUNCTION(BlueprintCallable, Category = "Weapon")
-    USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
+     UFUNCTION(BlueprintCallable, Category = "Weapon")
+    USceneComponent* GetWeaponRoot() const { return Root; }
 
 
 
@@ -94,7 +94,7 @@ protected:
 	
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
-    TObjectPtr<USkeletalMeshComponent> WeaponMesh;
+    TObjectPtr<USceneComponent> Root;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Tags")
     FGameplayTag WeaponTypeTag;

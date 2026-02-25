@@ -3,6 +3,8 @@
 #include "UI/UW_StaminaBar.h"
 #include "UI/UW_ExpBar.h"
 #include "UI/UW_Minimap.h"
+#include "UI/Inventory/HotbarPanel.h"
+#include "Inventory/InventoryComponent.h"
 
 void UUW_UIHUD::SetHP(float Current, float Max)
 {
@@ -38,5 +40,21 @@ void UUW_UIHUD::SetLevel(int32 Level)
 	if (ExpBar)
 	{
 		ExpBar->SetLevel(Level);
+	}
+}
+
+void UUW_UIHUD::InitInventory(UInventoryComponent* InInv)
+{
+	if (HotbarPanel)
+	{
+		HotbarPanel->InitWithInventory(InInv);
+	}
+}
+
+void UUW_UIHUD::SetSelectedHotbarIndex(int32 Index)
+{
+	if (HotbarPanel)
+	{
+		HotbarPanel->SetSelectedIndex(Index);
 	}
 }
