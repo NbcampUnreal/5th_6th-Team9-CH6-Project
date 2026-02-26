@@ -435,13 +435,15 @@ void APlayerCharacter_SB::HandleHotbarSelectionChanged()
 	
 	UItemBase* Item = PlayerInventory->GetItemInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex);
 
-	if (!Item)
+	if(!Item)
 	{
-		// 무기장착해제 로직 작성
-		//UnequipWeapon();
 		UnequipWeapon();
-		
 		return;
+	}
+
+	if (Item->ItemType != EItemType::Weapon)
+	{
+		UnequipWeapon();
 	}
 
 	switch (Item->ItemType)
