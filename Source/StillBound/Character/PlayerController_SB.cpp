@@ -19,7 +19,6 @@
 #include "UI/UW_FullMap.h"
 #include "Landscape.h"
 #include "EngineUtils.h"
-#include "EngineUtils.h"
 #include "Weapons/WeaponBase.h"
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Inventory/InventoryComponent.h"
@@ -28,14 +27,12 @@ void APlayerController_SB::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(
-		GetLocalPlayer());
+	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
 	if (!IsValid(InputSubsystem)) return;
 
-	for (UInputMappingContext* Context : InputMappingContexts)
-	{
-		InputSubsystem->AddMappingContext(Context, 0);
-	}
+	if (IMC_Movement) InputSubsystem->AddMappingContext(IMC_Movement, 0);
+	if (IMC_Abilities) InputSubsystem->AddMappingContext(IMC_Abilities, 0);
+	if (IMC_Hotbar)   InputSubsystem->AddMappingContext(IMC_Hotbar, 0);
 
 	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
 	if (!IsValid(EnhancedInputComponent)) return;
@@ -182,7 +179,21 @@ void APlayerController_SB::EndInteract()
 
 void APlayerController_SB::ToggleMenu()
 {
+	if (!UIManager) return;
+
+	if (bFullMapOpen)
+	{
+		UIManager->ToggleFullMap();
+		bFullMapOpen = false;
+
+		ApplyOverlayInputState();
+		return;
+	}
+
 	UIManager->ToggleMenu();
+	bMenuOpen = !bMenuOpen;
+
+	ApplyOverlayInputState();
 }
 
 #pragma endregion
@@ -475,6 +486,44 @@ APlayerController_SB::APlayerController_SB()
 	PrimaryActorTick.bStartWithTickEnabled = true;
 }
 
+void APlayerController_SB::ApplyOverlayInputState()
+{
+	if (!IsLocalController()) return;
+
+	auto* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+	if (!Subsystem) return;
+
+	const bool bOverlayOpen = bMenuOpen || bFullMapOpen;
+
+	if (bOverlayOpen)
+	{
+		if (IMC_Movement) Subsystem->RemoveMappingContext(IMC_Movement);
+		if (IMC_Abilities) Subsystem->RemoveMappingContext(IMC_Abilities);
+
+		SetIgnoreMoveInput(true);
+		SetIgnoreLookInput(true);
+
+		FInputModeGameAndUI Mode;
+		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		SetInputMode(Mode);
+
+		bShowMouseCursor = true;
+	}
+	else
+	{
+		if (IMC_Movement) Subsystem->AddMappingContext(IMC_Movement, 0);
+		if (IMC_Abilities) Subsystem->AddMappingContext(IMC_Abilities, 0);
+
+		SetIgnoreMoveInput(false);
+		SetIgnoreLookInput(false);
+
+		FInputModeGameOnly Mode;
+		SetInputMode(Mode);
+
+		bShowMouseCursor = false;
+	}
+}
+
 void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
 {
 	if (!UIManager)
@@ -571,10 +620,21 @@ void APlayerController_SB::Tick(float DeltaTime)
 void APlayerController_SB::ToggleFullMap()
 {
 	UE_LOG(LogTemp, Warning, TEXT("FullMap Key Pressed"));
-	if (UIManager)
+	if (!UIManager) return;
+
+	if (bMenuOpen)
 	{
-		UIManager->ToggleFullMap();
+		UIManager->ToggleMenu();
+		bMenuOpen = false;
+
+		ApplyOverlayInputState();
+		return;
 	}
+
+	UIManager->ToggleFullMap();
+	bFullMapOpen = !bFullMapOpen;
+
+	ApplyOverlayInputState();
 }
 
 #pragma endregion

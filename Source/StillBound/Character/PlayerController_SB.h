@@ -26,8 +26,14 @@ private:
 	/// =========================
 	/// Input - Mapping Contexts
 	/// =========================
-	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Movement")
-	TArray<TObjectPtr<UInputMappingContext>> InputMappingContexts;
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
+	TObjectPtr<UInputMappingContext> IMC_Movement;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
+	TObjectPtr<UInputMappingContext> IMC_Abilities;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
+	TObjectPtr<UInputMappingContext> IMC_Hotbar;
 
 	/// =========================
 	/// Input - Movement
@@ -190,4 +196,12 @@ private:
 	
 	UFUNCTION(Exec)
 	void SB_LoadWorld();
+
+	UPROPERTY()
+	bool bMenuOpen = false;
+
+	UPROPERTY()
+	bool bFullMapOpen = false;
+
+	void ApplyOverlayInputState();
 };
