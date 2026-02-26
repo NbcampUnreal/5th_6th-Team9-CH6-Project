@@ -41,6 +41,11 @@ void APickup::InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int
 		ItemReference->TextData = ItemData->TextData;
 		ItemReference->AssetData = ItemData->AssetData;
 
+		// 스탯/클래스도 복사
+		ItemReference->ItemStatistics = ItemData->ItemStatistics;
+		//ItemReference->PickupActorClass = ItemData->PickupActorClass;
+		ItemReference->EquipWeaponClass = ItemData->EquipWeaponClass;
+
 		ItemReference->NumericData.bIsStackable = ItemData->NumericData.MaxStackSize > 1;
 		InQuantity <= 0 ? ItemReference->SetQuantity(1) : ItemReference->SetQuantity(InQuantity);
 

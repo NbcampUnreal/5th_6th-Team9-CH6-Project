@@ -286,21 +286,37 @@ bool UWeaponMeleeAttackAbilityBase::ApplyOnHitEffects(AActor* TargetActor)
 
     bool bAnyApplied = false;
 
-    if (BaseDamage > 0.f)
+    // ✅ DT → Weapon(WeaponDamage) → GA 로 연결 (방식 1)
+    // 무기(SourceObject)에 주입된 데미지를 우선 사용하고,
+    // 없으면(Base=0) 기존 BaseDamage를 fallback으로 사용.
+    const AMeleeWeaponBase* Weapon = GetWeaponFromSourceObject<AMeleeWeaponBase>();
+    const float WeaponDmg = Weapon ? Weapon->GetWeaponDamage() : 0.f;
+
+    const float FinalDamage = (WeaponDmg > 0.f) ? WeaponDmg : BaseDamage;
+    if (FinalDamage > 0.f)
     {
-        // WeaponGameplayAbility에 있는 공통 헬퍼를 사용(네 기존 구조 그대로)
-        bAnyApplied |= ApplyBaseDamageToTargetActor(TargetActor, BaseDamage, 1.f, 1.f);
+        bAnyApplied |= ApplyBaseDamageToTargetActor(TargetActor, FinalDamage, 1.f, 1.f);
     }
+
+    // ✅ OnHitTargetEffects는 "부가효과" 용도로만 쓰는 걸 권장
+    // (기존 데이터에 Data.EnemyDamage가 들어있으면 중복 데미지가 날 수 있어서 제거)
+    const FGameplayTag DamageTag = GetDataDamageTag();
 
     for (const FOnHitGameplayEffectSpec& Spec : CachedProfile.OnHitTargetEffects)
     {
         if (!Spec.Effect) continue;
 
+        TMap<FGameplayTag, float> Mags = Spec.SetByCallerMagnitudes;
+        if (DamageTag.IsValid())
+        {
+            Mags.Remove(DamageTag); // 중복 데미지 방지
+        }
+
         bAnyApplied |= ApplyEffectToTargetActor(
             TargetActor,
             Spec.Effect,
             Spec.Level,
-            Spec.SetByCallerMagnitudes,
+            Mags,
             Spec.Chance
         );
     }

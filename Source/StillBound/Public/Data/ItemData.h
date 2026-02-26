@@ -4,6 +4,9 @@
 #include "Engine/DataTable.h"
 #include "ItemData.generated.h"
 
+
+class AWeaponBase;
+
 UENUM(BlueprintType)
 enum class EItemType : uint8
 {
@@ -126,6 +129,10 @@ struct FItemDataRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, Category = "Item")
 	TSoftClassPtr<AActor> PickupActorClass;
+
+	// 장착용 무기 BP(무기 아이템일 때만 세팅)
+	UPROPERTY(EditAnywhere, Category = "Item|Equip")
+	TSoftClassPtr<AWeaponBase> EquipWeaponClass;
 };
 
 #pragma endregion

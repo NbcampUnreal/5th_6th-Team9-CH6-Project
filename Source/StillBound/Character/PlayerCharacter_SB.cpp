@@ -81,57 +81,91 @@ void APlayerCharacter_SB::BeginPlay()
 
 	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
 
-	EquipStartingWeapon();
-
 
 }
 
-void APlayerCharacter_SB::EquipStartingWeapon()
+bool APlayerCharacter_SB::EquipWeaponFromItem(UItemBase* Item)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[Equip] Called. Pawn=%s HasAuthority=%d StartingWeaponClass=%s"),
-		*GetName(), HasAuthority(), *GetNameSafe(StartingWeaponClass));
+	if (!Item || Item->ItemType != EItemType::Weapon) return false;
+	if (!AbilitySystemComponent) { UE_LOG(LogTemp, Error, TEXT("[Equip] ASC is NULL")); return false; }
 
-	if (EquippedWeapon) { UE_LOG(LogTemp, Warning, TEXT("[Equip] Already equipped")); return; }
-	if (!StartingWeaponClass) { UE_LOG(LogTemp, Error, TEXT("[Equip] StartingWeaponClass is NULL (BP ����Ʈ/GM DefaultPawnClass Ȯ��)")); return; }
-	if (!AbilitySystemComponent) { UE_LOG(LogTemp, Error, TEXT("[Equip] ASC is NULL")); return; }
+	// DT에서 지정한 무기 BP
+	if (Item->EquipWeaponClass.IsNull())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Equip] EquipWeaponClass is NULL. ItemID=%s"), *Item->ID.ToString());
+		return false;
+	}
+
+	TSubclassOf<AWeaponBase> WeaponClass = Item->EquipWeaponClass.LoadSynchronous();
+	if (!WeaponClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Equip] EquipWeaponClass load failed. ItemID=%s"), *Item->ID.ToString());
+		return false;
+	}
 
 	USkeletalMeshComponent* MeshComp = GetMesh();
-	if (!MeshComp) { UE_LOG(LogTemp, Error, TEXT("[Equip] MeshComp NULL")); return; }
+	if (!MeshComp) return false;
 
-	UE_LOG(LogTemp, Warning, TEXT("[Equip] SocketExists(%s)=%d"),
-		*StartingWeaponSocketName.ToString(),
-		MeshComp->DoesSocketExist(StartingWeaponSocketName));
+	// 교체 장착
+	if (EquippedWeapon)
+	{
+		UnequipWeapon(true);
+	}
 
 	FActorSpawnParameters Params;
 	Params.Owner = this;
 	Params.Instigator = this;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	AWeaponBase* NewWeapon = GetWorld()->SpawnActor<AWeaponBase>(StartingWeaponClass, Params);
-	if (!NewWeapon) return;
+	AWeaponBase* NewWeapon = GetWorld()->SpawnActor<AWeaponBase>(WeaponClass, Params);
+	if (!NewWeapon) return false;
 
-	// 1) �� ���Ͽ� ����
 	NewWeapon->AttachToComponent(
 		MeshComp,
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 		StartingWeaponSocketName
 	);
 
-	// (����) ���� �浹 ���?������
-	// NewWeapon->SetActorEnableCollision(false);
+	// ✅ DT 스탯(데미지)을 무기에 주입 (5번에서 추가할 함수)
+	NewWeapon->InitFromItem(Item);
 
-	// 2) ASC�� ���� GA/GE �ο� (Spec.SourceObject=this(weapon) ����)
+	// ✅ GA/GE 부여 (Spec.SourceObject=this 유지)
 	NewWeapon->Equip(this, AbilitySystemComponent);
 
 	EquippedWeapon = NewWeapon;
 
-	UE_LOG(LogTemp, Log, TEXT("[Player] StartingWeapon Equipped: %s -> Socket(%s)"),
-		*GetNameSafe(NewWeapon), *StartingWeaponSocketName.ToString());
+	UE_LOG(LogTemp, Log, TEXT("[Equip] Equipped %s (ItemID=%s, Damage=%.2f)"),
+		*GetNameSafe(NewWeapon), *Item->ID.ToString(), NewWeapon->GetWeaponDamage());
 
-	UE_LOG(LogTemp, Warning, TEXT("[Equip] ASC=%s"), *GetNameSafe(AbilitySystemComponent));
-
-
+	return true;
 }
+
+void APlayerCharacter_SB::UnequipWeapon(bool bDestroyWeaponActor)
+{
+	if (!EquippedWeapon) return;
+
+	UE_LOG(LogTemp, Warning, TEXT("[Unequip] Weapon=%s Destroy=%d"),
+		*GetNameSafe(EquippedWeapon), (int32)bDestroyWeaponActor);
+
+	// 1) ASC에서 GA/GE 회수 + WeaponTypeTag 제거 (WeaponBase.cpp에 이미 구현됨)
+	EquippedWeapon->Unequip();
+
+	// 2) 손 소켓에서 분리
+	EquippedWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+	// (선택) 충돌/표시 처리 필요하면 여기서
+	// EquippedWeapon->SetActorEnableCollision(false);
+	// EquippedWeapon->SetActorHiddenInGame(true);
+
+	// 3) 액터를 유지할지(재사용/인벤토리) 파괴할지 결정
+	if (bDestroyWeaponActor)
+	{
+		EquippedWeapon->Destroy();
+	}
+
+	EquippedWeapon = nullptr;
+}
+
 
 void APlayerCharacter_SB::Tick(float DeltaSeconds)
 {
@@ -405,7 +439,8 @@ void APlayerCharacter_SB::HandleHotbarSelectionChanged()
 	{
 		// 무기장착해제 로직 작성
 		//UnequipWeapon();
-
+		UnequipWeapon();
+		
 		return;
 	}
 
@@ -413,7 +448,7 @@ void APlayerCharacter_SB::HandleHotbarSelectionChanged()
 	{
 	case EItemType::Weapon:
 		//무기장착코드작성
-		//EquipWeaponFromItem(Item);
+		EquipWeaponFromItem(Item);
 		break;
 
 	case EItemType::Tool:

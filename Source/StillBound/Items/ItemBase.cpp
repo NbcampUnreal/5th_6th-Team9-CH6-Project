@@ -25,6 +25,8 @@ UItemBase* UItemBase::CreateItemCopy()
 	ItemCopy->AssetData = this->AssetData;
 	ItemCopy->bIsCopy = true;
 
+	ItemCopy->EquipWeaponClass = this->EquipWeaponClass; //weapon
+
 	return ItemCopy;
 }
 
