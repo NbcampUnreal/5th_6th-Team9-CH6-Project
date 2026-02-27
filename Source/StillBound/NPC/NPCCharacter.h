@@ -163,4 +163,6 @@ private:
     // Low-tier 아이템인지 판단
     bool IsLowTierItem(const FItemDataRow* ItemData) const;
 
+    bool IsLowTierItem_ByRowName(FName RowName, EItemType ItemType) const;
+
 };

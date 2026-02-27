@@ -17,10 +17,34 @@ void UShopWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
+    UE_LOG(LogTemp, Error, TEXT("========== NativeConstruct CALLED =========="));
+
+    APlayerController* PC = GetOwningPlayer();
+    if (PC)
+    {
+        FInputModeUIOnly InputMode;
+        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        PC->SetInputMode(InputMode);
+        PC->SetShowMouseCursor(true);
+
+        UE_LOG(LogTemp, Error, TEXT("Input mode set to UI Only"));
+        UE_LOG(LogTemp, Error, TEXT("Mouse cursor visible: %s"),
+            PC->ShouldShowMouseCursor() ? TEXT("true") : TEXT("false"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("PlayerController is NULL!"));
+    }
+
     // 버튼 바인딩
     if (BTN_Close)
     {
+        UE_LOG(LogTemp, Log, TEXT("BTN_Close found, binding..."));
         BTN_Close->OnClicked.AddDynamic(this, &UShopWidget::OnCloseButtonClicked);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("BTN_Close is NULL!"));
     }
 
     if (BTN_BuyTab)
@@ -33,17 +57,9 @@ void UShopWidget::NativeConstruct()
         BTN_SellTab->OnClicked.AddDynamic(this, &UShopWidget::OnSellTabClicked);
     }
 
-    // 입력 모드 UI로 전환
-    if (APlayerController* PC = GetOwningPlayer())
-    {
-        FInputModeUIOnly InputMode;
-        InputMode.SetWidgetToFocus(this->TakeWidget());
-        PC->SetInputMode(InputMode);
-        PC->SetShowMouseCursor(true);
-    }
-
-    // 초기 탭 설정
     SwitchTab(true);
+
+    UE_LOG(LogTemp, Error, TEXT("========== NativeConstruct FINISHED =========="));
 }
 
 void UShopWidget::NativeDestruct()
@@ -223,7 +239,21 @@ bool UShopWidget::SellItem(UItemBase* Item, int32 Quantity)
 
 void UShopWidget::OnCloseButtonClicked()
 {
-    CloseShop();
+    UE_LOG(LogTemp, Log, TEXT("ShopWidget: Close button clicked"));
+
+    // 상점 닫기
+    RemoveFromParent();
+
+    // Input Mode 복원
+    APlayerController* PC = GetOwningPlayer();
+    if (PC)
+    {
+        FInputModeGameOnly InputMode;
+        PC->SetInputMode(InputMode);
+        PC->SetShowMouseCursor(false);
+
+        UE_LOG(LogTemp, Log, TEXT("ShopWidget: Input mode restored to Game"));
+    }
 }
 
 void UShopWidget::OnBuyTabClicked()
@@ -248,25 +278,24 @@ void UShopWidget::DisplayShopItems()
     UE_LOG(LogTemp, Log, TEXT("Shop items count: %d"), ShopItems.Num());
 
     // 순회
-    for (int32 i = 0; i < ShopItems.Num(); i++)
+    for (const FName& ItemID : ShopItems)
     {
-        const FName& ItemID = ShopItems[i];
-        UE_LOG(LogTemp, Log, TEXT("Processing item %d: %s"), i, *ItemID.ToString());
+        UE_LOG(LogTemp, Log, TEXT("Processing item: %s"), *ItemID.ToString());
 
         FItemDataRow* ItemData = NPCCharacter->GetItemData(ItemID);
         if (!ItemData)
         {
-            UE_LOG(LogTemp, Warning, TEXT("Item %s not found in DataTable"), *ItemID.ToString());
+            UE_LOG(LogTemp, Error, TEXT("  ItemData is NULL for %s"), *ItemID.ToString());
             continue;
         }
-        // 가격 계산
+
         int32 Price = NPCCharacter->GetItemPrice(ItemID);
 
-        // 슬롯 생성
         UShopItemSlot* ItemSlot = CreateWidget<UShopItemSlot>(this, ShopItemSlotClass);
         if (ItemSlot)
         {
-            ItemSlot->SetShopItemData(ItemData, Price, NPCCharacter);
+            // ItemID (RowName)을 함께 전달!
+            ItemSlot->SetShopItemData(ItemID, ItemData, Price, NPCCharacter);
             WB_ShopItems->AddChildToWrapBox(ItemSlot);
         }
     }
@@ -280,19 +309,25 @@ void UShopWidget::DisplayPlayerInventory()
 
     WB_PlayerInventory->ClearChildren();
 
-    for (UItemBase* Item : PlayerInventory->GetInventoryContents())
+    const TArray<TObjectPtr<UItemBase>>& Items = PlayerInventory->GetInventorySlots();
+
+    for (UItemBase* Item : Items)
     {
-        UInventoryItemSlot* ItemSlot = CreateWidget<UInventoryItemSlot>(this, InventoryItemSlotClass);
+        // nullptr 체크 (빈 슬롯 제외)
+        if (!Item) continue;
+
+        UInventoryItemSlot* ItemSlot = CreateWidget<UInventoryItemSlot>(
+            this, InventoryItemSlotClass);
+
         if (ItemSlot)
         {
             ItemSlot->SetItemReference(Item);
-            // TODO: 판매 기능 활성화 (ItemSlot에 판매 버튼 추가)
             WB_PlayerInventory->AddChildToWrapBox(ItemSlot);
         }
     }
 
     UE_LOG(LogTemp, Log, TEXT("ShopWidget: Displayed %d player items"),
-        PlayerInventory->GetInventoryContents().Num());
+        Items.Num());
 }
 
 void UShopWidget::UpdateGoldDisplay()

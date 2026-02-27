@@ -28,7 +28,7 @@ protected:
     TSubclassOf< UShopTooltip> TooltipClass;
     
 public:
-    void SetShopItemData(FItemDataRow* ItemData, int32 InPrice, ANPCCharacter* NPC);
+    void SetShopItemData(FName InItemID, FItemDataRow* ItemData, int32 InPrice, ANPCCharacter* NPC);
 
 protected:
     UPROPERTY(meta = (BindWidget))

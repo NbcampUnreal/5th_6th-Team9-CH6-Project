@@ -82,16 +82,24 @@ void ANPCCharacter::BeginPlay()
 
 void ANPCCharacter::InitializeShopItems()
 {
-	if (!ItemDataTable) return;
+	if (!ItemDataTable)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] ItemDataTable is NULL!"), *NPCName);
+		return;
+	}
 
 	SellableItemIDs.Empty();
 	TArray<FName> AllRowNames = ItemDataTable->GetRowNames();
+
+	UE_LOG(LogTemp, Error, TEXT("[%s] Initializing shop from %s (%d items)"),
+		*NPCName, *ItemDataTable->GetName(), AllRowNames.Num());
 
 	// 판매할 아이템 타입 (기획서 기준)
 	TArray<EItemType> AllowedTypes = {
 		EItemType::Tool,       // 도구
 		EItemType::Weapon,     // 무기 (Low-tier만)
-		EItemType::Consumable  // 소비 아이템
+		EItemType::Consumable,  // 소비 아이템
+		EItemType::Ammo
 	};
 
 	int32 FilteredCount = 0;
@@ -101,29 +109,35 @@ void ANPCCharacter::InitializeShopItems()
 	{
 		FItemDataRow* ItemData = ItemDataTable->FindRow<FItemDataRow>(RowName, TEXT("ShopInit"));
 
-		if (!ItemData || ItemData->ID.IsNone() || ItemData->ItemStatistics.SellValue <= 0)
-			continue;
-		// ItemType 필터
-		if (!AllowedTypes.Contains(ItemData->ItemType))
-			continue;
-
-		// IsLowTierItem() 함수 사용!
-		if (ItemData->ItemType == EItemType::Weapon || ItemData->ItemType == EItemType::Tool)
+		if (!ItemData)
 		{
-			if (!IsLowTierItem(ItemData))
-				continue;  // High-tier는 제외
+			continue;
 		}
 
+		// ItemType 필터
+		if (!AllowedTypes.Contains(ItemData->ItemType))
+		{
+			continue;
+		}
+
+		// Low-tier 필터
+		if (bOnlyLowTierEquipment &&
+			(ItemData->ItemType == EItemType::Weapon || ItemData->ItemType == EItemType::Tool))
+		{
+			if (!IsLowTierItem_ByRowName(RowName, ItemData->ItemType))
+			{
+				continue;
+			}
+		}
+
+		// 통과!
 		SellableItemIDs.Add(RowName);
 		FilteredCount++;
 
-		UE_LOG(LogTemp, Verbose, TEXT("  Added: %s (%s) - %d gold"),
-			*ItemData->TextData.Name.ToString(),
-			*RowName.ToString(),
-			GetItemPrice(RowName));
+		UE_LOG(LogTemp, Log, TEXT("  Added: %s"), *RowName.ToString());
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[%s] Shop initialized: %d/%d items"),
+	UE_LOG(LogTemp, Error, TEXT("[%s] Shop initialized: %d/%d items"),
 		*NPCName, FilteredCount, AllRowNames.Num());
 }
 
@@ -131,24 +145,59 @@ bool ANPCCharacter::IsLowTierItem(const FItemDataRow* ItemData) const
 {
 	if (!ItemData) return false;
 
-	FString ItemName = ItemData->TextData.Name.ToString();
-	FString ItemID = ItemData->ID.ToString();
-
-	// 키워드 검사
-	for (const FString& Keyword : LowTierKeywords)
+	// Consumable, Ammo는 항상 판매
+	if (ItemData->ItemType == EItemType::Consumable ||
+		ItemData->ItemType == EItemType::Ammo)
 	{
-		if (ItemName.Contains(Keyword, ESearchCase::IgnoreCase) ||
-			ItemID.Contains(Keyword, ESearchCase::IgnoreCase))
-		{
-			return true;
-		}
+		return true;
 	}
-	// 가격으로 판단 (선택사항)
-// if (ItemData->ItemStatistics.SellValue < 50)
-// {
-//     return true;
-// }
-	return false;
+
+	// SellValue가 0이면 Row Name으로 판단
+	FString RowName = ItemData->ID.ToString();
+	if (RowName.IsEmpty())
+	{
+		// ID가 없으면 모두 Low-tier로 판단
+		return true;
+	}
+
+	// Row Name 숫자로 판단
+	int32 ItemIDNum = FCString::Atoi(*RowName);
+
+	// Tool: 200001~200004 (wooden, stone)
+	if (ItemData->ItemType == EItemType::Tool)
+	{
+		return (ItemIDNum >= 200001 && ItemIDNum <= 200004);
+	}
+
+	// Weapon: 110001~110006 (wooden, stone)
+	if (ItemData->ItemType == EItemType::Weapon)
+	{
+		return (ItemIDNum >= 110001 && ItemIDNum <= 110006);
+	}
+
+	// 기본적으로 Low-tier
+	return true;
+}
+
+bool ANPCCharacter::IsLowTierItem_ByRowName(FName RowName, EItemType ItemType) const
+{
+	FString RowNameStr = RowName.ToString();
+	int32 ItemID = FCString::Atoi(*RowNameStr);
+
+	// Tool: 200001~200004 (wooden, stone)
+	if (ItemType == EItemType::Tool)
+	{
+		return (ItemID >= 200001 && ItemID <= 200004);
+	}
+
+	// Weapon: 110001~110006 (wooden, stone)
+	if (ItemType == EItemType::Weapon)
+	{
+		return (ItemID >= 110001 && ItemID <= 110006);
+	}
+
+	// Consumable, Ammo: 전부 판매
+	return true;
 }
 
 void ANPCCharacter::Tick(float DeltaTime)
@@ -464,6 +513,7 @@ void ANPCCharacter::OnDialogueUpdate(const FDialogueRow& DialogueData)
 
 void ANPCCharacter::OnDialogueEnd()
 {
+	bool bShopIsOpen = (ShopWidget && ShopWidget->IsInViewport());
 	// Widget 정리
 	if (DialogueWidget && DialogueWidget->IsInViewport())
 	{
@@ -476,37 +526,44 @@ void ANPCCharacter::OnDialogueEnd()
 	AActor* PreviousInteractor = CurrentInteractor;
 	CurrentInteractor = nullptr;
 
-	if (PreviousInteractor)
+	if (!bShopIsOpen)
 	{
-		if (APlayerController* PC = Cast<APlayerController>(PreviousInteractor->GetInstigatorController()))
+		if (PreviousInteractor)
 		{
-			PC->SetShowMouseCursor(false);
-
-			FInputModeGameOnly InputMode;
-			PC->SetInputMode(InputMode);
-
-			UE_LOG(LogTemp, Log, TEXT("[%s] Player input mode restored"), *NPCName);
+			if (APlayerController* PC = Cast<APlayerController>(PreviousInteractor->GetInstigatorController()))
+			{
+				PC->SetShowMouseCursor(false);
+				FInputModeGameOnly InputMode;
+				PC->SetInputMode(InputMode);
+				UE_LOG(LogTemp, Log, TEXT("[%s] Player input mode restored"), *NPCName);
+			}
 		}
 	}
-
-	// AI 상태 복구
-	if (ANPCAIController* AIController = GetNPCAIController())
+	else
 	{
-		AIController->SetInteractionTarget(nullptr);
-
-		// 플레이어가 여전히 근처에 있으면 Alert
-		if (AIController->GetTargetActor())
-		{
-			AIController->SetNPCState(ENPCMode::Alert);
-		}
-		else
-		{
-			AIController->SetNPCState(ENPCMode::Idle);
-		}
+		UE_LOG(LogTemp, Log, TEXT("[%s] Shop is open, skipping input mode restore"), *NPCName);
 	}
 
-	// 블루프린트 이벤트
-	OnInteractionEnded(PreviousInteractor);
+	// AI 상태 복구 (상점 열릴 때는 스킵)
+	if (!bShopIsOpen)
+	{
+		if (ANPCAIController* AIController = GetNPCAIController())
+		{
+			AIController->SetInteractionTarget(nullptr);
+			// 플레이어가 여전히 근처에 있으면 Alert
+			if (AIController->GetTargetActor())
+			{
+				AIController->SetNPCState(ENPCMode::Alert);
+			}
+			else
+			{
+				AIController->SetNPCState(ENPCMode::Idle);
+			}
+		}
+
+		// 블루프린트 이벤트
+		OnInteractionEnded(PreviousInteractor);
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("[%s] Dialogue ended"), *NPCName);
 }

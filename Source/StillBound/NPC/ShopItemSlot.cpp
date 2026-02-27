@@ -51,23 +51,60 @@ void UShopItemSlot::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
     }
 }
 
-void UShopItemSlot::SetShopItemData(FItemDataRow* ItemData, int32 InPrice, ANPCCharacter* NPC)
+void UShopItemSlot::SetShopItemData(FName InItemID, FItemDataRow* ItemData, int32 InPrice, ANPCCharacter* NPC)
 {
-    if (!ItemData || !NPC) return;
+    if (!ItemData || !NPC)
+    {
+        UE_LOG(LogTemp, Error, TEXT("SetItemData: ItemData or NPC is NULL!"));
+        return;
+    }
 
-    ItemID = ItemData->ID;
+    //ItemID = ItemData->ID;
+    ItemID = InItemID;
     Price = InPrice;
     NPCRef = NPC;
 
+    // UI 업데이트
     if (TXT_ItemName)
     {
-        TXT_ItemName->SetText(FText::FromName(ItemID));
+        FText ItemName = ItemData->TextData.Name;
+
+        // 이름이 비어있으면 경고
+        if (ItemName.IsEmpty())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Item name is empty!"));
+            ItemName = FText::FromString(TEXT("Unknown Item"));
+        }
+
+        TXT_ItemName->SetText(ItemName);
+        UE_LOG(LogTemp, Log, TEXT("  Set ItemName: %s"), *ItemName.ToString());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("  TXT_ItemName is NULL!"));
     }
 
     if (TXT_ItemPrice)
     {
         TXT_ItemPrice->SetText(FText::Format(
             FText::FromString(TEXT("{0}G")), Price));
+        UE_LOG(LogTemp, Log, TEXT("  Set Price: %d"), Price);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("  TXT_ItemPrice is NULL!"));
+    }
+
+    if (IMG_ItemIcon)
+    {
+        if (ItemData->AssetData.Icon)
+        {
+            IMG_ItemIcon->SetBrushFromTexture(ItemData->AssetData.Icon);
+        }
+        else
+        {
+            IMG_ItemIcon->SetColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f, 1.0f));
+        }
     }
 
     if (TXT_ItemStock)

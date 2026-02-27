@@ -117,17 +117,13 @@ public:
 	AWeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
 
 	// 시작 무기 장착 로직 실행 함수
-	void EquipStartingWeapon(); 
+	//void EquipStartingWeapon(); 
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void UnequipWeapon(bool bDestroyWeaponActor = true);
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	bool EquipWeaponFromItem(UItemBase* Item);
-
-	// ? PC�� ���� ���⸦ ������ �� �ְ� Getter ����
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	AWeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
 
 	int32 CurrentHotbarIndex = 0;
 
