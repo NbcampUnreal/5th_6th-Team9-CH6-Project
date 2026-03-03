@@ -489,6 +489,101 @@ void APlayerController_SB::OnStaminaChanged(float OldValue, float NewValue)
 	if (!UIManager) return;
 	UIManager->UpdateHUD();
 }
+
+void APlayerController_SB::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (!IsLocalController()) return;
+	if (!MapWorldManager || !UIManager) return;
+
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn) return;
+
+	const FVector WorldLoc = ControlledPawn->GetActorLocation();
+	FVector2D PlayerUV = MapWorldManager->WorldToUV(WorldLoc);
+
+	PlayerUV.X = FMath::Clamp(PlayerUV.X, 0.f, 1.f);
+	PlayerUV.Y = FMath::Clamp(PlayerUV.Y, 0.f, 1.f);
+
+	
+	if (UUW_UIHUD* HUD = UIManager->GetHUD())
+	{
+		if (UUW_Minimap* MinimapWidget = HUD->GetMiniMapWidget())
+		{
+			MinimapWidget->UpdateMapOffset(PlayerUV);
+
+			const float Yaw = ControlledPawn->GetActorRotation().Yaw;
+			MinimapWidget->UpdatePlayerIconRotation(Yaw);
+
+		}
+	}
+
+
+	if (UUW_FullMap* FullMap = UIManager->GetFullMapWidget())
+	{
+		if (FullMap->IsInViewport())
+		{
+			FullMap->UpdatePlayerPosition(PlayerUV);
+
+			if (HasPing())
+			{
+				FullMap->UpdatePing(GetPingUV());
+			}
+			else
+			{
+				FullMap->ClearPing();
+			}
+		}
+	}
+}
+
+void APlayerController_SB::ToggleFullMap()
+{
+	if (!UIManager) return;
+
+	UIManager->ToggleFullMap();
+
+	UUW_FullMap* FullMap = UIManager->GetFullMapWidget();
+	if (!FullMap) return;
+
+	if (FullMap->IsInViewport())
+	{
+		FInputModeGameAndUI Mode;
+		Mode.SetWidgetToFocus(FullMap->TakeWidget());
+		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+
+		SetInputMode(Mode);
+		bShowMouseCursor = true;
+	}
+	else
+	{
+		FInputModeGameOnly Mode;
+		SetInputMode(Mode);
+		bShowMouseCursor = false;
+	}
+}
+
+void APlayerController_SB::SetPing(const FVector2D& InUV)
+{
+	if (bHasPing)
+	{
+		if (FVector2D::Distance(CurrentPingUV, InUV) < PingToggleThreshold)
+		{
+			ClearPing();
+			return;
+		}
+	}
+
+	CurrentPingUV = InUV;
+	bHasPing = true;
+}
+
+void APlayerController_SB::ClearPing()
+{
+	bHasPing = false;
+}
+
 #pragma endregion 
 
 #pragma region ===== World Save =====
@@ -511,6 +606,8 @@ void APlayerController_SB::SB_LoadWorld()
 	}
 }
 
+
+
 void APlayerController_SB::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	APawn* P = GetPawn();
@@ -529,51 +626,5 @@ void APlayerController_SB::EndPlay(const EEndPlayReason::Type EndPlayReason)
 }
 #pragma endregion
 
-void APlayerController_SB::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
 
-	if (!IsLocalController()) return;
 
-	if (!MapWorldManager || !UIManager) return;
-
-	APawn* ControlledPawn = GetPawn();
-
-	if (!ControlledPawn) return;
-	const FVector WorldLoc = ControlledPawn->GetActorLocation();
-	const FVector2D UV = MapWorldManager->WorldToUV(WorldLoc);
-	if (UUW_UIHUD* HUD = UIManager->GetHUD())
-	{
-		if (UUW_Minimap* MinimapWidget = HUD->GetMiniMapWidget())
-		{
-			FVector2D PlayerUV = UV;
-			PlayerUV.X = FMath::Clamp(PlayerUV.X, 0.f, 1.f);
-			PlayerUV.Y = FMath::Clamp(PlayerUV.Y, 0.f, 1.f);
-			MinimapWidget->UpdateMapOffset(PlayerUV);
-			const float Yaw = ControlledPawn->GetActorRotation().Yaw;
-			MinimapWidget->UpdatePlayerIconRotation(Yaw);
-		}
-	}
-
-	if (UUW_FullMap* FullMap = UIManager->GetFullMapWidget())
-	{
-		if (FullMap->IsInViewport())
-		{
-			FVector2D PlayerUV = UV;
-			PlayerUV.X = FMath::Clamp(PlayerUV.X, 0.f, 1.f);
-			PlayerUV.Y = FMath::Clamp(PlayerUV.Y, 0.f, 1.f);
-			FullMap->UpdatePlayerPosition(PlayerUV);
-		}
-	}
-}
-
-void APlayerController_SB::ToggleFullMap()
-{
-	UE_LOG(LogTemp, Warning, TEXT("FullMap Key Pressed"));
-	if (UIManager)
-	{
-		UIManager->ToggleFullMap();
-	}
-}
-
-#pragma endregion

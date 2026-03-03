@@ -190,4 +190,23 @@ private:
 	
 	UFUNCTION(Exec)
 	void SB_LoadWorld();
+
+// =========================
+// Ping System UI
+// =========================
+private:
+
+	FVector2D CurrentPingUV = FVector2D::ZeroVector;
+	bool bHasPing = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Ping")
+	float PingToggleThreshold = 0.01f;
+
+public:
+
+	void SetPing(const FVector2D& InUV);
+	void ClearPing();
+
+	bool HasPing() const { return bHasPing; }
+	FVector2D GetPingUV() const { return CurrentPingUV;}
 };
