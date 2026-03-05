@@ -601,6 +601,11 @@ void APlayerController_SB::Tick(float DeltaTime)
 		Percent = FMath::Clamp(Percent, 0.f, 1.f);
 
 		UIManager->UpdateGatherProgress(Percent);
+
+		float Remaining = GatherDuration - Elapsed;
+		Remaining = FMath::Max(Remaining, 0.f);
+
+		UIManager->UpdateGatherTime(Remaining);
 	}
 }
 

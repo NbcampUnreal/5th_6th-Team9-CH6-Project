@@ -119,6 +119,14 @@ void USB_UIManager::UpdateGatherProgress(float Percent)
 	}
 }
 
+void USB_UIManager::UpdateGatherTime(float Remaining)
+{
+	if (GatherProgressWidget)
+	{
+		GatherProgressWidget->SetRemainingTime(Remaining);
+	}
+}
+
 void USB_UIManager::ToggleFullMap()
 {
 	if (!FullMapWidget)

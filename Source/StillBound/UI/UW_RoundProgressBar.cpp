@@ -17,3 +17,12 @@ void UUW_RoundProgressBar::SetPercent(float Percent)
         ProgressMaterial->SetScalarParameterValue("Percent", Percent);
     }
 }
+
+void UUW_RoundProgressBar::SetRemainingTime(float Remaining)
+{
+    if (TimeText)
+    {
+        FString Str = FString::Printf(TEXT("%.1fs"), Remaining);
+        TimeText->SetText(FText::FromString(Str));
+    }
+}

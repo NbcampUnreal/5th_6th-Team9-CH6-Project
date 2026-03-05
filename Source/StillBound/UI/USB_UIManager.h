@@ -31,6 +31,7 @@ public:
 	void ShowGatherProgress();
 	void HideGatherProgress();
 	void UpdateGatherProgress(float Percent);
+	void UpdateGatherTime(float Remaining);
 	void ToggleFullMap();
 	void UpdateHUD();
 
