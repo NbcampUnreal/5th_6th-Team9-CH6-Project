@@ -11,6 +11,7 @@
 #include "Components/Button.h"
 #include "Components/WrapBox.h"
 #include "Components/Border.h"
+#include "UI/Inventory/ItemDragDropOperation.h"
 #include "Kismet/GameplayStatics.h"
 
 void UShopWidget::NativeConstruct()
@@ -28,8 +29,6 @@ void UShopWidget::NativeConstruct()
         PC->SetShowMouseCursor(true);
 
         UE_LOG(LogTemp, Error, TEXT("Input mode set to UI Only"));
-        UE_LOG(LogTemp, Error, TEXT("Mouse cursor visible: %s"),
-            PC->ShouldShowMouseCursor() ? TEXT("true") : TEXT("false"));
     }
     else
     {
@@ -68,6 +67,11 @@ void UShopWidget::NativeDestruct()
     if (PlayerInventory)
     {
         PlayerInventory->OnInventoryUpdated.RemoveAll(this);
+    }
+    if (GetWorld())
+    {
+        GetWorld()->GetTimerManager().ClearTimer(RestockTimerHandle);
+        UE_LOG(LogTemp, Log, TEXT("ShopWidget: Restock timer cleared"));
     }
 
     Super::NativeDestruct();
@@ -167,7 +171,6 @@ void UShopWidget::RefreshShop()
     {
         DisplayPlayerInventory();
     }
-
     UpdateGoldDisplay();
 }
 
@@ -208,14 +211,45 @@ bool UShopWidget::BuyItem(FName ItemID, int32 Quantity)
     return false;
 }
 
-bool UShopWidget::SellItem(UItemBase* Item, int32 Quantity)
+
+bool UShopWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
-    if (!NPCCharacter || !Item) return false;
+    // ItemDragDropOperation인지 확인
+    UItemDragDropOperation* ItemDragDrop = Cast<UItemDragDropOperation>(InOperation);
 
+    if (!ItemDragDrop || !ItemDragDrop->SourceItem)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Invalid drag operation"));
+        return false;
+    }
+
+    UItemBase* Item = ItemDragDrop->SourceItem;
+
+    // 판매 불가 아이템 체크
+    if (Item->ItemStatistics.SellValue <= 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("This item cannot be sold"));
+        // TODO: "판매 불가" 메시지 표시
+        return false;
+    }
+
+    // 판매 가격 계산 (80%)
+    int32 SellPrice = FMath::FloorToInt(Item->ItemStatistics.SellValue * 0.8f);
+
+    // 판매 수량 결정 (전체 vs 1개)
+    int32 SellQuantity = 1;  // 기본: 1개씩 판매
+
+    // Shift 키를 누르고 있으면 전체 판매
+    if (InDragDropEvent.IsShiftDown() && Item->NumericData.bIsStackable)
+    {
+        SellQuantity = Item->Quantity;
+    }
+
+    // NPC에게 판매
     int32 GoldReceived = 0;
+    bool bSuccess = NPCCharacter->BuyItemFromPlayer(Item, SellQuantity, GoldReceived);
 
-    // NPC에게 아이템 판매
-    if (NPCCharacter->BuyItemFromPlayer(Item, Quantity, GoldReceived))
+    if (bSuccess)
     {
         // 골드 지급
         APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(
@@ -226,21 +260,61 @@ bool UShopWidget::SellItem(UItemBase* Item, int32 Quantity)
             Player->ModifyGold(GoldReceived);
         }
 
-        UE_LOG(LogTemp, Log, TEXT("Sold %d x %s for %d gold"),
-            Quantity, *Item->TextData.Name.ToString(), GoldReceived);
+        UE_LOG(LogTemp, Log, TEXT("Sold %d x %s for %dG"),
+            SellQuantity, *Item->TextData.Name.ToString(), GoldReceived);
 
-        // UI 새로고침
-        RefreshShop();
+        // TODO: 판매 성공 피드백 (효과음, 애니메이션)
+
         return true;
     }
 
     return false;
 }
 
+void UShopWidget::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+    Super::NativeOnDragEnter(InGeometry, InDragDropEvent, InOperation);
+
+    // 드롭 영역 하이라이트
+    if (DropZone)
+    {
+        DropZone->SetBrushColor(FLinearColor(0.2f, 1.0f, 0.2f, 0.5f));  // 초록색
+    }
+
+    if (TXT_DropHint)
+    {
+        UItemDragDropOperation* ItemDragDrop = Cast<UItemDragDropOperation>(InOperation);
+        if (ItemDragDrop && ItemDragDrop->SourceItem)
+        {
+            int32 SellPrice = FMath::FloorToInt(
+                ItemDragDrop->SourceItem->ItemStatistics.SellValue * 0.8f);
+
+            TXT_DropHint->SetText(FText::Format(
+                FText::FromString(TEXT("Sell Price: {0}G")), SellPrice));
+        }
+    }
+}
+
+void UShopWidget::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+    Super::NativeOnDragLeave(InDragDropEvent, InOperation);
+
+    // 하이라이트 제거
+    if (DropZone)
+    {
+        DropZone->SetBrushColor(FLinearColor(0.1f, 0.1f, 0.1f, 0.3f));  // 기본색
+    }
+
+    if (TXT_DropHint)
+    {
+        TXT_DropHint->SetText(FText::FromString(TEXT("Drag item here to sell")));
+    }
+}
+
 void UShopWidget::OnCloseButtonClicked()
 {
     UE_LOG(LogTemp, Log, TEXT("ShopWidget: Close button clicked"));
-
+    /*
     // 상점 닫기
     RemoveFromParent();
 
@@ -254,6 +328,8 @@ void UShopWidget::OnCloseButtonClicked()
 
         UE_LOG(LogTemp, Log, TEXT("ShopWidget: Input mode restored to Game"));
     }
+    */
+    CloseShop();
 }
 
 void UShopWidget::OnBuyTabClicked()
@@ -305,14 +381,22 @@ void UShopWidget::DisplayShopItems()
 
 void UShopWidget::DisplayPlayerInventory()
 {
-    if (!WB_PlayerInventory || !InventoryItemSlotClass || !PlayerInventory) return;
+    if (!WB_PlayerInventory || !InventoryItemSlotClass || !PlayerInventory)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("DisplayPlayerInventory: Missing components"));
+        return;
+    }
 
     WB_PlayerInventory->ClearChildren();
 
     const TArray<TObjectPtr<UItemBase>>& Items = PlayerInventory->GetInventorySlots();
 
-    for (UItemBase* Item : Items)
+    int32 DisplayCount = 0;
+
+    for (int32 i = 0; i < Items.Num(); ++i)
     {
+        UItemBase* Item = Items[i];
+
         // nullptr 체크 (빈 슬롯 제외)
         if (!Item) continue;
 
@@ -321,13 +405,19 @@ void UShopWidget::DisplayPlayerInventory()
 
         if (ItemSlot)
         {
+            // 슬롯 초기화 (드래그 앤 드롭을 위해 필요!)
+            ItemSlot->InitSlot(ESlotContainer::Inventory, i, PlayerInventory);
+
+            // 아이템 설정
             ItemSlot->SetItemReference(Item);
+
+            // WrapBox에 추가
             WB_PlayerInventory->AddChildToWrapBox(ItemSlot);
+
+            DisplayCount++;
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("ShopWidget: Displayed %d player items"),
-        Items.Num());
 }
 
 void UShopWidget::UpdateGoldDisplay()
@@ -336,6 +426,18 @@ void UShopWidget::UpdateGoldDisplay()
     {
         // TODO: 실제 골드 시스템 연동
         TXT_PlayerGold->SetText(FText::FromString(TEXT("Gold: 1000")));
+    }
+    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(
+        UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+    if (Player)
+    {
+        int32 Gold = Player->GetGold();
+        TXT_PlayerGold->SetText(FText::Format(
+            FText::FromString(TEXT("Gold: {0}")), Gold));
+    }
+    else
+    {
+        TXT_PlayerGold->SetText(FText::FromString(TEXT("Gold: 0")));
     }
 }
 
@@ -347,6 +449,12 @@ void UShopWidget::SwitchTab(bool bBuyTab)
     {
         Border_BuyPanel->SetVisibility(bBuyTab ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
         Border_SellPanel->SetVisibility(bBuyTab ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+    }
+    // 왼쪽 패널은 Sell 탭에만 표시
+    if (Border_LeftPanel)
+    {
+        Border_LeftPanel->SetVisibility(
+            bBuyTab ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
     }
 
     RefreshShop();

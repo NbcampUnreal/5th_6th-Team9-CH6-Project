@@ -5,12 +5,15 @@
 #include "Blueprint/UserWidget.h"
 #include "ShopWidget.generated.h"
 
+// Forward Declarations
 class ANPCCharacter;
 class UInventoryComponent;
-class UTextBlock;
-class UButton;
+class UShopItemSlot;
+class UInventoryItemSlot;
 class UWrapBox;
 class UBorder;
+class UTextBlock;
+class UButton;
 
 UCLASS()
 class STILLBOUND_API UShopWidget : public UUserWidget
@@ -21,73 +24,28 @@ protected:
     virtual void NativeConstruct() override;
     virtual void NativeDestruct() override;
 
+    // ===== 드래그 앤 드롭 =====
+    virtual bool NativeOnDrop(
+        const FGeometry& InGeometry,
+        const FDragDropEvent& InDragDropEvent,
+        UDragDropOperation* InOperation) override;
+
+    virtual void NativeOnDragEnter(
+        const FGeometry& InGeometry,
+        const FDragDropEvent& InDragDropEvent,
+        UDragDropOperation* InOperation) override;
+
+    virtual void NativeOnDragLeave(
+        const FDragDropEvent& InDragDropEvent,
+        UDragDropOperation* InOperation) override;
+
 public:
-    UFUNCTION(BlueprintCallable, Category = "Shop")
+    // ===== Public 함수 =====
     void InitializeShop(ANPCCharacter* NPC);
-
-    UFUNCTION(BlueprintCallable, Category = "Shop")
-    void CloseShop();
-
-    UFUNCTION(BlueprintCallable, Category = "Shop")
-    void RefreshShop();
-
-    // 아이템 구매 (골드 체크 포함)
-    UFUNCTION(BlueprintCallable, Category = "Shop")
-    bool BuyItem(FName ItemID, int32 Quantity = 1);
-
-    // 아이템 판매 (드래그 앤 드롭)
-    UFUNCTION(BlueprintCallable, Category = "Shop")
-    bool SellItem(UItemBase* Item, int32 Quantity);
-
-protected:
-    // ========== 바인드 위젯 ==========
-
-    UPROPERTY(meta = (BindWidget))
-    UTextBlock* TXT_ShopName;
-
-    UPROPERTY(meta = (BindWidget))
-    UTextBlock* TXT_PlayerGold;
-
-    UPROPERTY(meta = (BindWidget))
-    UWrapBox* WB_ShopItems;
-
-    UPROPERTY(meta = (BindWidget))
-    UWrapBox* WB_PlayerInventory;
-
-    UPROPERTY(meta = (BindWidget))
-    UButton* BTN_Close;
-
-    // 탭 전환 (선택사항)
-    UPROPERTY(meta = (BindWidget))
-    UButton* BTN_BuyTab;
-
-    UPROPERTY(meta = (BindWidget))
-    UButton* BTN_SellTab;
-
-    UPROPERTY(meta = (BindWidget))
-    UBorder* Border_BuyPanel;
-
-    UPROPERTY(meta = (BindWidget))
-    UBorder* Border_SellPanel;
-
-    // ========== 설정 ==========
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
-    TSubclassOf<class UShopItemSlot> ShopItemSlotClass;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
-    TSubclassOf<class UInventoryItemSlot> InventoryItemSlotClass;
+    bool BuyItem(FName ItemID, int32 Quantity);
 
 private:
-    UPROPERTY()
-    ANPCCharacter* NPCCharacter = nullptr;
-
-    UPROPERTY()
-    UInventoryComponent* PlayerInventory = nullptr;
-
-    bool bShowBuyTab = true;
-
-    // 버튼 콜백
+    // ===== Button Callbacks =====
     UFUNCTION()
     void OnCloseButtonClicked();
 
@@ -97,17 +55,79 @@ private:
     UFUNCTION()
     void OnSellTabClicked();
 
-    // UI 업데이트
+    // ===== Internal 함수 =====
+    void RefreshShop();
     void DisplayShopItems();
     void DisplayPlayerInventory();
     void UpdateGoldDisplay();
     void SwitchTab(bool bBuyTab);
+    void CloseShop();
 
-    // 재고 리셋 타이머
+    UFUNCTION()
+    void OnRestockTimer();
+
+    // ===== References =====
+    UPROPERTY()
+    ANPCCharacter* NPCCharacter;
+
+    UPROPERTY()
+    UInventoryComponent* PlayerInventory;
+
+    // ===== UI Widgets - Left Panel (Player Inventory) =====
+    UPROPERTY(meta = (BindWidget))
+    UBorder* Border_LeftPanel;
+
+    UPROPERTY(meta = (BindWidget))
+    UWrapBox* WB_PlayerInventory;
+
+    // ===== UI Widgets - Right Panel (Shop) =====
+    UPROPERTY(meta = (BindWidget))
+    UBorder* Border_RightPanel;
+
+    UPROPERTY(meta = (BindWidget))
+    UBorder* Border_BuyPanel;
+
+    UPROPERTY(meta = (BindWidget))
+    UWrapBox* WB_ShopItems;
+
+    UPROPERTY(meta = (BindWidget))
+    UBorder* Border_SellPanel;
+
+    UPROPERTY(meta = (BindWidget))
+    UBorder* DropZone;
+
+    UPROPERTY(meta = (BindWidget))
+    UTextBlock* TXT_DropHint;
+
+    // ===== UI Widgets - Common =====
+    UPROPERTY(meta = (BindWidget))
+    UTextBlock* TXT_ShopName;
+
+    UPROPERTY(meta = (BindWidget))
+    UTextBlock* TXT_PlayerGold;
+
+    UPROPERTY(meta = (BindWidget))
+    UButton* BTN_Close;
+
+    UPROPERTY(meta = (BindWidget))
+    UButton* BTN_BuyTab;
+
+    UPROPERTY(meta = (BindWidget))
+    UButton* BTN_SellTab;
+
+    // ===== Widget Classes =====
+    UPROPERTY(EditDefaultsOnly, Category = "Shop")
+    TSubclassOf<UShopItemSlot> ShopItemSlotClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Shop")
+    TSubclassOf<UInventoryItemSlot> InventoryItemSlotClass;
+
+    // ===== State =====
+    bool bShowBuyTab = true;
+
+    // ===== Timer =====
     FTimerHandle RestockTimerHandle;
 
-    UPROPERTY(EditAnywhere, Category = "Shop")
+    UPROPERTY(EditDefaultsOnly, Category = "Shop")
     float RestockIntervalSeconds = 600.0f;  // 10분
-
-    void OnRestockTimer();
 };
