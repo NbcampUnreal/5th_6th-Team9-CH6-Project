@@ -168,4 +168,17 @@ private:
 	UPROPERTY()
 	TObjectPtr<UItemBase> SelectedConsumable = nullptr;
 
+	//============채집 기능 추가
+public:
+	//채집 이동 감지
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Gather")
+	bool bIsGathering = false;
+
+	// 채집 시작 위치 저장
+	FVector GatherStartLocation;
+
+	//채집 시작/종료 알림, GatherableObject에서 호출
+	void NotifyGatherStart();
+	void NotifyGatherEnd();
+
 };
