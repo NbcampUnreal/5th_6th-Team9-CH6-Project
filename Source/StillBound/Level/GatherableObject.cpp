@@ -77,7 +77,7 @@ void AGatherableObject::BeginInteract_Implementation()
      // InteractableData의 Duration을 도구 티어에 따라 갱신
      InteractableData.InteractionDuration = CalculateGatherTime(ToolTier);
 
-     Player->NotifyGatherStart();
+     Player->NotifyGatherStart(InteractableData.InteractionDuration);
 }
 
 void AGatherableObject::EndInteract_Implementation()
@@ -113,6 +113,8 @@ void AGatherableObject::Interact_Implementation(APlayerCharacter_SB* PlayerChara
     CurrentGatherCount--;
 
     BP_OnGatherComplete();
+
+    PlayerCharacter->NotifyGatherEnd();
 
     // 인터랙션 위젯 갱신
     PlayerCharacter->UpdateInteractionWidget();

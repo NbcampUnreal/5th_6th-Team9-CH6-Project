@@ -592,6 +592,16 @@ void APlayerController_SB::Tick(float DeltaTime)
 			}
 		}
 	}
+
+	if (bGathering && UIManager)
+	{
+		float Elapsed = GetWorld()->GetTimeSeconds() - GatherStartTime;
+		float Percent = Elapsed / GatherDuration;
+
+		Percent = FMath::Clamp(Percent, 0.f, 1.f);
+
+		UIManager->UpdateGatherProgress(Percent);
+	}
 }
 
 void APlayerController_SB::ToggleFullMap()
@@ -638,6 +648,28 @@ void APlayerController_SB::SetPing(const FVector2D& InUV)
 void APlayerController_SB::ClearPing()
 {
 	bHasPing = false;
+}
+
+void APlayerController_SB::StartGatherProgress(float Duration)
+{
+	GatherDuration = Duration;
+	GatherStartTime = GetWorld()->GetTimeSeconds();
+	bGathering = true;
+
+	if (UIManager)
+	{
+		UIManager->ShowGatherProgress();
+	}
+}
+
+void APlayerController_SB::EndGatherProgress()
+{
+	bGathering = false;
+
+	if (UIManager)
+	{
+		UIManager->HideGatherProgress();
+	}
 }
 
 #pragma endregion 
