@@ -148,6 +148,6 @@ public:
 	FVector GatherStartLocation;
 
 	//채집 시작/종료 알림, GatherableObject에서 호출
-	void NotifyGatherStart();
+	void NotifyGatherStart(float Duration);
 	void NotifyGatherEnd();
 };

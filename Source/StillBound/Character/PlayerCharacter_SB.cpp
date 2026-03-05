@@ -609,13 +609,23 @@ void APlayerCharacter_SB::Die()
 }
 
 //============채집 기능 추가
-void APlayerCharacter_SB::NotifyGatherStart()
+void APlayerCharacter_SB::NotifyGatherStart(float Duration)
 {
 	bIsGathering = true;
 	GatherStartLocation = GetActorLocation();
+
+	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
+	{
+		PC->StartGatherProgress(Duration);
+	}
 }
 
 void APlayerCharacter_SB::NotifyGatherEnd()
 {
 	bIsGathering = false;
+
+	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
+	{
+		PC->EndGatherProgress();
+	}
 }

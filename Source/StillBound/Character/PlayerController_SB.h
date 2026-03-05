@@ -207,6 +207,21 @@ private:
 	void ApplyOverlayInputState();
 
 // =========================
+// Gather Progress System
+// =========================
+
+private:
+
+	float GatherStartTime = 0.f;
+	float GatherDuration = 0.f;
+	bool bGathering = false;
+
+public:
+
+	void StartGatherProgress(float Duration);
+	void EndGatherProgress();
+
+// =========================
 // Ping System UI
 // =========================
 private:
