@@ -556,19 +556,25 @@ void APlayerController_SB::Tick(float DeltaTime)
 	PlayerUV.X = FMath::Clamp(PlayerUV.X, 0.f, 1.f);
 	PlayerUV.Y = FMath::Clamp(PlayerUV.Y, 0.f, 1.f);
 
-	
+	const float PlayerYaw = ControlledPawn->GetActorRotation().Yaw;
+
 	if (UUW_UIHUD* HUD = UIManager->GetHUD())
 	{
 		if (UUW_Minimap* MinimapWidget = HUD->GetMiniMapWidget())
 		{
 			MinimapWidget->UpdateMapOffset(PlayerUV);
+			MinimapWidget->UpdatePlayerIconRotation(PlayerYaw);
 
-			const float Yaw = ControlledPawn->GetActorRotation().Yaw;
-			MinimapWidget->UpdatePlayerIconRotation(Yaw);
-
+			if (HasPing())
+			{
+				MinimapWidget->UpdatePing(GetPingUV(), PlayerUV);
+			}
+			else
+			{
+				MinimapWidget->ClearPing();
+			}
 		}
 	}
-
 
 	if (UUW_FullMap* FullMap = UIManager->GetFullMapWidget())
 	{
