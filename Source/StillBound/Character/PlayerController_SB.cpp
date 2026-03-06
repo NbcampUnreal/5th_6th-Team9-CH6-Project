@@ -575,38 +575,6 @@ void APlayerController_SB::Tick(float DeltaTime)
 			}
 		}
 	}
-
-	if (UUW_FullMap* FullMap = UIManager->GetFullMapWidget())
-	{
-		if (FullMap->IsInViewport())
-		{
-			FullMap->UpdatePlayerPosition(PlayerUV);
-
-			if (HasPing())
-			{
-				FullMap->UpdatePing(GetPingUV());
-			}
-			else
-			{
-				FullMap->ClearPing();
-			}
-		}
-	}
-
-	if (bGathering && UIManager)
-	{
-		float Elapsed = GetWorld()->GetTimeSeconds() - GatherStartTime;
-		float Percent = Elapsed / GatherDuration;
-
-		Percent = FMath::Clamp(Percent, 0.f, 1.f);
-
-		UIManager->UpdateGatherProgress(Percent);
-
-		float Remaining = GatherDuration - Elapsed;
-		Remaining = FMath::Max(Remaining, 0.f);
-
-		UIManager->UpdateGatherTime(Remaining);
-	}
 }
 
 void APlayerController_SB::ToggleFullMap()
@@ -618,6 +586,8 @@ void APlayerController_SB::ToggleFullMap()
 	UUW_FullMap* FullMap = UIManager->GetFullMapWidget();
 	if (!FullMap) return;
 
+	bFullMapOpen = FullMap->IsInViewport();
+
 	if (FullMap->IsInViewport())
 	{
 		FInputModeGameAndUI Mode;
@@ -626,12 +596,22 @@ void APlayerController_SB::ToggleFullMap()
 
 		SetInputMode(Mode);
 		bShowMouseCursor = true;
+
+		GetWorldTimerManager().SetTimer(
+			FullMapUpdateTimer,
+			this,
+			&APlayerController_SB::UpdateFullMap,
+			0.05f,
+			true
+		);
 	}
 	else
 	{
 		FInputModeGameOnly Mode;
 		SetInputMode(Mode);
 		bShowMouseCursor = false;
+
+		GetWorldTimerManager().ClearTimer(FullMapUpdateTimer);
 	}
 }
 
@@ -655,6 +635,56 @@ void APlayerController_SB::ClearPing()
 	bHasPing = false;
 }
 
+void APlayerController_SB::UpdateGatherUI()
+{
+	if (!bGathering || !UIManager)
+	{
+		GetWorldTimerManager().ClearTimer(GatherUpdateTimer);
+		return;
+	}
+
+	float Elapsed = GetWorld()->GetTimeSeconds() - GatherStartTime;
+	float Percent = Elapsed / GatherDuration;
+
+	Percent = FMath::Clamp(Percent, 0.f, 1.f);
+
+	UIManager->UpdateGatherProgress(Percent);
+
+	float Remaining = GatherDuration - Elapsed;
+	Remaining = FMath::Max(Remaining, 0.f);
+
+	UIManager->UpdateGatherTime(Remaining);
+
+	if (Percent >= 1.f)
+	{
+		GetWorldTimerManager().ClearTimer(GatherUpdateTimer);
+	}
+}
+
+void APlayerController_SB::UpdateFullMap()
+{
+	if (!MapWorldManager || !UIManager) return;
+
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn) return;
+
+	FVector2D PlayerUV = MapWorldManager->WorldToUV(ControlledPawn->GetActorLocation());
+
+	if (UUW_FullMap* FullMap = UIManager->GetFullMapWidget())
+	{
+		FullMap->UpdatePlayerPosition(PlayerUV);
+
+		if (HasPing())
+		{
+			FullMap->UpdatePing(GetPingUV());
+		}
+		else
+		{
+			FullMap->ClearPing();
+		}
+	}
+}
+
 void APlayerController_SB::StartGatherProgress(float Duration)
 {
 	GatherDuration = Duration;
@@ -665,11 +695,21 @@ void APlayerController_SB::StartGatherProgress(float Duration)
 	{
 		UIManager->ShowGatherProgress();
 	}
+
+	GetWorldTimerManager().SetTimer(
+		GatherUpdateTimer,
+		this,
+		&APlayerController_SB::UpdateGatherUI,
+		0.01f,
+		true
+	);
 }
 
 void APlayerController_SB::EndGatherProgress()
 {
 	bGathering = false;
+
+	GetWorldTimerManager().ClearTimer(GatherUpdateTimer);
 
 	if (UIManager)
 	{

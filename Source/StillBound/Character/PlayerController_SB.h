@@ -216,6 +216,14 @@ private:
 	float GatherDuration = 0.f;
 	bool bGathering = false;
 
+	FTimerHandle GatherUpdateTimer;
+
+	void UpdateGatherUI();
+
+	FTimerHandle FullMapUpdateTimer;
+	void UpdateFullMap();
+
+
 public:
 
 	void StartGatherProgress(float Duration);
