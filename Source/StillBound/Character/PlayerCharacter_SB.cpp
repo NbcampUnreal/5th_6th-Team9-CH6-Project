@@ -184,6 +184,17 @@ void APlayerCharacter_SB::Tick(float DeltaSeconds)
 			EndInteract(); 
 		}
 	}
+
+	//채집 중 이동 감지 추가
+	if (bIsGathering && InteractionData.bIsInteracting)
+	{
+		float MovedDist = FVector::Dist(GetActorLocation(), GatherStartLocation);
+		if (MovedDist > 10.0f)//10cm이상 이동하면 취소
+		{
+			EndInteract();
+			NotifyGatherEnd();
+		}
+	}
 }
 
 void APlayerCharacter_SB::PerformInteractionCheck()
@@ -594,5 +605,27 @@ void APlayerCharacter_SB::Die()
 	{
 		PlayAnimMontage(DeathMontage, 1.5f);
 		return;
+	}
+}
+
+//============채집 기능 추가
+void APlayerCharacter_SB::NotifyGatherStart(float Duration)
+{
+	bIsGathering = true;
+	GatherStartLocation = GetActorLocation();
+
+	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
+	{
+		PC->StartGatherProgress(Duration);
+	}
+}
+
+void APlayerCharacter_SB::NotifyGatherEnd()
+{
+	bIsGathering = false;
+
+	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
+	{
+		PC->EndGatherProgress();
 	}
 }

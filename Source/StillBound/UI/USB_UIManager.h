@@ -10,6 +10,7 @@ class UMainMenu;
 class UInteractionWidget;
 struct FInteractableData;
 class UUW_FullMap;
+class UUW_RoundProgressBar;
 class UHotbarPanel;
 /**
  * 
@@ -27,6 +28,10 @@ public:
 	void SetStamina(float Current, float Max);
 	void SetExp(float Current, float Required);
 	void SetLevel(int32 Level);
+	void ShowGatherProgress();
+	void HideGatherProgress();
+	void UpdateGatherProgress(float Percent);
+	void UpdateGatherTime(float Remaining);
 	void ToggleFullMap();
 	void UpdateHUD();
 
@@ -49,6 +54,12 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UUW_FullMap> FullMapWidget;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
+	TSubclassOf<UUW_RoundProgressBar> GatherProgressClass;
+
+	UPROPERTY()
+	TObjectPtr<UUW_RoundProgressBar> GatherProgressWidget;
 
 	UFUNCTION()
 	void OnExpChanged(float OldValue, float NewValue);
