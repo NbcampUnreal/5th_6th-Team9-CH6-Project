@@ -674,6 +674,7 @@ bool UInventoryComponent::ConsumeByID(FName ItemID, int32 Count)
 bool UInventoryComponent::AddByID(FName ItemID, int32 Count)
 {
 	UItemBase* NewItem = CreateItemInstanceByID(ItemID, Count);
+
 	if (!NewItem) return false;
 
 	const FItemAddResult Res = HandleAddItem_AutoHotbarFirst(NewItem);

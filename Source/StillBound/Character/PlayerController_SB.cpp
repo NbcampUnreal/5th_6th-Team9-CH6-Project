@@ -194,14 +194,14 @@ void APlayerController_SB::ToggleMenu()
 		UIManager->ToggleFullMap();
 		bFullMapOpen = false;
 
-		ApplyOverlayInputState();
+		//ApplyOverlayInputState();
 		return;
 	}
 
 	UIManager->ToggleMenu();
 	bMenuOpen = !bMenuOpen;
 
-	ApplyOverlayInputState();
+	//ApplyOverlayInputState();
 }
 
 #pragma endregion

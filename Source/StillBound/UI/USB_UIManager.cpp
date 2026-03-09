@@ -233,8 +233,11 @@ void USB_UIManager::CloseMenu()
 	OwnerPC->SetInputMode(InputMode);
 
 	OwnerPC->SetShowMouseCursor(false);
-	OwnerPC->SetIgnoreMoveInput(false);
-	OwnerPC->SetIgnoreLookInput(false);
+	OwnerPC->ResetIgnoreMoveInput();
+	OwnerPC->ResetIgnoreLookInput();
+
+	//FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::SetDirectly);
+	//FSlateApplication::Get().SetAllUserFocusToGameViewport(EFocusCause::SetDirectly);
 }
 
 void USB_UIManager::ToggleMenu()
@@ -247,6 +250,7 @@ void USB_UIManager::ToggleMenu()
 	{
 		CloseMenu();
 	}
+
 }
 
 void USB_UIManager::ShowInteractionWidget()
