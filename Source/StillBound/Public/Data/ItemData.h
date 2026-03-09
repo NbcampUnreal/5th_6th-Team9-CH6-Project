@@ -51,6 +51,9 @@ struct FItemStatistics
 
 	UPROPERTY(EditAnywhere)
 	float SellValue;
+
+	UPROPERTY(EditAnywhere)
+	float BuyValue;
 };
 
 USTRUCT(BlueprintType)
