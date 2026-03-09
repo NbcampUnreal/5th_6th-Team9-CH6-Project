@@ -41,16 +41,16 @@ struct FItemStatistics
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere)
-	float ArmorRating;
+	float ArmorRating = 0.f;
 
 	UPROPERTY(EditAnywhere)
-	float DamageValue;
+	float DamageValue = 0.f;
 
 	UPROPERTY(EditAnywhere)
-	float RestorationAmount;
+	float RestorationAmount = 0.f;
 
 	UPROPERTY(EditAnywhere)
-	float SellValue;
+	float SellValue = 0.f;
 };
 
 USTRUCT(BlueprintType)
@@ -77,13 +77,13 @@ struct FItemNumericData
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere)
-	float Weight;
+	float Weight = 0.f;
 
 	UPROPERTY(EditAnywhere)
-	int32 MaxStackSize;
+	int32 MaxStackSize = 1;
 
 	UPROPERTY(EditAnywhere)
-	bool bIsStackable;
+	bool bIsStackable = false;
 };
 
 USTRUCT()
@@ -92,10 +92,10 @@ struct FItemAssetData
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere)
-	UTexture2D* Icon;
+	UTexture2D* Icon = nullptr;
 
 	UPROPERTY(EditAnywhere)
-	UStaticMesh* Mesh;
+	UStaticMesh* Mesh = nullptr;
 };
 
 
@@ -110,10 +110,10 @@ struct FItemDataRow : public FTableRowBase
 	FName ID;
 
 	UPROPERTY(EditAnywhere, Category = "Item")
-	EItemType ItemType;
+	EItemType ItemType ;
 
 	UPROPERTY(EditAnywhere, Category = "Item")
-	EItemQuality ItemQuality;
+	EItemQuality ItemQuality = EItemQuality::Common;
 
 	UPROPERTY(EditAnywhere, Category = "Item")
 	FItemStatistics ItemStatistics;
