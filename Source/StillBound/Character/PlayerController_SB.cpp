@@ -19,7 +19,6 @@
 #include "UI/UW_FullMap.h"
 #include "Landscape.h"
 #include "EngineUtils.h"
-#include "EngineUtils.h"
 #include "Weapons/WeaponBase.h"
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Inventory/InventoryComponent.h"
@@ -28,14 +27,12 @@ void APlayerController_SB::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(
-		GetLocalPlayer());
+	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
 	if (!IsValid(InputSubsystem)) return;
 
-	for (UInputMappingContext* Context : InputMappingContexts)
-	{
-		InputSubsystem->AddMappingContext(Context, 0);
-	}
+	if (IMC_Movement) InputSubsystem->AddMappingContext(IMC_Movement, 0);
+	if (IMC_Abilities) InputSubsystem->AddMappingContext(IMC_Abilities, 0);
+	if (IMC_Hotbar)   InputSubsystem->AddMappingContext(IMC_Hotbar, 0);
 
 	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
 	if (!IsValid(EnhancedInputComponent)) return;
@@ -190,7 +187,21 @@ void APlayerController_SB::EndInteract()
 
 void APlayerController_SB::ToggleMenu()
 {
+	if (!UIManager) return;
+
+	if (bFullMapOpen)
+	{
+		UIManager->ToggleFullMap();
+		bFullMapOpen = false;
+
+		ApplyOverlayInputState();
+		return;
+	}
+
 	UIManager->ToggleMenu();
+	bMenuOpen = !bMenuOpen;
+
+	ApplyOverlayInputState();
 }
 
 #pragma endregion
@@ -508,6 +519,44 @@ APlayerController_SB::APlayerController_SB()
 	PrimaryActorTick.bStartWithTickEnabled = true;
 }
 
+void APlayerController_SB::ApplyOverlayInputState()
+{
+	if (!IsLocalController()) return;
+
+	auto* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+	if (!Subsystem) return;
+
+	const bool bOverlayOpen = bMenuOpen || bFullMapOpen;
+
+	if (bOverlayOpen)
+	{
+		if (IMC_Movement) Subsystem->RemoveMappingContext(IMC_Movement);
+		if (IMC_Abilities) Subsystem->RemoveMappingContext(IMC_Abilities);
+
+		SetIgnoreMoveInput(true);
+		SetIgnoreLookInput(true);
+
+		FInputModeGameAndUI Mode;
+		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		SetInputMode(Mode);
+
+		bShowMouseCursor = true;
+	}
+	else
+	{
+		if (IMC_Movement) Subsystem->AddMappingContext(IMC_Movement, 0);
+		if (IMC_Abilities) Subsystem->AddMappingContext(IMC_Abilities, 0);
+
+		SetIgnoreMoveInput(false);
+		SetIgnoreLookInput(false);
+
+		FInputModeGameOnly Mode;
+		SetInputMode(Mode);
+
+		bShowMouseCursor = false;
+	}
+}
+
 void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
 {
 	if (!UIManager)
@@ -523,6 +572,184 @@ void APlayerController_SB::OnStaminaChanged(float OldValue, float NewValue)
 	if (!UIManager) return;
 	UIManager->UpdateHUD();
 }
+
+void APlayerController_SB::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (!IsLocalController()) return;
+	if (!MapWorldManager || !UIManager) return;
+
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn) return;
+
+	const FVector WorldLoc = ControlledPawn->GetActorLocation();
+	FVector2D PlayerUV = MapWorldManager->WorldToUV(WorldLoc);
+
+	PlayerUV.X = FMath::Clamp(PlayerUV.X, 0.f, 1.f);
+	PlayerUV.Y = FMath::Clamp(PlayerUV.Y, 0.f, 1.f);
+
+	const float PlayerYaw = ControlledPawn->GetActorRotation().Yaw;
+
+	if (UUW_UIHUD* HUD = UIManager->GetHUD())
+	{
+		if (UUW_Minimap* MinimapWidget = HUD->GetMiniMapWidget())
+		{
+			MinimapWidget->UpdateMapOffset(PlayerUV);
+			MinimapWidget->UpdatePlayerIconRotation(PlayerYaw);
+
+			if (HasPing())
+			{
+				MinimapWidget->UpdatePing(GetPingUV(), PlayerUV);
+			}
+			else
+			{
+				MinimapWidget->ClearPing();
+			}
+		}
+	}
+}
+
+void APlayerController_SB::ToggleFullMap()
+{
+	if (!UIManager) return;
+
+	UIManager->ToggleFullMap();
+
+	UUW_FullMap* FullMap = UIManager->GetFullMapWidget();
+	if (!FullMap) return;
+
+	bFullMapOpen = FullMap->IsInViewport();
+
+	if (FullMap->IsInViewport())
+	{
+		FInputModeGameAndUI Mode;
+		Mode.SetWidgetToFocus(FullMap->TakeWidget());
+		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+
+		SetInputMode(Mode);
+		bShowMouseCursor = true;
+
+		GetWorldTimerManager().SetTimer(
+			FullMapUpdateTimer,
+			this,
+			&APlayerController_SB::UpdateFullMap,
+			0.05f,
+			true
+		);
+	}
+	else
+	{
+		FInputModeGameOnly Mode;
+		SetInputMode(Mode);
+		bShowMouseCursor = false;
+
+		GetWorldTimerManager().ClearTimer(FullMapUpdateTimer);
+	}
+}
+
+void APlayerController_SB::SetPing(const FVector2D& InUV)
+{
+	if (bHasPing)
+	{
+		if (FVector2D::Distance(CurrentPingUV, InUV) < PingToggleThreshold)
+		{
+			ClearPing();
+			return;
+		}
+	}
+
+	CurrentPingUV = InUV;
+	bHasPing = true;
+}
+
+void APlayerController_SB::ClearPing()
+{
+	bHasPing = false;
+}
+
+void APlayerController_SB::UpdateGatherUI()
+{
+	if (!bGathering || !UIManager)
+	{
+		GetWorldTimerManager().ClearTimer(GatherUpdateTimer);
+		return;
+	}
+
+	float Elapsed = GetWorld()->GetTimeSeconds() - GatherStartTime;
+	float Percent = Elapsed / GatherDuration;
+
+	Percent = FMath::Clamp(Percent, 0.f, 1.f);
+
+	UIManager->UpdateGatherProgress(Percent);
+
+	float Remaining = GatherDuration - Elapsed;
+	Remaining = FMath::Max(Remaining, 0.f);
+
+	UIManager->UpdateGatherTime(Remaining);
+
+	if (Percent >= 1.f)
+	{
+		GetWorldTimerManager().ClearTimer(GatherUpdateTimer);
+	}
+}
+
+void APlayerController_SB::UpdateFullMap()
+{
+	if (!MapWorldManager || !UIManager) return;
+
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn) return;
+
+	FVector2D PlayerUV = MapWorldManager->WorldToUV(ControlledPawn->GetActorLocation());
+
+	if (UUW_FullMap* FullMap = UIManager->GetFullMapWidget())
+	{
+		FullMap->UpdatePlayerPosition(PlayerUV);
+
+		if (HasPing())
+		{
+			FullMap->UpdatePing(GetPingUV());
+		}
+		else
+		{
+			FullMap->ClearPing();
+		}
+	}
+}
+
+void APlayerController_SB::StartGatherProgress(float Duration)
+{
+	GatherDuration = Duration;
+	GatherStartTime = GetWorld()->GetTimeSeconds();
+	bGathering = true;
+
+	if (UIManager)
+	{
+		UIManager->ShowGatherProgress();
+	}
+
+	GetWorldTimerManager().SetTimer(
+		GatherUpdateTimer,
+		this,
+		&APlayerController_SB::UpdateGatherUI,
+		0.01f,
+		true
+	);
+}
+
+void APlayerController_SB::EndGatherProgress()
+{
+	bGathering = false;
+
+	GetWorldTimerManager().ClearTimer(GatherUpdateTimer);
+
+	if (UIManager)
+	{
+		UIManager->HideGatherProgress();
+	}
+}
+
 #pragma endregion 
 
 #pragma region ===== World Save =====
@@ -545,6 +772,8 @@ void APlayerController_SB::SB_LoadWorld()
 	}
 }
 
+
+
 void APlayerController_SB::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	APawn* P = GetPawn();
@@ -561,55 +790,6 @@ void APlayerController_SB::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 	Super::EndPlay(EndPlayReason);
 }
-#pragma endregion
-
-void APlayerController_SB::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-	if (!IsLocalController()) return;
-
-	if (!MapWorldManager || !UIManager) return;
-
-	APawn* ControlledPawn = GetPawn();
-
-	if (!ControlledPawn) return;
-	const FVector WorldLoc = ControlledPawn->GetActorLocation();
-	const FVector2D UV = MapWorldManager->WorldToUV(WorldLoc);
-	if (UUW_UIHUD* HUD = UIManager->GetHUD())
-	{
-		if (UUW_Minimap* MinimapWidget = HUD->GetMiniMapWidget())
-		{
-			FVector2D PlayerUV = UV;
-			PlayerUV.X = FMath::Clamp(PlayerUV.X, 0.f, 1.f);
-			PlayerUV.Y = FMath::Clamp(PlayerUV.Y, 0.f, 1.f);
-			MinimapWidget->UpdateMapOffset(PlayerUV);
-			const float Yaw = ControlledPawn->GetActorRotation().Yaw;
-			MinimapWidget->UpdatePlayerIconRotation(Yaw);
-		}
-	}
-
-	if (UUW_FullMap* FullMap = UIManager->GetFullMapWidget())
-	{
-		if (FullMap->IsInViewport())
-		{
-			FVector2D PlayerUV = UV;
-			PlayerUV.X = FMath::Clamp(PlayerUV.X, 0.f, 1.f);
-			PlayerUV.Y = FMath::Clamp(PlayerUV.Y, 0.f, 1.f);
-			FullMap->UpdatePlayerPosition(PlayerUV);
-		}
-	}
-}
-
-void APlayerController_SB::ToggleFullMap()
-{
-	UE_LOG(LogTemp, Warning, TEXT("FullMap Key Pressed"));
-	if (UIManager)
-	{
-		UIManager->ToggleFullMap();
-	}
-}
-
 #pragma endregion
 
 bool APlayerController_SB::IsGameplayInputBlocked() const

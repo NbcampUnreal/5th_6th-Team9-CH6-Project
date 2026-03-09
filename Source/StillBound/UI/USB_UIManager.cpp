@@ -7,6 +7,7 @@
 #include "Character/PlayerAttributeSet.h"
 #include "UI/MainMenu.h"
 #include "UI/UW_FullMap.h"
+#include "UI/UW_RoundProgressBar.h"
 #include "UI/Interaction/InteractionWidget.h"
 #include "UI/Inventory/HotbarPanel.h"
 
@@ -41,6 +42,17 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 	if (FullMapClass)
 	{
 		FullMapWidget = CreateWidget<UUW_FullMap>(OwnerPC, FullMapClass);
+	}
+
+	if (GatherProgressClass)
+	{
+		GatherProgressWidget = CreateWidget<UUW_RoundProgressBar>(OwnerPC, GatherProgressClass);
+
+		if (GatherProgressWidget)
+		{
+			GatherProgressWidget->AddToViewport(6);
+			GatherProgressWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
 	}
 
 	ABaseCharacter_SB* Char = Cast<ABaseCharacter_SB>(OwnerPC->GetPawn());
@@ -83,6 +95,38 @@ void USB_UIManager::SetLevel(int32 Level)
 {
 	if (!UIHUD) return;
 	UIHUD->SetLevel(Level);
+}
+
+void USB_UIManager::ShowGatherProgress()
+{
+	if (GatherProgressWidget)
+	{
+		GatherProgressWidget->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void USB_UIManager::HideGatherProgress()
+{
+	if (GatherProgressWidget)
+	{
+		GatherProgressWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void USB_UIManager::UpdateGatherProgress(float Percent)
+{
+	if (GatherProgressWidget)
+	{
+		GatherProgressWidget->SetPercent(Percent);
+	}
+}
+
+void USB_UIManager::UpdateGatherTime(float Remaining)
+{
+	if (GatherProgressWidget)
+	{
+		GatherProgressWidget->SetRemainingTime(Remaining);
+	}
 }
 
 void USB_UIManager::ToggleFullMap()
