@@ -244,6 +244,12 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Crafting")
     FCraftResult Craft(FName RecipeID, int32 CraftCount);
+
+    UFUNCTION(BlueprintCallable, Category = "Crafting|UI")
+    bool GetRecipeRowForUI(FName RecipeID, FCraftingRecipeRow& OutRow) const;
+
+    UFUNCTION(BlueprintCallable, Category = "Crafting|UI")
+    int32 GetTotalCountByID_ForUI(FName ItemID) const;
 #pragma endregion
 
 };

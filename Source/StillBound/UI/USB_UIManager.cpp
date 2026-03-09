@@ -54,8 +54,10 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 
 	UpdateHUD();
 	
-	auto* Chr = Cast<APlayerCharacter_SB>(Char);
-	UIHUD->InitInventory(Chr->GetInventory());
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(Char))
+	{
+		UIHUD->InitInventory(Chr->GetInventory());
+	}
 }
 
 void USB_UIManager::SetHP(float Current, float Max)
@@ -134,41 +136,72 @@ void USB_UIManager::OnLevelChanged(float OldValue, float NewValue)
 	UpdateHUD();
 }
 
-void USB_UIManager::DisplayMenu()
+void USB_UIManager::OpenInventoryMenu()
 {
-	if (MainMenuWidget)
-	{
-		bIsMenuVisible = true;
-		MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	}
+	if (!OwnerPC || !MainMenuWidget) return;
+
+	MainMenuWidget->ShowInventoryOnly();
+
+	CurrentMenuMode = EMenuMode::InventoryOnly;
+
+	MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+
+	FInputModeGameAndUI InputMode;
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	InputMode.SetHideCursorDuringCapture(false);
+
+	OwnerPC->SetInputMode(InputMode);
+	OwnerPC->SetShowMouseCursor(true);
+	OwnerPC->SetIgnoreMoveInput(true);
+	OwnerPC->SetIgnoreLookInput(true);
 }
 
-void USB_UIManager::HideMenu()
+void USB_UIManager::OpenCraftingMenu(UInventoryComponent* InInventory)
 {
-	if (MainMenuWidget)
-	{
-		bIsMenuVisible = false;
-		MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
-	}
+	if (!OwnerPC || !MainMenuWidget || !InInventory) return;
+
+	MainMenuWidget->ShowCrafting(InInventory);
+
+	CurrentMenuMode = EMenuMode::Crafting;
+
+	MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+	FInputModeGameAndUI InputMode;
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	InputMode.SetHideCursorDuringCapture(false);
+
+	OwnerPC->SetInputMode(InputMode);
+	OwnerPC->SetShowMouseCursor(true);
+	OwnerPC->SetIgnoreMoveInput(true);
+	OwnerPC->SetIgnoreLookInput(true);
+}
+
+void USB_UIManager::CloseMenu()
+{
+	if (!OwnerPC || !MainMenuWidget) return;
+
+	CurrentMenuMode = EMenuMode::None;
+
+	MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+
+	FInputModeGameOnly InputMode;
+	OwnerPC->SetInputMode(InputMode);
+
+	OwnerPC->SetShowMouseCursor(false);
+	OwnerPC->SetIgnoreMoveInput(false);
+	OwnerPC->SetIgnoreLookInput(false);
 }
 
 void USB_UIManager::ToggleMenu()
 {
-	if (bIsMenuVisible)
+	if (CurrentMenuMode == EMenuMode::None)
 	{
-		HideMenu();
-
-		const FInputModeGameOnly InputMode;
-		OwnerPC->SetInputMode(InputMode);
-		OwnerPC->SetShowMouseCursor(false);
+		OpenInventoryMenu();
 	}
 	else
 	{
-		DisplayMenu();
-
-		const FInputModeGameAndUI InputMode;
-		OwnerPC->SetInputMode(InputMode);
-		OwnerPC->SetShowMouseCursor(true);
+		CloseMenu();
 	}
 }
 

@@ -134,7 +134,9 @@ private:
 
 	bool ActivateAbility(const FGameplayTag& AbilityTag) const;
 
-	// ? ���� ���� ���� (InputTag ���)
+	bool IsGameplayInputBlocked() const;
+
+
 	UFUNCTION(BlueprintCallable, Category = "SB|Abilities")
 	bool ActivateAbilityAttack(const FGameplayTag& InputTag) const;
 

@@ -119,6 +119,8 @@ void APlayerController_SB::Jump()
 
 void APlayerController_SB::StopJumping()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	if (!IsValid(GetCharacter())) return;
 
 	GetCharacter()->StopJumping();
@@ -126,6 +128,8 @@ void APlayerController_SB::StopJumping()
 
 void APlayerController_SB::ToggleCrouch()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
 
@@ -159,6 +163,8 @@ void APlayerController_SB::ToggleCrouch()
 
 void APlayerController_SB::BeginInteract()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	if (APlayerCharacter_SB* PlayerChar = Cast<APlayerCharacter_SB>(GetPawn()))
 	{
 		PlayerChar->BeginInteract();
@@ -167,6 +173,8 @@ void APlayerController_SB::BeginInteract()
 
 void APlayerController_SB::EndInteract()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	if (auto* PC = Cast<APlayerCharacter_SB>(GetPawn()))
 	{
 		// [핵심] 만약 지금 '대화 중'이거나 '잠금 상태'라면, 
@@ -210,9 +218,10 @@ bool APlayerController_SB::ActivateAbility(const FGameplayTag& AbilityTag) const
 	return bActivated;
 }
 
-
 void APlayerController_SB::Evasion()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
 
@@ -228,6 +237,8 @@ void APlayerController_SB::Evasion()
 
 void APlayerController_SB::Emote()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	const FGameplayTag EvasionTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Emote"));
 
 	ActivateAbility(EvasionTag);
@@ -281,6 +292,7 @@ bool APlayerController_SB::ActivateAbilityAttack(const FGameplayTag& InputTag) c
 
 void APlayerController_SB::Attack()
 {
+	if (IsGameplayInputBlocked()) return;
 
 	ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
@@ -308,7 +320,7 @@ void APlayerController_SB::Attack()
 
 void APlayerController_SB::Skill()
 {
-
+	if (IsGameplayInputBlocked()) return;
 }
 
 #pragma endregion
@@ -317,6 +329,8 @@ void APlayerController_SB::Skill()
 
 void APlayerController_SB::OnMouseWheel(const FInputActionValue& Value)
 {
+	if (IsGameplayInputBlocked()) return;
+
 	float Axis = Value.Get<float>();
 	if (FMath::IsNearlyZero(Axis)) return;
 
@@ -326,60 +340,80 @@ void APlayerController_SB::OnMouseWheel(const FInputActionValue& Value)
 
 void APlayerController_SB::OnHotbar1()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(0);
 }
 
 void APlayerController_SB::OnHotbar2()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(1);
 }
 
 void APlayerController_SB::OnHotbar3()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(2);
 }
 
 void APlayerController_SB::OnHotbar4()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(3);
 }
 
 void APlayerController_SB::OnHotbar5()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(4);
 }
 
 void APlayerController_SB::OnHotbar6()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(5);
 }
 
 void APlayerController_SB::OnHotbar7()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(6);
 }
 
 void APlayerController_SB::OnHotbar8()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(7);
 }
 
 void APlayerController_SB::OnHotbar9()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(8);
 }
 
 void APlayerController_SB::OnUseHotbar(const FInputActionValue& Value)
 {
+	if (IsGameplayInputBlocked()) return;
+
 	UE_LOG(LogTemp, Warning, TEXT("[UseHotbar] Started"));
 
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
@@ -393,7 +427,6 @@ void APlayerController_SB::OnUseHotbar(const FInputActionValue& Value)
 void APlayerController_SB::BeginPlay()
 {
 	Super::BeginPlay();
-
 
 	bShowMouseCursor = false;
 	bEnableClickEvents = false;
@@ -578,3 +611,8 @@ void APlayerController_SB::ToggleFullMap()
 }
 
 #pragma endregion
+
+bool APlayerController_SB::IsGameplayInputBlocked() const
+{
+	return UIManager && UIManager->IsMenuBlockingGameplay();
+}

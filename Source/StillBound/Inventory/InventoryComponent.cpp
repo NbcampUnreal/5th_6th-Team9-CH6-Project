@@ -678,7 +678,7 @@ bool UInventoryComponent::AddByID(FName ItemID, int32 Count)
 
 	const FItemAddResult Res = HandleAddItem_AutoHotbarFirst(NewItem);
 
-	return Res.ActualAmountAdded > 0;
+	return Res.ActualAmountAdded == Count;
 }
 
 UItemBase* UInventoryComponent::CreateItemInstanceByID(FName ItemID, int32 Quantity) const
@@ -805,6 +805,23 @@ FCraftResult UInventoryComponent::Craft(FName RecipeID, int32 CraftCount)
 	R.bSuccess = true;
 	R.Message = FText::FromString(TEXT("Craft success"));
 	return R;
+}
+
+bool UInventoryComponent::GetRecipeRowForUI(FName RecipeID, FCraftingRecipeRow& OutRow) const
+{
+	if (!RecipeDataTable || RecipeID.IsNone()) return false;
+
+	const FCraftingRecipeRow* Found = RecipeDataTable->FindRow<FCraftingRecipeRow>(RecipeID, TEXT("GetRecipeRowForUI"));
+
+	if (!Found) return false;
+
+	OutRow = *Found;
+	return true;
+}
+
+int32 UInventoryComponent::GetTotalCountByID_ForUI(FName ItemID) const
+{
+	return GetTotalCountByID(ItemID);
 }
 
 

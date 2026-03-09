@@ -502,15 +502,15 @@ void APlayerCharacter_SB::UseSelectedHotbarItem()
 void APlayerCharacter_SB::OpenCraftingUI(FName InStationTag, UDataTable* InRecipeTable)
 {
 	APlayerController_SB* PlayerController = Cast<APlayerController_SB>(GetController());
-	USB_UIManager* UI = PlayerController->UIManager;
+	if (!PlayerController || !PlayerController->UIManager) return;
 
-	if (!UI || !GetInventory() || !InRecipeTable) return;
+	UInventoryComponent* Inv = GetInventory();
+	if (!Inv || !InRecipeTable) return;
 
-	GetInventory()->CurrentStationTag = InStationTag;
-	GetInventory()->RecipeDataTable = InRecipeTable;
+	Inv->CurrentStationTag = InStationTag;
+	Inv->RecipeDataTable = InRecipeTable;
 
-	//UI매니저에게 작업대 UI보이도록 호출
-	//UI->ShowCraftingPanel(InventoryComponent);
+	PlayerController->UIManager->OpenCraftingMenu(Inv);
 }
 
 

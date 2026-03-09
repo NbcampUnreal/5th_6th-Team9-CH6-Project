@@ -26,7 +26,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Crafting")
 	FName StationTag = "Workbench";
 
+	UPROPERTY(EditAnywhere, Category = "Interaction")
+	FInteractableData InteractableData;
+
+
 public:
 	virtual void Interact_Implementation(APlayerCharacter_SB* PlayerCharacter) override;
+	virtual FInteractableData GetInteractableData_Implementation() override;
+	virtual void BeginFocus_Implementation() override;
+	virtual void EndFocus_Implementation() override;
 
 };
