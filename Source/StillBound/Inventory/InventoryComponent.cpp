@@ -823,6 +823,7 @@ bool UInventoryComponent::GetRecipeRowForUI(FName RecipeID, FCraftingRecipeRow& 
 int32 UInventoryComponent::GetTotalCountByID_ForUI(FName ItemID) const
 {
 	return GetTotalCountByID(ItemID);
+
 }
 
 
