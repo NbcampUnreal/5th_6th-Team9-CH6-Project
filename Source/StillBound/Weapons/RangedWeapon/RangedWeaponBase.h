@@ -13,7 +13,7 @@ class UStaticMeshComponent;
 class USkeletalMeshComponent;
 class USceneComponent;
 
-/** 히트스캔(Trace) 데이터: Hitscan GA가 사용 */
+/** Hitscan(Trace) 설정: Hitscan GA가 사용 */
 USTRUCT(BlueprintType)
 struct FRangedHitscanConfig
 {
@@ -25,7 +25,6 @@ struct FRangedHitscanConfig
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Hitscan", meta = (ClampMin = "0.0"))
     float MaxDistance = 10000.f;
 
-    /** 0이면 LineTrace, 0보다 크면 SphereTrace 반경 */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Hitscan", meta = (ClampMin = "0.0"))
     float Radius = 0.f;
 
@@ -45,7 +44,7 @@ struct FRangedHitscanConfig
     bool bUseControllerViewRotation = true;
 };
 
-/** 프로젝타일 데이터: Projectile GA가 사용 */
+/** Projectile 설정: Projectile GA가 사용 */
 USTRUCT(BlueprintType)
 struct FRangedProjectileConfig
 {
@@ -64,14 +63,14 @@ struct FRangedProjectileConfig
     bool bUseControllerViewRotation = true;
 };
 
-/** OnHit 효과: GA가 적용 */
+/** OnHit 부가효과: GA가 적용 */
 USTRUCT(BlueprintType)
 struct FRangedOnHitGameplayEffectSpec
 {
     GENERATED_BODY()
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|OnHit")
-    TSubclassOf<UGameplayEffect> Effect;
+    TSubclassOf<UGameplayEffect> Effect = nullptr;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|OnHit")
     float Level = 1.f;
@@ -83,7 +82,7 @@ struct FRangedOnHitGameplayEffectSpec
     float Chance = 1.0f;
 };
 
-/** 탄약/연사 “기본 데이터” (상태/소모/리로드 로직은 Ranged GA Base에서 처리) */
+/** 탄약/연사 기본 데이터 */
 USTRUCT(BlueprintType)
 struct FRangedAmmoConfig
 {
@@ -106,10 +105,9 @@ struct FRangedAmmoConfig
 };
 
 /**
- * 발사 프로파일(= 무기 데이터)
- * - Hitscan GA는 Hitscan만 사용
- * - Projectile GA는 Projectile만 사용
- * - 타입 구분(enum) 없음: “어떤 GA를 부여했는지”가 타입(SoT)
+ * 발사 프로파일
+ * - Key는 InputTag.* (예: InputTag.Attack.Primary)
+ * - 최종 데미지 = WeaponDamage(DT) * DamageMultiplier
  */
 USTRUCT(BlueprintType)
 struct FRangedFireProfile
@@ -122,9 +120,8 @@ struct FRangedFireProfile
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Fire")
     float MontagePlayRate = 1.0f;
 
-    /** 참고용 기본 데미지(권장: GA에서 Damage GE + SetByCaller로 적용) */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Damage", meta = (ClampMin = "0.0"))
-    float BaseDamage = 10.f;
+    float DamageMultiplier = 1.0f;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Fire")
     FRangedAmmoConfig Ammo;
@@ -147,11 +144,9 @@ class STILLBOUND_API ARangedWeaponBase : public AWeaponBase
 public:
     ARangedWeaponBase();
 
-    /** FireTag(예: Attack.Primary / Attack.Secondary)로 프로파일 조회 */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ranged")
-    bool GetFireProfile(FGameplayTag FireTag, FRangedFireProfile& OutProfile) const;
+    bool GetFireProfile(FGameplayTag InputTag, FRangedFireProfile& OutProfile) const;
 
-    /** 현재 선택된(활성) 무기 메쉬 컴포넌트(Static 또는 Skeletal) */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ranged|Mesh")
     USceneComponent* GetActiveWeaponMesh() const;
 
@@ -161,28 +156,24 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ranged|Mesh")
     USkeletalMeshComponent* GetSkeletalWeaponMesh() const { return SkeletalWeaponMesh; }
 
-    /** 소켓 월드 트랜스폼 유틸(발사용/이펙트용). 없으면 메쉬 트랜스폼 반환 */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ranged")
     bool GetWeaponSocketTransform(FName SocketName, FTransform& OutTransform) const;
 
 protected:
-    /** 애님/리코일/장전까지 염두: 기본값 true */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ranged|Mesh")
     bool bUseSkeletalMesh = true;
 
-    /** 스태틱 메쉬(애님 없는 에셋 대응) */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Ranged|Mesh", meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UStaticMeshComponent> StaticWeaponMesh;
 
-    /** 스켈레탈 메쉬(총기/장전/리코일/소켓) */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Ranged|Mesh", meta = (AllowPrivateAccess = "true"))
     TObjectPtr<USkeletalMeshComponent> SkeletalWeaponMesh;
 
-    /** FireTag -> 프로파일 데이터 */
+    /** Key = InputTag.* */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ranged|Data")
     TMap<FGameplayTag, FRangedFireProfile> FireProfiles;
 
 protected:
-    /** 에디터/런타임에서 메쉬 모드 반영(가시성/충돌) */
     void RefreshMeshMode();
+    virtual void OnConstruction(const FTransform& Transform) override;
 };

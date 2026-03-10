@@ -18,7 +18,12 @@
 #include "Items/ItemBase.h"
 #include "UI/UW_UIHUD.h"
 
+#include "GameplayEffect.h"
+#include "GameplayEffectTypes.h"
+#include "GameplayTagContainer.h"
 
+#include "Weapons/GameEffect/GE_RestoreHealth_Instant.h"
+#include "Weapons/GameEffect/GE_RestoreStamina_Instant.h"
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -488,9 +493,10 @@ void APlayerCharacter_SB::UseSelectedHotbarItem()
 	if (!Cur || Cur != SelectedConsumable) return;
 
 
-	// 아이템 효과적용코드작성부분
-	//ApplyConsumableEffectByID(Cur->ID);
-
+	if (!ApplyConsumablePotionGE(Cur))
+	{
+		return;
+	}
 
 	PlayerInventory->RemoveAmountInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex, 1);
 
@@ -595,4 +601,49 @@ void APlayerCharacter_SB::Die()
 		PlayAnimMontage(DeathMontage, 1.5f);
 		return;
 	}
+}
+
+bool APlayerCharacter_SB::ApplyConsumablePotionGE(UItemBase* Item)
+{
+	if (!Item || !AbilitySystemComponent) return false;
+	if (Item->ItemType != EItemType::Consumable) return false;
+
+	// DT에서 넘어온 GE가 없으면 실패(소모도 안 됨)
+	if (Item->ConsumableEffectClass.IsNull())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Potion] ConsumableEffectClass is null. ID=%s"), *Item->ID.ToString());
+		return false;
+	}
+
+	TSubclassOf<UGameplayEffect> GEClass = Item->ConsumableEffectClass.LoadSynchronous();
+	if (!GEClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Potion] Failed to load GEClass. ID=%s"), *Item->ID.ToString());
+		return false;
+	}
+
+	const float Amount = Item->ItemStatistics.RestorationAmount;
+	if (Amount <= 0.f)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Potion] Amount<=0. ID=%s"), *Item->ID.ToString());
+		return false;
+	}
+
+	// SetByCaller 태그(예: Data.RestoreHealth / Data.RestoreStamina)
+	if (!Item->ConsumableSetByCallerTag.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Potion] ConsumableSetByCallerTag invalid. ID=%s"), *Item->ID.ToString());
+		return false;
+	}
+
+	FGameplayEffectContextHandle Ctx = AbilitySystemComponent->MakeEffectContext();
+	Ctx.AddSourceObject(Item); // 소스 오브젝트로 아이템 넘김(디버깅/확장에 유리)
+
+	FGameplayEffectSpecHandle Spec = AbilitySystemComponent->MakeOutgoingSpec(GEClass, 1.f, Ctx);
+	if (!Spec.IsValid()) return false;
+
+	Spec.Data->SetSetByCallerMagnitude(Item->ConsumableSetByCallerTag, Amount);
+	AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+
+	return true;
 }

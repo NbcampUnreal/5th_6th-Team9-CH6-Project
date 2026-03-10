@@ -2,8 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "Data/ItemData.h"
+#include "GameplayTagContainer.h" // FGameplayTag
 #include "ItemBase.generated.h"
 
+class UGameplayEffect;
 class ABaseCharacter_SB;
 class UInventoryComponent;
 class AWeaponBase;
@@ -70,6 +72,12 @@ public:
 	// ? 추가: 장착 무기 BP(무기 아이템이면 여기 채워짐)
 	UPROPERTY(VisibleAnywhere, Category = "Item|Equip")
 	TSoftClassPtr<AWeaponBase> EquipWeaponClass;
+
+	UPROPERTY(VisibleAnywhere, Category = "Item|Consumable")
+	TSoftClassPtr<UGameplayEffect> ConsumableEffectClass; //수정
+
+	UPROPERTY(VisibleAnywhere, Category = "Item|Consumable")
+	FGameplayTag ConsumableSetByCallerTag; //수정
 
 	bool bIsCopy;
 	bool bIsPickup;

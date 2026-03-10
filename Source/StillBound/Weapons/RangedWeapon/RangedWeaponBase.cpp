@@ -6,14 +6,13 @@
 
 ARangedWeaponBase::ARangedWeaponBase()
 {
-    // WeaponBase에 Root만 있으므로, 파생 클래스에서 시각 컴포넌트를 만든다.
-
     StaticWeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticWeaponMesh"));
     if (StaticWeaponMesh)
     {
         StaticWeaponMesh->SetupAttachment(GetWeaponRoot());
         StaticWeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         StaticWeaponMesh->SetGenerateOverlapEvents(false);
+        StaticWeaponMesh->SetCanEverAffectNavigation(false);
     }
 
     SkeletalWeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SkeletalWeaponMesh"));
@@ -22,14 +21,20 @@ ARangedWeaponBase::ARangedWeaponBase()
         SkeletalWeaponMesh->SetupAttachment(GetWeaponRoot());
         SkeletalWeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         SkeletalWeaponMesh->SetGenerateOverlapEvents(false);
+        SkeletalWeaponMesh->SetCanEverAffectNavigation(false);
     }
 
     RefreshMeshMode();
 }
 
+void ARangedWeaponBase::OnConstruction(const FTransform& Transform)
+{
+    Super::OnConstruction(Transform);
+    RefreshMeshMode();
+}
+
 void ARangedWeaponBase::RefreshMeshMode()
 {
-    // 선택된 메쉬만 보이게(나머지는 숨김). 둘 다 만들어두면 BP에서 에셋만 바꿔 끼우기 쉬움.
     const bool bShowSkeletal = bUseSkeletalMesh;
 
     if (StaticWeaponMesh)
@@ -49,19 +54,22 @@ USceneComponent* ARangedWeaponBase::GetActiveWeaponMesh() const
 {
     if (bUseSkeletalMesh)
     {
-        return SkeletalWeaponMesh ? Cast<USceneComponent>(SkeletalWeaponMesh) : Cast<USceneComponent>(StaticWeaponMesh);
+        return SkeletalWeaponMesh ? Cast<USceneComponent>(SkeletalWeaponMesh)
+            : Cast<USceneComponent>(StaticWeaponMesh);
     }
-    return StaticWeaponMesh ? Cast<USceneComponent>(StaticWeaponMesh) : Cast<USceneComponent>(SkeletalWeaponMesh);
+
+    return StaticWeaponMesh ? Cast<USceneComponent>(StaticWeaponMesh)
+        : Cast<USceneComponent>(SkeletalWeaponMesh);
 }
 
-bool ARangedWeaponBase::GetFireProfile(FGameplayTag FireTag, FRangedFireProfile& OutProfile) const
+bool ARangedWeaponBase::GetFireProfile(FGameplayTag InputTag, FRangedFireProfile& OutProfile) const
 {
-    if (!FireTag.IsValid())
+    if (!InputTag.IsValid())
     {
         return false;
     }
 
-    const FRangedFireProfile* Found = FireProfiles.Find(FireTag);
+    const FRangedFireProfile* Found = FireProfiles.Find(InputTag);
     if (!Found)
     {
         return false;

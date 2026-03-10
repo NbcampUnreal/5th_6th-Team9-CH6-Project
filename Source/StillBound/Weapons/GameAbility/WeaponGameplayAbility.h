@@ -72,6 +72,17 @@ protected:
         float FallbackDamage = 0.f
     ) const;
 
+protected:
+    /** 현재 실행 중인 AbilitySpec을 찾는다 (CurrentSpecHandle 기반) */
+    const FGameplayAbilitySpec* FindCurrentAbilitySpec() const;
+
+    /** AbilitySpec.DynamicAbilityTags에서 InputTag.* (첫 번째) 반환. 없으면 Invalid */
+    UFUNCTION(BlueprintPure, Category = "Weapon|GA")
+    FGameplayTag GetInputTagFromCurrentSpec() const;
+
+    /** 위 함수의 bool 버전 */
+    bool TryGetInputTagFromCurrentSpec(FGameplayTag& OutInputTag) const;
+
 public:
     /** SetByCaller에 사용할 데미지 태그 */
     static FGameplayTag GetDataDamageTag();

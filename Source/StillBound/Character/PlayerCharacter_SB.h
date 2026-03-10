@@ -119,7 +119,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	AWeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
 
-	
+	bool ApplyConsumablePotionGE(UItemBase* Item);
 
 	int32 CurrentHotbarIndex = 0;
 

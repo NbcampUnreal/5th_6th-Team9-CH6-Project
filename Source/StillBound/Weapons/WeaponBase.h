@@ -20,14 +20,14 @@ struct FWeaponAbilityGrant
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-    TSubclassOf<UGameplayAbility> Ability;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|GAS")
+    TSubclassOf<UGameplayAbility> Ability = nullptr;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|GAS")
     int32 AbilityLevel = 1;
 
-    // 예: InputTag.Attack.Primary
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+    /** 예: InputTag.Attack.Primary */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|GAS")
     FGameplayTag InputTag;
 };
 
@@ -36,10 +36,10 @@ struct FWeaponEffectGrant
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-    TSubclassOf<UGameplayEffect> Effect;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|GAS")
+    TSubclassOf<UGameplayEffect> Effect = nullptr;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|GAS")
     float EffectLevel = 1.f;
 };
 
@@ -54,73 +54,72 @@ struct FGrantedWeaponHandles
     UPROPERTY()
     TArray<FActiveGameplayEffectHandle> EffectHandles;
 
-    // 입력 태그 -> 부여된 AbilitySpecHandle 매핑 (무기가 직접 Activate하기 쉬움)
-    UPROPERTY()
-    TMap<FGameplayTag, FGameplayAbilitySpecHandle> InputToAbilityHandle;
-
     void Reset()
     {
         AbilityHandles.Reset();
         EffectHandles.Reset();
-        InputToAbilityHandle.Reset();
     }
 };
-
 
 UCLASS(Abstract, Blueprintable)
 class STILLBOUND_API AWeaponBase : public AActor
 {
-	GENERATED_BODY()
-	
-public:	
-	// Sets default values for this actor's properties
-	AWeaponBase();
+    GENERATED_BODY()
 
+public:
+    AWeaponBase();
+
+    /** 장착: ASC에 GA/GE 부여 + WeaponTypeTag 퍼블리시 */
     UFUNCTION(BlueprintCallable, Category = "Weapon")
     virtual void Equip(AActor* NewOwner, UAbilitySystemComponent* InASC);
 
+    /** 해제: 부여한 GA/GE 회수 + WeaponTypeTag 제거 */
     UFUNCTION(BlueprintCallable, Category = "Weapon")
     virtual void Unequip();
 
+    /** InputTag로 발동 (AbilitySpec.DynamicAbilityTags 기준) */
     UFUNCTION(BlueprintCallable, Category = "Weapon")
     bool ActivateByInputTag(FGameplayTag InputTag);
 
-     UFUNCTION(BlueprintCallable, Category = "Weapon")
+    /** 무기 루트(필요하면 Attach/정렬은 캐릭터가 처리) */
+    UFUNCTION(BlueprintPure, Category = "Weapon")
     USceneComponent* GetWeaponRoot() const { return Root; }
 
-
-    // 아이템 데이터(스탯 등) 주입
+    /** 아이템(또는 DT)에서 스탯 주입 */
     UFUNCTION(BlueprintCallable, Category = "Weapon|Init")
     virtual void InitFromItem(const UItemBase* Item);
 
     UFUNCTION(BlueprintPure, Category = "Weapon|Stats")
     float GetWeaponDamage() const { return WeaponDamage; }
 
+    UFUNCTION(BlueprintPure, Category = "Weapon|Tags")
+    FGameplayTag GetWeaponTypeTag() const { return WeaponTypeTag; }
+
 protected:
-	// Called when the game starts or when spawned
-    // 
-      //  DT에서 주입받은 데미지 캐시
+    /** DT/아이템에서 주입 받은 공격력 캐시(SoT: DT) */
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon|Stats")
     float WeaponDamage = 0.f;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
     TObjectPtr<USceneComponent> Root;
 
+    /** 예: Weapon.Melee.Club, Weapon.Ranged.Rifle */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Tags")
     FGameplayTag WeaponTypeTag;
 
+    /** Equip 시 ASC에 GiveAbility */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|GAS")
     TArray<FWeaponAbilityGrant> GrantedAbilities;
 
+    /** Equip 시 ASC에 ApplyGE(Self) */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|GAS")
     TArray<FWeaponEffectGrant> GrantedEffects;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
-    FName AttachSocketName = NAME_None;
 
 protected:
     virtual void GrantToASC(UAbilitySystemComponent* ASC);
     virtual void RevokeFromASC(UAbilitySystemComponent* ASC);
+
+    void ApplyWeaponTypeTag(UAbilitySystemComponent* ASC, bool bAdd) const;
 
 protected:
     UPROPERTY()
@@ -134,10 +133,4 @@ protected:
 
     UPROPERTY()
     FGrantedWeaponHandles GrantedHandles;
-
-public:	
-	// Called every frame
-	//virtual void Tick(float DeltaTime) override;
-protected:
-    //virtual void BeginPlay() override;
 };
