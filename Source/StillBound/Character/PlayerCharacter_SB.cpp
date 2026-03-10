@@ -86,7 +86,7 @@ void APlayerCharacter_SB::BeginPlay()
 
 	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
 
-
+	
 }
 
 bool APlayerCharacter_SB::EquipWeaponFromItem(UItemBase* Item)
@@ -422,6 +422,8 @@ void APlayerCharacter_SB::Interact()
 
 void APlayerCharacter_SB::SelectHotbarIndex(int32 NewIndex)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[Hotbar] SelectHotbarIndex -> %d"), NewIndex);
+
 	if (!PlayerInventory) return;
 
 	const int32 HotbarSize = PlayerInventory->GetHotbarCapacity();
