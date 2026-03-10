@@ -10,6 +10,7 @@
 #include "UI/UW_RoundProgressBar.h"
 #include "UI/Interaction/InteractionWidget.h"
 #include "UI/Inventory/HotbarPanel.h"
+#include "UI/Build/BuildMenuWidget.h"
 
 void USB_UIManager::Init(APlayerController* InOwnerPC)
 {
@@ -55,6 +56,16 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 		}
 	}
 
+	if (BuildMenuClass)
+	{
+		BuildMenuWidget = CreateWidget<UBuildMenuWidget>(OwnerPC, BuildMenuClass);
+		if (BuildMenuWidget)
+		{
+			BuildMenuWidget->AddToViewport(20);
+			BuildMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+	
 	ABaseCharacter_SB* Char = Cast<ABaseCharacter_SB>(OwnerPC->GetPawn());
 	if (!Char) return;
 
@@ -235,9 +246,6 @@ void USB_UIManager::CloseMenu()
 	OwnerPC->SetShowMouseCursor(false);
 	OwnerPC->ResetIgnoreMoveInput();
 	OwnerPC->ResetIgnoreLookInput();
-
-	//FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::SetDirectly);
-	//FSlateApplication::Get().SetAllUserFocusToGameViewport(EFocusCause::SetDirectly);
 }
 
 void USB_UIManager::ToggleMenu()
@@ -251,6 +259,37 @@ void USB_UIManager::ToggleMenu()
 		CloseMenu();
 	}
 
+}
+
+void USB_UIManager::ToggleBuildMenu(UBuildComponent* InBuildComponent)
+{
+	if (!BuildMenuWidget) return;
+
+	if (BuildMenuWidget->GetVisibility() == ESlateVisibility::Collapsed)
+	{
+		BuildMenuWidget->SetVisibility(ESlateVisibility::Visible);
+		BuildMenuWidget->Init(InBuildComponent);
+
+		FInputModeGameAndUI InputMode;
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		InputMode.SetHideCursorDuringCapture(false);
+
+		OwnerPC->SetInputMode(InputMode);
+		OwnerPC->SetShowMouseCursor(true);
+		OwnerPC->SetIgnoreMoveInput(true);
+		OwnerPC->SetIgnoreLookInput(true);
+	}
+	else
+	{
+		BuildMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+
+		FInputModeGameOnly InputMode;
+		OwnerPC->SetInputMode(InputMode);
+
+		OwnerPC->SetShowMouseCursor(false);
+		OwnerPC->ResetIgnoreMoveInput();
+		OwnerPC->ResetIgnoreLookInput();
+	}
 }
 
 void USB_UIManager::ShowInteractionWidget()

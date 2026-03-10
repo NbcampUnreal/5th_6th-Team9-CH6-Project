@@ -1,20 +1,15 @@
 #include "Build/BuildComponent.h"
 #include "Character/PlayerCharacter_SB.h"
 #include "Camera/CameraComponent.h"
+#include "Public/Data/BuildingData.h"
 
 UBuildComponent::UBuildComponent()
 {
 
-	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bCanEverTick = false;
 
 }
 
-void UBuildComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	BuildCycle();
-}
 
 void UBuildComponent::BeginPlay()
 {
@@ -28,17 +23,26 @@ void UBuildComponent::BeginPlay()
 	}
 }
 
+/*
 void UBuildComponent::ToggleBuildMode()
 {
 	if (!IsBuildModeOn)
 	{
+		Player->GetWorldTimerManager().SetTimer(CycleHandle, this, &ThisClass::UpdateBuildPreview, 0.01f, true);
 		IsBuildModeOn = true;
 	}
 	else
 	{
+		GetWorld()->GetTimerManager().ClearTimer(CycleHandle);
+		if (BuildGhost)
+		{
+			Player->DestroyActorComponent(BuildGhost);
+		}
+		DoOnce = true;
 		IsBuildModeOn = false;
 	}
 }
+*/
 
 void UBuildComponent::BuildCycle()
 {
@@ -70,7 +74,7 @@ void UBuildComponent::SpawnBuildGhost()
 {
 	BuildGhost = Cast<UStaticMeshComponent>(Player->AddComponentByClass(UStaticMeshComponent::StaticClass(), false, BuildTransform, false));
 
-	UStaticMesh* LoadedMesh = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, TEXT("원래라면 매시주소레퍼런스")));
+	UStaticMesh* LoadedMesh = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, TEXT("/Game/ItsMeBroBaseBuildingAssets/Build/FullBuild.FullBuild")));
 
 	BuildGhost->SetStaticMesh(LoadedMesh);
 	BuildGhost->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -92,3 +96,43 @@ void UBuildComponent::UpdateBuildPreview()
 	}
 }
 
+void UBuildComponent::BeginBuildMode(FName InBuildingID)
+{
+	CurrentBuildingID = InBuildingID;
+
+	if (!IsBuildModeOn)
+	{
+		IsBuildModeOn = true;
+		DoOnce = true;
+	}
+}
+
+void UBuildComponent::CancelBuildMode()
+{
+	IsBuildModeOn = false;
+	DoOnce = true;
+	CurrentBuildingID = NAME_None;
+
+	if (BuildGhost)
+	{
+		BuildGhost->DestroyComponent();
+		BuildGhost = nullptr;
+	}
+}
+
+bool UBuildComponent::GetBuildingData(FName InBuildingID, FBuildingDataRow& OutRow) const
+{
+	if (!BuildingDataTable || InBuildingID.IsNone())
+	{
+		return false;
+	}
+
+	const FBuildingDataRow* Found = BuildingDataTable->FindRow<FBuildingDataRow>(InBuildingID, TEXT("BuildLookup"));
+	if (!Found)
+	{
+		return false;
+	}
+
+	OutRow = *Found;
+	return true;
+}

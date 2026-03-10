@@ -58,6 +58,8 @@ public:
 	void UpdateInteractionWidget() const;
 
 	void DropItemFromSlot(ESlotContainer FromContainer, int32 FromIndex, int32 QuantityToDrop);
+	
+	void DestroyActorComponent(UActorComponent* ComponentToDestroy);
 
 protected:
 	virtual void BeginPlay() override;

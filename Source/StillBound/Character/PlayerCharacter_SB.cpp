@@ -640,3 +640,8 @@ void APlayerCharacter_SB::NotifyGatherEnd()
 		PC->EndGatherProgress();
 	}
 }
+
+void APlayerCharacter_SB::DestroyActorComponent(UActorComponent* ComponentToDestroy)
+{
+	ComponentToDestroy->DestroyComponent();
+}

@@ -437,7 +437,9 @@ void APlayerController_SB::OnUseHotbar(const FInputActionValue& Value)
 void APlayerController_SB::ToggleBuild()
 {
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetPawn());
-	Char->GetBuildComponent()->ToggleBuildMode();
+	if (!Char || !UIManager || !Char->GetBuildComponent()) return;
+
+	UIManager->ToggleBuildMenu(Char->GetBuildComponent());
 }
 
 #pragma endregion
