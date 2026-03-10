@@ -189,6 +189,17 @@ void APlayerCharacter_SB::Tick(float DeltaSeconds)
 			EndInteract(); 
 		}
 	}
+
+	//채집 중 이동 감지 추가
+	if (bIsGathering && InteractionData.bIsInteracting)
+	{
+		float MovedDist = FVector::Dist(GetActorLocation(), GatherStartLocation);
+		if (MovedDist > 10.0f)//10cm이상 이동하면 취소
+		{
+			EndInteract();
+			NotifyGatherEnd();
+		}
+	}
 }
 
 void APlayerCharacter_SB::PerformInteractionCheck()
@@ -226,20 +237,15 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 		{
 			AActor* HitActor = TraceHit.GetActor();
 
-			// [�ٽ�] 1. �� �ڽ�(this)�̸� ����, 2. ��ȿ�� �������� Ȯ��
 			if (HitActor && HitActor != this)
 			{
-				// �������̽��� ������ �ִ�?
 				if (HitActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
 				{
-					// ���ο� ����-> FoundInteractable ȣ��
 					if (HitActor != InteractionData.CurrentInteractable)
 					{
 						FoundInteractable(HitActor);
 					}
 
-					// � ��찣��?�������̽��� �ִ� ���͸� ������
-					// �ؿ� �ִ� NoInteractableFound()�� ���� �� �ǵ��� Ż��
 					return;
 				}
 			}
@@ -346,7 +352,7 @@ void APlayerCharacter_SB::BeginInteract()
 					TimerHandle_Interaction,
 					this,
 					&APlayerCharacter_SB::Interact,
-					TargetData.InteractionDuration, // �޾ƿ� �������� �ð� ���?
+					TargetData.InteractionDuration, 
 					false);
 			}
 		}
@@ -389,11 +395,9 @@ void APlayerCharacter_SB::Interact()
 		return;
 	}
 
-	// 1. NPC���� Ȯ��
 	UDialogueComponent* DialogueComp = TargetActor->FindComponentByClass<UDialogueComponent>();
 	if (DialogueComp)
 	{
-		// ��ȣ�ۿ� ������Ʈ ����
 		if (auto* PC = Cast<APlayerController_SB>(GetController()))
 		{
 			if (PC->UIManager)
@@ -402,18 +406,18 @@ void APlayerCharacter_SB::Interact()
 			}
 		}
 
-		// ���� ���ε�
 		DialogueComp->OnDialogueEnded.RemoveAll(this);
 		DialogueComp->OnDialogueEnded.AddDynamic(this, &APlayerCharacter_SB::EndInteract);
 	
 		InteractionData.bIsInteracting = true;
 	}
-		IInteractionInterface::Execute_Interact(TargetActor, this);
-		//�������϶�
-		if (DialogueComp == nullptr)
-		{
-			EndInteract();
-		}
+
+	IInteractionInterface::Execute_Interact(TargetActor, this);
+
+	if (DialogueComp == nullptr)
+	{
+		EndInteract();
+	}
 }
 
 void APlayerCharacter_SB::SelectHotbarIndex(int32 NewIndex)
@@ -447,13 +451,15 @@ void APlayerCharacter_SB::HandleHotbarSelectionChanged()
 	
 	UItemBase* Item = PlayerInventory->GetItemInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex);
 
-	if (!Item)
+	if(!Item)
 	{
-		// 무기장착해제 로직 작성
-		//UnequipWeapon();
 		UnequipWeapon();
-		
 		return;
+	}
+
+	if (Item->ItemType != EItemType::Weapon)
+	{
+		UnequipWeapon();
 	}
 
 	switch (Item->ItemType)
@@ -472,7 +478,6 @@ void APlayerCharacter_SB::HandleHotbarSelectionChanged()
 	case EItemType::Ammo:
 	case EItemType::Consumable:
 		SelectedConsumable = Item;
-		UE_LOG(LogTemp, Warning, TEXT("ddddd"));
 		break;
 
 	case EItemType::Material:
@@ -510,6 +515,21 @@ void APlayerCharacter_SB::UseSelectedHotbarItem()
 		SelectedConsumable = Cur;
 	}
 }
+
+void APlayerCharacter_SB::OpenCraftingUI(FName InStationTag, UDataTable* InRecipeTable)
+{
+	APlayerController_SB* PlayerController = Cast<APlayerController_SB>(GetController());
+	if (!PlayerController || !PlayerController->UIManager) return;
+
+	UInventoryComponent* Inv = GetInventory();
+	if (!Inv || !InRecipeTable) return;
+
+	Inv->CurrentStationTag = InStationTag;
+	Inv->RecipeDataTable = InRecipeTable;
+
+	PlayerController->UIManager->OpenCraftingMenu(Inv);
+}
+
 
 void APlayerCharacter_SB::UpdateInteractionWidget() const
 {
@@ -647,3 +667,26 @@ bool APlayerCharacter_SB::ApplyConsumablePotionGE(UItemBase* Item)
 
 	return true;
 }
+
+//============채집 기능 추가
+void APlayerCharacter_SB::NotifyGatherStart(float Duration)
+{
+	bIsGathering = true;
+	GatherStartLocation = GetActorLocation();
+
+	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
+	{
+		PC->StartGatherProgress(Duration);
+	}
+}
+
+void APlayerCharacter_SB::NotifyGatherEnd()
+{
+	bIsGathering = false;
+
+	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
+	{
+		PC->EndGatherProgress();
+	}
+}
+

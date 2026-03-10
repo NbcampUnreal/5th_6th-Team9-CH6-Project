@@ -23,6 +23,10 @@ public:
 
 	void UpdatePlayerIconRotation(float Yaw);
 
+	void UpdatePing(const FVector2D& PingUV, const FVector2D& PlayerUV);
+
+	void ClearPing();
+
 protected:
 
 	UPROPERTY(meta = (BindWidget))
@@ -31,10 +35,16 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UImage> PlayerIcon;
 
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UImage> PingIcon;
+
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> MiniMapMID;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
 	float CurrentZoom = 2.f;
+
+	UPROPERTY(EditAnywhere, Category = "Minimap")
+	float MapSize = 200.f;
 
 };

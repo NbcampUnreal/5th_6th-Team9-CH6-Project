@@ -7,6 +7,12 @@
 #include "Animation/AnimMontage.h"
 #include "EnemyVisualRow.generated.h"
 
+UENUM(BlueprintType)
+enum class EEnemyAttackType : uint8
+{
+	Melee	UMETA(DisplayName = "Melee"),
+	Ranged	UMETA(DisplayName = "Ranged")
+};
 
 USTRUCT(BlueprintType)
 struct STILLBOUND_API FEnemyVisualRow : public FTableRowBase
@@ -15,6 +21,12 @@ struct STILLBOUND_API FEnemyVisualRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Id")
 	int32 EnemyId = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
+	EEnemyAttackType AttackType = EEnemyAttackType::Melee;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float PreferredAttackRange = 80.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Visual")
 	TObjectPtr<USkeletalMesh> Mesh = nullptr;

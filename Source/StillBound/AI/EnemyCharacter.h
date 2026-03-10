@@ -7,6 +7,7 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Character/BaseCharacter_SB.h"
 #include "AI/EnemyAIController.h"
+#include "AI/EnemyVisualRow.h"
 #include "EnemyCharacter.generated.h"
 
 
@@ -50,6 +51,12 @@ private:
     UPROPERTY(EditAnywhere, Category = "Enemy|Data")
     int32 EnemyId = 0;
 
+    UPROPERTY(VisibleAnywhere, Category = "Enemy|AI")
+    EEnemyAttackType AttackType = EEnemyAttackType::Melee;
+
+    UPROPERTY(VisibleAnywhere, Category = "Enemy|AI")
+    float PreferredAttackRange = 80.f;
+
 	UPROPERTY(VisibleAnywhere, Category="Enemy|Combat")
 	TObjectPtr<UAnimMontage> AttackMontage;
 
@@ -74,4 +81,16 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Enemy|Data")
     int32 GetEnemyId() const { return EnemyId; }
+
+    UFUNCTION(BlueprintPure, Category = "Enemy|AI")
+    bool IsRangedEnemy() const { return AttackType == EEnemyAttackType::Ranged; }
+
+    UFUNCTION(BlueprintPure, Category = "Enemy|AI")
+    float GetPreferredAttackRange() const { return PreferredAttackRange; }
+
+    //============ UI=========
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<class ADamageNumberActor> DamageNumberClass;
+
+    void SpawnDamageText(float Damage);
 };

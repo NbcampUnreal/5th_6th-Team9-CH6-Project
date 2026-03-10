@@ -9,6 +9,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "AI/AIAttributeSet.h"
 #include "AIController.h"
+#include "UI/DamageNumberActor.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
 AEnemyCharacter::AEnemyCharacter()
@@ -43,6 +44,9 @@ void AEnemyCharacter::BeginPlay()
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyCharacter] BlackboardComp is null (BT/BB init failed?)"));
 		return;
 	}
+
+	BlackboardComp->SetValueAsBool(TEXT("bIsRangedEnemy"), IsRangedEnemy());
+	BlackboardComp->SetValueAsFloat(TEXT("AttackRange"), GetPreferredAttackRange());
 
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyCharacter] Blackboard Ready: %s"), *BlackboardComp->GetName());
 }
@@ -109,6 +113,9 @@ void AEnemyCharacter::ApplyVisualFromDataTable()
 	DeathMontage = FoundRow->DeathMontage;
 	GetHitMontage = FoundRow->GetHitMontage;
 
+	AttackType = FoundRow->AttackType;
+	PreferredAttackRange = FoundRow->PreferredAttackRange;
+
 	if (UCapsuleComponent* Cap = GetCapsuleComponent())
 	{
 		const bool bHasCapsuleSize =
@@ -146,4 +153,27 @@ void AEnemyCharacter::SetEnemyId(int32 NewId)
 {
 	EnemyId = NewId;
 	ApplyVisualFromDataTable();
+}
+
+void AEnemyCharacter::SpawnDamageText(float Damage)
+{
+	if (!DamageNumberClass) return;
+
+	FVector SpawnLocation = GetActorLocation();
+
+	SpawnLocation.X += FMath::RandRange(-40.f, 40.f);
+	SpawnLocation.Y += FMath::RandRange(-40.f, 40.f);
+	SpawnLocation.Z += FMath::RandRange(120.f, 150.f);
+
+	ADamageNumberActor* Actor =
+		GetWorld()->SpawnActor<ADamageNumberActor>(
+			DamageNumberClass,
+			SpawnLocation,
+			FRotator::ZeroRotator
+		);
+
+	if (Actor)
+	{
+		Actor->InitDamage(Damage);
+	}
 }
