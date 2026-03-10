@@ -6,6 +6,7 @@
 
 class ABaseCharacter_SB;
 class UInventoryComponent;
+class AWeaponBase;
 
 UCLASS()
 class STILLBOUND_API UItemBase : public UObject
@@ -65,6 +66,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "Item")
 	TSoftClassPtr<AActor> PickupActorClass;
+
+	// ? �߰�: ���� ���� BP(���� �������̸� ���� ä����)
+	UPROPERTY(VisibleAnywhere, Category = "Item|Equip")
+	TSoftClassPtr<AWeaponBase> EquipWeaponClass;
 
 	bool bIsCopy;
 	bool bIsPickup;

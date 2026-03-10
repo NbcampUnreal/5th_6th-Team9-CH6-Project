@@ -7,6 +7,7 @@
 #include "Character/PlayerAttributeSet.h"
 #include "UI/MainMenu.h"
 #include "UI/UW_FullMap.h"
+#include "UI/UW_RoundProgressBar.h"
 #include "UI/Interaction/InteractionWidget.h"
 #include "UI/Inventory/HotbarPanel.h"
 
@@ -43,6 +44,17 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 		FullMapWidget = CreateWidget<UUW_FullMap>(OwnerPC, FullMapClass);
 	}
 
+	if (GatherProgressClass)
+	{
+		GatherProgressWidget = CreateWidget<UUW_RoundProgressBar>(OwnerPC, GatherProgressClass);
+
+		if (GatherProgressWidget)
+		{
+			GatherProgressWidget->AddToViewport(6);
+			GatherProgressWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
 	ABaseCharacter_SB* Char = Cast<ABaseCharacter_SB>(OwnerPC->GetPawn());
 	if (!Char) return;
 
@@ -54,8 +66,10 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 
 	UpdateHUD();
 	
-	auto* Chr = Cast<APlayerCharacter_SB>(Char);
-	UIHUD->InitInventory(Chr->GetInventory());
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(Char))
+	{
+		UIHUD->InitInventory(Chr->GetInventory());
+	}
 }
 
 void USB_UIManager::SetHP(float Current, float Max)
@@ -81,6 +95,38 @@ void USB_UIManager::SetLevel(int32 Level)
 {
 	if (!UIHUD) return;
 	UIHUD->SetLevel(Level);
+}
+
+void USB_UIManager::ShowGatherProgress()
+{
+	if (GatherProgressWidget)
+	{
+		GatherProgressWidget->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void USB_UIManager::HideGatherProgress()
+{
+	if (GatherProgressWidget)
+	{
+		GatherProgressWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void USB_UIManager::UpdateGatherProgress(float Percent)
+{
+	if (GatherProgressWidget)
+	{
+		GatherProgressWidget->SetPercent(Percent);
+	}
+}
+
+void USB_UIManager::UpdateGatherTime(float Remaining)
+{
+	if (GatherProgressWidget)
+	{
+		GatherProgressWidget->SetRemainingTime(Remaining);
+	}
 }
 
 void USB_UIManager::ToggleFullMap()
@@ -134,42 +180,77 @@ void USB_UIManager::OnLevelChanged(float OldValue, float NewValue)
 	UpdateHUD();
 }
 
-void USB_UIManager::DisplayMenu()
+void USB_UIManager::OpenInventoryMenu()
 {
-	if (MainMenuWidget)
-	{
-		bIsMenuVisible = true;
-		MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	}
+	if (!OwnerPC || !MainMenuWidget) return;
+
+	MainMenuWidget->ShowInventoryOnly();
+
+	CurrentMenuMode = EMenuMode::InventoryOnly;
+
+	MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+
+	FInputModeGameAndUI InputMode;
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	InputMode.SetHideCursorDuringCapture(false);
+
+	OwnerPC->SetInputMode(InputMode);
+	OwnerPC->SetShowMouseCursor(true);
+	OwnerPC->SetIgnoreMoveInput(true);
+	OwnerPC->SetIgnoreLookInput(true);
 }
 
-void USB_UIManager::HideMenu()
+void USB_UIManager::OpenCraftingMenu(UInventoryComponent* InInventory)
 {
-	if (MainMenuWidget)
-	{
-		bIsMenuVisible = false;
-		MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
-	}
+	if (!OwnerPC || !MainMenuWidget || !InInventory) return;
+
+	MainMenuWidget->ShowCrafting(InInventory);
+
+	CurrentMenuMode = EMenuMode::Crafting;
+
+	MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+	FInputModeGameAndUI InputMode;
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	InputMode.SetHideCursorDuringCapture(false);
+
+	OwnerPC->SetInputMode(InputMode);
+	OwnerPC->SetShowMouseCursor(true);
+	OwnerPC->SetIgnoreMoveInput(true);
+	OwnerPC->SetIgnoreLookInput(true);
+}
+
+void USB_UIManager::CloseMenu()
+{
+	if (!OwnerPC || !MainMenuWidget) return;
+
+	CurrentMenuMode = EMenuMode::None;
+
+	MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+
+	FInputModeGameOnly InputMode;
+	OwnerPC->SetInputMode(InputMode);
+
+	OwnerPC->SetShowMouseCursor(false);
+	OwnerPC->ResetIgnoreMoveInput();
+	OwnerPC->ResetIgnoreLookInput();
+
+	//FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::SetDirectly);
+	//FSlateApplication::Get().SetAllUserFocusToGameViewport(EFocusCause::SetDirectly);
 }
 
 void USB_UIManager::ToggleMenu()
 {
-	if (bIsMenuVisible)
+	if (CurrentMenuMode == EMenuMode::None)
 	{
-		HideMenu();
-
-		const FInputModeGameOnly InputMode;
-		OwnerPC->SetInputMode(InputMode);
-		OwnerPC->SetShowMouseCursor(false);
+		OpenInventoryMenu();
 	}
 	else
 	{
-		DisplayMenu();
-
-		const FInputModeGameAndUI InputMode;
-		OwnerPC->SetInputMode(InputMode);
-		OwnerPC->SetShowMouseCursor(true);
+		CloseMenu();
 	}
+
 }
 
 void USB_UIManager::ShowInteractionWidget()

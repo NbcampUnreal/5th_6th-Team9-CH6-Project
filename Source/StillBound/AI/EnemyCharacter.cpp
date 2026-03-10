@@ -44,6 +44,9 @@ void AEnemyCharacter::BeginPlay()
 		return;
 	}
 
+	BlackboardComp->SetValueAsBool(TEXT("bIsRangedEnemy"), IsRangedEnemy());
+	BlackboardComp->SetValueAsFloat(TEXT("AttackRange"), GetPreferredAttackRange());
+
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyCharacter] Blackboard Ready: %s"), *BlackboardComp->GetName());
 }
 
@@ -108,6 +111,9 @@ void AEnemyCharacter::ApplyVisualFromDataTable()
 	AttackMontage = FoundRow->AttackMontage;
 	DeathMontage = FoundRow->DeathMontage;
 	GetHitMontage = FoundRow->GetHitMontage;
+
+	AttackType = FoundRow->AttackType;
+	PreferredAttackRange = FoundRow->PreferredAttackRange;
 
 	if (UCapsuleComponent* Cap = GetCapsuleComponent())
 	{

@@ -350,22 +350,36 @@ bool UWeaponRangedAttackAbilityBase::ApplyRangedOnHitEffects(AActor* TargetActor
 
     bool bAnyApplied = false;
 
-    // BaseDamage
-    if (CachedProfile.BaseDamage > 0.f)
+    // ? [수정] 무기(SourceObject)에 주입된 DT 데미지를 우선 사용
+    // WeaponDamage가 0이면(구형 BP/테스트) 기존 CachedProfile.BaseDamage를 fallback으로 사용
+    const ARangedWeaponBase* Weapon = GetWeaponFromSourceObject<ARangedWeaponBase>();
+    const float WeaponDmg = Weapon ? Weapon->GetWeaponDamage() : 0.f;
+
+    const float FinalDamage = (WeaponDmg > 0.f) ? WeaponDmg : CachedProfile.BaseDamage;
+    if (FinalDamage > 0.f)
     {
-        bAnyApplied |= ApplyBaseDamageToTargetActor(TargetActor, CachedProfile.BaseDamage, 1.f, 1.f);
+        bAnyApplied |= ApplyBaseDamageToTargetActor(TargetActor, FinalDamage, 1.f, 1.f);
     }
 
-    // OnHit effects
+    // ? [수정] OnHitTargetEffects는 부가효과 전용으로 사용 권장
+    // (Data.EnemyDamage가 들어있으면 중복 데미지/SetByCaller 미세팅 에러가 날 수 있어 제거)
+    const FGameplayTag DamageTag = GetDataDamageTag();
+
     for (const FRangedOnHitGameplayEffectSpec& Spec : CachedProfile.OnHitTargetEffects)
     {
         if (!Spec.Effect) continue;
+
+        TMap<FGameplayTag, float> Mags = Spec.SetByCallerMagnitudes;
+        if (DamageTag.IsValid())
+        {
+            Mags.Remove(DamageTag);
+        }
 
         bAnyApplied |= ApplyEffectToTargetActor(
             TargetActor,
             Spec.Effect,
             Spec.Level,
-            Spec.SetByCallerMagnitudes,
+            Mags,
             Spec.Chance
         );
     }

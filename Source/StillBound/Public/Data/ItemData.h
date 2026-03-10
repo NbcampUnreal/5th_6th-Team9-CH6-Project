@@ -4,6 +4,9 @@
 #include "Engine/DataTable.h"
 #include "ItemData.generated.h"
 
+
+class AWeaponBase;
+
 UENUM(BlueprintType)
 enum class EItemType : uint8
 {
@@ -48,6 +51,9 @@ struct FItemStatistics
 
 	UPROPERTY(EditAnywhere)
 	float SellValue;
+
+	UPROPERTY(EditAnywhere)
+	float BuyValue;
 };
 
 USTRUCT(BlueprintType)
@@ -126,6 +132,9 @@ struct FItemDataRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, Category = "Item")
 	TSoftClassPtr<AActor> PickupActorClass;
+
+	UPROPERTY(EditAnywhere, Category = "Item|Equip")
+	TSoftClassPtr<AWeaponBase> EquipWeaponClass;
 };
 
 #pragma endregion

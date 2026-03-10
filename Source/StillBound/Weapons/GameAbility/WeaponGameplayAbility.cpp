@@ -177,3 +177,37 @@ bool UWeaponGameplayAbility::ApplyBaseDamageToTargetActor(
         Chance
     );
 }
+
+float UWeaponGameplayAbility::GetDamageFromWeaponOrFallback(float FallbackDamage) const
+{
+    const AWeaponBase* Weapon = GetWeaponFromSourceObject();
+    const float WeaponDmg = Weapon ? Weapon->GetWeaponDamage() : 0.f;
+
+    return (WeaponDmg > 0.f) ? WeaponDmg : FallbackDamage;
+}
+
+bool UWeaponGameplayAbility::ApplyWeaponDamageToTargetActor(
+    AActor* TargetActor,
+    float DamageMultiplier,
+    float Level,
+    float Chance,
+    float FallbackDamage
+) const
+{
+    if (!TargetActor) return false;
+
+    const float Base = GetDamageFromWeaponOrFallback(FallbackDamage);
+    const float Mult = FMath::Max(0.f, DamageMultiplier);
+    const float FinalDamage = Base * Mult;
+
+    if (FinalDamage <= 0.f) return false;
+
+    if (bDebugGE)
+    {
+        const AWeaponBase* Weapon = GetWeaponFromSourceObject();
+        UE_LOG(LogTemp, Log, TEXT("[GA] ApplyWeaponDamage Final=%.2f (Base=%.2f Mult=%.2f) Target=%s Weapon=%s"),
+            FinalDamage, Base, Mult, *GetNameSafe(TargetActor), *GetNameSafe(Weapon));
+    }
+
+    return ApplyBaseDamageToTargetActor(TargetActor, FinalDamage, Level, Chance);
+}

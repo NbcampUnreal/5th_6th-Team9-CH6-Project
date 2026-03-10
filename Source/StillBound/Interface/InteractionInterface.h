@@ -15,7 +15,8 @@ enum class EInteractableType : uint8
 	NonPlayerCharacter UMETA(DisplayName = "NonPlayerCharacter"),
 	Device UMETA(DisplayName = "Device"),
 	Toggle UMETA(DisplayName = "Toggle"),
-	Container UMETA(DisplayName = "Container")
+	Container UMETA(DisplayName = "Container"),
+	Gatherable UMETA(DisplayName = "Gatherable")	// 상호작용 채집 추가
 };
 
 USTRUCT(BlueprintType)

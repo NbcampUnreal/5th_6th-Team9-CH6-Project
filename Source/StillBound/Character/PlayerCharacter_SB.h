@@ -38,7 +38,6 @@ class UTextureRenderTarget2D;
 class UInventoryComponent;
 class IInteractionInterface;
 class AWeaponBase;
-class USB_UIManager;
 class APickup;
 
 UCLASS()
@@ -95,6 +94,9 @@ public:
 	void UseSelectedHotbarItem();
 
 	UFUNCTION(BlueprintCallable)
+	void OpenCraftingUI(FName InStationTag, UDataTable* InRecipeTable);
+
+	UFUNCTION(BlueprintCallable)
 	void Die();
 
 	// ===== ���� ���� ���� (BP���� ����) =====
@@ -112,11 +114,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void UnequipWeapon(bool bDestroyWeaponActor = true);
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	bool EquipWeaponFromItem(UItemBase* Item);
+
 	// ? PC�� ���� ���⸦ ������ �� �ְ� Getter ����
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	AWeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
 
-	void EquipStartingWeapon(); // �߰�
+	
 
 	int32 CurrentHotbarIndex = 0;
 
@@ -134,4 +139,17 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UItemBase> SelectedConsumable = nullptr;
+
+	//============채집 기능 추가
+public:
+	//채집 이동 감지
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Gather")
+	bool bIsGathering = false;
+
+	// 채집 시작 위치 저장
+	FVector GatherStartLocation;
+
+	//채집 시작/종료 알림, GatherableObject에서 호출
+	void NotifyGatherStart(float Duration);
+	void NotifyGatherEnd();
 };
