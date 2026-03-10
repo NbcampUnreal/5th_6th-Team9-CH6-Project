@@ -53,10 +53,6 @@
 		{
 			"Name": "AIAssistant",
 			"Enabled": true
-		},
-		{
-			"Name": "PCG",
-			"Enabled": true
 		}
 	]
 }
