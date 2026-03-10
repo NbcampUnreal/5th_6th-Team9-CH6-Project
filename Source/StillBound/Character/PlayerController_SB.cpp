@@ -64,6 +64,7 @@ void APlayerController_SB::SetupInputComponent()
 
 	EnhancedInputComponent->BindAction(ToggleMenuAction, ETriggerEvent::Started, this, &ThisClass::ToggleMenu);
 	EnhancedInputComponent->BindAction(FullMapAction,ETriggerEvent::Started,this,&ThisClass::ToggleFullMap);
+	EnhancedInputComponent->BindAction(ToggleBuildAction, ETriggerEvent::Started, this, &ThisClass::ToggleBuild);
 }
 
 #pragma region ========================= Input - Movement =========================
@@ -430,6 +431,11 @@ void APlayerController_SB::OnUseHotbar(const FInputActionValue& Value)
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 
 	Char->UseSelectedHotbarItem();
+}
+
+void APlayerController_SB::ToggleBuild()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Input Action ToggleBuild"));
 }
 
 #pragma endregion

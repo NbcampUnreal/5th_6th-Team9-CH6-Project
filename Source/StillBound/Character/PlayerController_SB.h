@@ -112,6 +112,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|UI")
 	TObjectPtr<UInputAction> FullMapAction;
 
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Build")
+	TObjectPtr<UInputAction> ToggleBuildAction;
+
 	/// =========================
 	/// UI Map
 	/// =========================
@@ -163,6 +166,8 @@ private:
 	void OnHotbar8();
 	void OnHotbar9();
 	void OnUseHotbar(const FInputActionValue& Value);
+
+	void ToggleBuild();
 
 public:
 
