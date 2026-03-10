@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -8,10 +6,9 @@
 
 class APlayerCharacter_SB;
 class UInventoryPanel;
+class UCraftingPanel;
+class UInventoryComponent;
 
-/**
- * 
- */
 UCLASS()
 class STILLBOUND_API UMainMenu : public UUserWidget
 {
@@ -28,6 +25,11 @@ public:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UInventoryPanel> WBP_InventoryPanel;
 
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UCraftingPanel> WBP_CraftingPanel;
+
 	TObjectPtr<UInventoryPanel> GetInventoryPanel() const { return WBP_InventoryPanel; };
 
+	void ShowInventoryOnly();
+	void ShowCrafting(UInventoryComponent* InInventory);
 };

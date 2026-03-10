@@ -30,6 +30,7 @@ void AGatherableObject::EndPlay(const EEndPlayReason::Type EndPlayReason)
     if (World)
     {
         World->GetTimerManager().ClearTimer(RespawnTimerHandle);
+        World->GetTimerManager().ClearTimer(FallTimerHandle);
     }
     Super::EndPlay(EndPlayReason);
 }
@@ -280,18 +281,24 @@ void AGatherableObject::DeactivateObject()
 {
     bIsActive = false;
 
-    MeshComponent->SetVisibility(false);
+    //충돌만 제거 쓰러지는동안 상호작용 불가능한 목적용
+    //MeshComponent->SetVisibility(false);
     MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     MeshComponent->SetRenderCustomDepth(false);
 
-    BP_OnDepleted();
+    //쓰러지는 시간, BP의 타임라인 길이와 맞춰야됨.
+    const float FallDuration = 1.5f;
 
+    //BP에 쓰러지기 신호 시작
+    BP_OnStartFalling(FallDuration);
+
+    //FallDuration 후 메시 숨기고 리스폰 타이머 시작
     UWorld* World = GetWorld();
-    if (World && RespawnTime > 0.f)
+    if (World)
     {
-        FTimerDelegate RespawnDelegate;
-        RespawnDelegate.BindUObject(this, &AGatherableObject::OnRespawn);
-        World->GetTimerManager().SetTimer(RespawnTimerHandle, RespawnDelegate, RespawnTime, false);
+        FTimerDelegate FallDelegate;
+        FallDelegate.BindUObject(this, &AGatherableObject::OnFallComplete);
+        World->GetTimerManager().SetTimer(FallTimerHandle, FallDelegate, FallDuration, false);
     }
 }
 
@@ -307,8 +314,28 @@ void AGatherableObject::ActivateObject()
     bIsActive = true;
     CurrentGatherCount = MaxGatherCount;
 
+    //회전값 초기화
+    MeshComponent->SetRelativeRotation(FRotator::ZeroRotator);
+
     MeshComponent->SetVisibility(true);
     MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 
     BP_OnRespawned();
+}
+
+//나무가 쓰러진 뒤 리스폰 타이머 시작
+void AGatherableObject::OnFallComplete()
+{
+    MeshComponent->SetVisibility(false);
+
+    BP_OnDepleted();//기존 이벤트, 파티클 사운드
+
+    //리스폰 타이머 시작
+    UWorld* World = GetWorld();
+    if (World && RespawnTime > 0.f)
+    {
+        FTimerDelegate RespawnDelegate;
+        RespawnDelegate.BindUObject(this, &AGatherableObject::OnRespawn);
+        World->GetTimerManager().SetTimer(RespawnTimerHandle, RespawnDelegate, RespawnTime, false);
+    }
 }

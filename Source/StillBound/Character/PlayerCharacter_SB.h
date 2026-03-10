@@ -38,7 +38,6 @@ class UTextureRenderTarget2D;
 class UInventoryComponent;
 class IInteractionInterface;
 class AWeaponBase;
-class USB_UIManager;
 class APickup;
 
 UCLASS()
@@ -93,6 +92,9 @@ public:
 	void SelectHotbarIndex(int32 NewIndex);
 	void HandleHotbarSelectionChanged();
 	void UseSelectedHotbarItem();
+
+	UFUNCTION(BlueprintCallable)
+	void OpenCraftingUI(FName InStationTag, UDataTable* InRecipeTable);
 
 	UFUNCTION(BlueprintCallable)
 	void Die();
