@@ -83,7 +83,7 @@ void APlayerCharacter_SB::BeginPlay()
 
 	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
 
-
+	BuildComponent->Camera = FollowCamera;
 }
 
 bool APlayerCharacter_SB::EquipWeaponFromItem(UItemBase* Item)

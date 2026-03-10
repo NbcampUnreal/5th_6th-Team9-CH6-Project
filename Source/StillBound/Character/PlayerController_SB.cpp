@@ -22,6 +22,7 @@
 #include "Weapons/WeaponBase.h"
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Inventory/InventoryComponent.h"
+#include "Build/BuildComponent.h"
 
 void APlayerController_SB::SetupInputComponent()
 {
@@ -435,7 +436,8 @@ void APlayerController_SB::OnUseHotbar(const FInputActionValue& Value)
 
 void APlayerController_SB::ToggleBuild()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Input Action ToggleBuild"));
+	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetPawn());
+	Char->GetBuildComponent()->ToggleBuildMode();
 }
 
 #pragma endregion
