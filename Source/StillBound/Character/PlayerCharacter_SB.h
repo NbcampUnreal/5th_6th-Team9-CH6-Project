@@ -39,6 +39,7 @@ class UInventoryComponent;
 class IInteractionInterface;
 class AWeaponBase;
 class APickup;
+class UBuildComponent;
 
 UCLASS()
 class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB, public IInteractionInterface
@@ -52,6 +53,8 @@ public:
 
 	FORCEINLINE UInventoryComponent* GetInventory() const { return PlayerInventory; };
 
+	FORCEINLINE UBuildComponent* GetBuildComponent() const { return BuildComponent; };
+
 	void UpdateInteractionWidget() const;
 
 	void DropItemFromSlot(ESlotContainer FromContainer, int32 FromIndex, int32 QuantityToDrop);
@@ -62,6 +65,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "Inventory")
 	TObjectPtr<UInventoryComponent> PlayerInventory;
+
+	UPROPERTY(VisibleAnywhere, Category = "Inventory")
+	TObjectPtr<UBuildComponent> BuildComponent;
 
 	UPROPERTY(VisibleAnywhere, Category = "Interaction")
 	TScriptInterface<IInteractionInterface> TargetInteractable;

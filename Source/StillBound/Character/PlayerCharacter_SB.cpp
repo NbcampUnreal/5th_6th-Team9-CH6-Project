@@ -17,6 +17,7 @@
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Items/ItemBase.h"
 #include "UI/UW_UIHUD.h"
+#include "Build/BuildComponent.h"
 
 
 APlayerCharacter_SB::APlayerCharacter_SB()
@@ -53,6 +54,7 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	InteractionCheckFrequency = 0.1f;
 	InteractionCheckDistance = 225.f;
 
+	BuildComponent = CreateDefaultSubobject<UBuildComponent>(TEXT("BuildComponent"));
 }
 
 FInteractableData APlayerCharacter_SB::GetInteractableData_Implementation()
