@@ -5,7 +5,7 @@
 #include "Data/InventoryTypes.h"
 #include "InventoryComponent.generated.h"
 
-DECLARE_MULTICAST_DELEGATE(FOnInventoryUpdated);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInventoryUpdated);
 DECLARE_MULTICAST_DELEGATE(FOnHotbarUpdated);
 
 class UItemBase;
@@ -79,7 +79,10 @@ public:
     ///===============================================================================
     /// PROPERTIES & VARIABLES
     ///===============================================================================
+    
+    UPROPERTY(BlueprintAssignable, Category = "Inventory")
     FOnInventoryUpdated OnInventoryUpdated;
+
     FOnHotbarUpdated OnHotbarUpdated;
 
     ///===============================================================================

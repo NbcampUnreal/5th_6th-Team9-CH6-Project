@@ -1,7 +1,10 @@
 #include "ShopItemSlot.h"
 #include "NPC/NPCCharacter.h"
 #include "Data/ItemData.h"
-#include "Shop/ShopTooltip.h"
+#include "Items/ItemBase.h"
+#include "UI/Inventory/InventoryTooltip.h"
+#include "UI/Inventory/InventoryItemSlot.h" 
+#include "ShopWidget.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
@@ -10,6 +13,12 @@ void UShopItemSlot::NativeConstruct()
 {
     Super::NativeConstruct();
 
+    // 초기화
+    CachedItemData = nullptr;
+    CachedPrice = 0;
+    ShopItemTooltip = nullptr;
+
+    // 버튼 바인딩
     if (BTN_Buy)
     {
         BTN_Buy->OnClicked.AddDynamic(this, &UShopItemSlot::OnBuyButtonClicked);
@@ -22,122 +31,231 @@ void UShopItemSlot::NativeOnMouseEnter(const FGeometry& InGeometry, const FPoint
 
     if (!TooltipClass || !NPCRef) return;
 
-    // 툴팁 생성
-    if (!ShopTooltipWidget)
+    // 캐시된 데이터가 없으면 리턴
+    if (!CachedItemData)
     {
-        ShopTooltipWidget = CreateWidget<UShopTooltip>(this, TooltipClass);
+        UE_LOG(LogTemp, Warning, TEXT("[ShopItemSlot] No cached item data for tooltip"));
+        return;
     }
 
-    if (ShopTooltipWidget)
+    // ============================================
+    // Tooltip 생성
+    // ============================================
+    if (!ShopItemTooltip)
     {
-        // 아이템 정보 + 가격 표시
-        FItemDataRow* ItemData = NPCRef->GetItemData(ItemID);
-        if (ItemData)
+        ShopItemTooltip = CreateWidget<UInventoryTooltip>(this, TooltipClass);
+        if (!ShopItemTooltip)
         {
-            ShopTooltipWidget->SetItemInfo(ItemData, Price);
-            ShopTooltipWidget->AddToViewport(999);
+            UE_LOG(LogTemp, Error, TEXT("[ShopItemSlot] Failed to create tooltip!"));
+            return;
         }
     }
+    // ============================================
+    // 임시 InventoryItemSlot 생성 (RefreshFromSlot에 필요)
+    // ============================================
+    UInventoryItemSlot* TempSlot = NewObject<UInventoryItemSlot>(this);
+    if (!TempSlot)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[ShopItemSlot] Failed to create temp slot!"));
+        return;
+    }
+    // ============================================
+    // 임시 ItemBase 생성 (InventoryTooltip은 ItemBase를 받음)
+    // ============================================
+    UItemBase* TempItem = NewObject<UItemBase>(this);
+    if (!TempItem)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[ShopItemSlot] Failed to create temp item!"));
+        return;
+    }
+
+    // ItemBase에 데이터 복사
+    TempItem->ID = CachedItemData->ID;
+    TempItem->ItemType = CachedItemData->ItemType;
+    TempItem->ItemQuality = CachedItemData->ItemQuality;
+    TempItem->NumericData = CachedItemData->NumericData;
+    TempItem->TextData = CachedItemData->TextData;
+    TempItem->AssetData = CachedItemData->AssetData;
+    TempItem->ItemStatistics = CachedItemData->ItemStatistics;
+    TempItem->SetQuantity(1);
+
+    // ============================================
+    // Tooltip 업데이트 (가격 정보 추가)
+    // ============================================
+
+    // TempSlot에 TempItem 설정
+    TempSlot->SetItemReference(TempItem);
+
+    // ============================================
+    // Tooltip에 Slot 설정 후 RefreshFromSlot 호출
+    // ============================================
+    ShopItemTooltip->InventorySlotBeingHovered = TempSlot;
+    ShopItemTooltip->RefreshFromSlot();
+
+
+    // Viewport에 추가
+    ShopItemTooltip->AddToViewport(999);
+
+    UE_LOG(LogTemp, Log, TEXT("[ShopItemSlot] Tooltip shown: %s (%dG)"),
+        *CachedItemData->TextData.Name.ToString(),
+        CachedPrice);
 }
 
 void UShopItemSlot::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 {
     Super::NativeOnMouseLeave(InMouseEvent);
 
-    // 툴팁 제거
-    if (ShopTooltipWidget && ShopTooltipWidget->IsInViewport())
+    // Tooltip 제거
+    if (ShopItemTooltip && ShopItemTooltip->IsInViewport())
     {
-        ShopTooltipWidget->RemoveFromParent();
+        ShopItemTooltip->RemoveFromParent();
+
+        UE_LOG(LogTemp, Log, TEXT("[ShopItemSlot] Tooltip hidden"));
     }
 }
 
-void UShopItemSlot::SetShopItemData(FName InItemID, FItemDataRow* ItemData, int32 InPrice, ANPCCharacter* NPC)
+void UShopItemSlot::SetShopItemData(const FShopItemData& InItemData, UShopWidget* InShopWidget, ANPCCharacter* InNPC)
 {
-    if (!ItemData || !NPC)
+    ItemData = InItemData;
+    ShopWidget = InShopWidget;
+    NPCRef = InNPC;
+
+    if (!ShopWidget)
     {
-        UE_LOG(LogTemp, Error, TEXT("SetItemData: ItemData or NPC is NULL!"));
+        UE_LOG(LogTemp, Error, TEXT("[ShopItemSlot] ShopWidget is NULL!"));
+        return;
+    }
+    if (!NPCRef)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[ShopItemSlot] NPCRef is NULL!"));
         return;
     }
 
-    //ItemID = ItemData->ID;
-    ItemID = InItemID;
-    Price = InPrice;
-    NPCRef = NPC;
+    // NPC에서 아이템 데이터 가져오기
+    const FItemDataRow* FullItemData = NPCRef->GetItemData(ItemData.ItemRowName);
+    if (!FullItemData)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[ShopItemSlot] Item data not found: %s"),
+            *ItemData.ItemRowName.ToString());
 
+        // 기본값 표시
+        if (TXT_ItemName)
+        {
+            TXT_ItemName->SetText(FText::FromString(TEXT("Unknown Item")));
+        }
+        if (TXT_ItemPrice)
+        {
+            TXT_ItemPrice->SetText(FText::FromString(TEXT("Price: 0G")));
+        }
+        return;
+    }
+
+    // ============================================
+    // 데이터 캐싱 (Tooltip에서 사용)
+    // ============================================
+    CachedItemData = FullItemData;
+    CachedPrice = FullItemData->ItemStatistics.SellValue;
+
+    // ============================================
     // UI 업데이트
+    // ============================================
+
+    // 아이템 이름
     if (TXT_ItemName)
     {
-        FText ItemName = ItemData->TextData.Name;
-
-        // 이름이 비어있으면 경고
-        if (ItemName.IsEmpty())
-        {
-            UE_LOG(LogTemp, Warning, TEXT("Item name is empty!"));
-            ItemName = FText::FromString(TEXT("Unknown Item"));
-        }
-
-        TXT_ItemName->SetText(ItemName);
-        UE_LOG(LogTemp, Log, TEXT("  Set ItemName: %s"), *ItemName.ToString());
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("  TXT_ItemName is NULL!"));
+        TXT_ItemName->SetText(FullItemData->TextData.Name);
     }
 
+    // 가격 표시
     if (TXT_ItemPrice)
     {
-        TXT_ItemPrice->SetText(FText::Format(
-            FText::FromString(TEXT("{0}G")), Price));
-        UE_LOG(LogTemp, Log, TEXT("  Set Price: %d"), Price);
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("  TXT_ItemPrice is NULL!"));
+        FText PriceText = FText::Format(
+            FText::FromString(TEXT("{0}G")),
+            FText::AsNumber(CachedPrice)
+        );
+        TXT_ItemPrice->SetText(PriceText);
     }
 
-    if (IMG_ItemIcon)
+    // 아이콘
+    if (IMG_ItemIcon && FullItemData->AssetData.Icon)
     {
-        if (ItemData->AssetData.Icon)
-        {
-            IMG_ItemIcon->SetBrushFromTexture(ItemData->AssetData.Icon);
-        }
-        else
-        {
-            IMG_ItemIcon->SetColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f, 1.0f));
-        }
+        IMG_ItemIcon->SetBrushFromTexture(FullItemData->AssetData.Icon);
     }
 
-    if (TXT_ItemStock)
+    // 품절 표시
+    if (ItemData.CurrentStock <= 0)
     {
-        FText StockText = Stock < 0
-            ? FText::FromString(TEXT("무한"))
-            : FText::AsNumber(Stock);
-        TXT_ItemStock->SetText(StockText);
+        // 버튼 비활성화
+        if (BTN_Buy)
+        {
+            BTN_Buy->SetIsEnabled(false);
+        }
+
+        // 아이템 이름에 "(품절)" 추가
+        if (TXT_ItemName)
+        {
+            FText OutOfStockText = FText::Format(
+                FText::FromString(TEXT("{0} (품절)")),
+                FullItemData->TextData.Name
+            );
+            TXT_ItemName->SetText(OutOfStockText);
+        }
+
+        // 가격 텍스트 회색으로
+        if (TXT_ItemPrice)
+        {
+            TXT_ItemPrice->SetColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f, 1.0f));
+        }
     }
 }
 
 void UShopItemSlot::OnBuyButtonClicked()
 {
-    if (!NPCRef) return;
-
-    bool bSuccess = NPCRef->SellItemToPlayer(ItemID, 1);
-
-    if (bSuccess)
+    // 1. 기본 유효성 검사
+    if (!ShopWidget || ItemData.ItemRowName == NAME_None)
     {
-        UE_LOG(LogTemp, Log, TEXT("Purchased %s"), *ItemID.ToString());
+        return;
+    }
 
-        if (Stock > 0)
+    // 2. 품절 체크 (정확히 0일 때만 막아야 무한 재고를 살 수 있음)
+    if (ItemData.CurrentStock == 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ShopItemSlot] Item out of stock!"));
+        return;
+    }
+
+    // 3. 플레이어 컨트롤러 및 키 입력 감지
+    const UWorld* World = GetWorld();
+    if (!World) return;
+
+    APlayerController* PC = World->GetFirstPlayerController();
+    if (!PC) return;
+
+    bool bShiftPressed = PC->IsInputKeyDown(EKeys::LeftShift) ||
+        PC->IsInputKeyDown(EKeys::RightShift);
+
+    // 4. 구매 수량 결정 로직
+    int32 PurchaseQuantity = 1; // 기본은 1개
+
+    if (bShiftPressed)
+    {
+        // 묶음 구매 시 최대 수량 설정
+        const int32 MaxBundleSize = 5;
+
+        if (ItemData.CurrentStock < 0)
         {
-            Stock--;
-            if (TXT_ItemStock)
-            {
-                TXT_ItemStock->SetText(FText::AsNumber(Stock));
-
-            }
+            // 무한 재고인 경우: 그냥 5개 꽉 채워서 구매
+            PurchaseQuantity = MaxBundleSize;
         }
+        else
+        {
+            // 유한 재고인 경우: 남은 재고와 5개 중 작은 값 선택
+            PurchaseQuantity = FMath::Min(ItemData.CurrentStock, MaxBundleSize);
+        }
+
+        UE_LOG(LogTemp, Log, TEXT("[ShopItemSlot] Shift+Click: Buying %d items"), PurchaseQuantity);
     }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("ShopItemSlot: Purchase failed"));
-    }
+
+    // 5. 상점 위젯에 최종 구매 요청
+    ShopWidget->BuyItem(ItemData.ItemRowName, PurchaseQuantity);
 } 

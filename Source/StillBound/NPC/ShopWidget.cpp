@@ -1,51 +1,37 @@
 // ShopWidget.cpp
-#include "ShopWidget.h"
+
+#include "NPC/ShopWidget.h"
 #include "NPC/NPCCharacter.h"
-#include "Inventory/InventoryComponent.h"
-#include "ShopItemSlot.h"
-#include "UI/Inventory/InventoryItemSlot.h"
+#include "NPC/ShopItemSlot.h"
 #include "Character/PlayerCharacter_SB.h"
-#include "Data/ItemData.h"
+#include "Inventory/InventoryComponent.h"
+#include "UI/Inventory/InventoryItemSlot.h"
 #include "Items/ItemBase.h"
-#include "Components/TextBlock.h"
-#include "Components/Button.h"
+#include "UI/Inventory/ItemDragDropOperation.h"
 #include "Components/WrapBox.h"
 #include "Components/Border.h"
-#include "UI/Inventory/ItemDragDropOperation.h"
+#include "Components/Button.h"
+#include "Components/TextBlock.h"
 #include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"  
 
 void UShopWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    UE_LOG(LogTemp, Error, TEXT("========== NativeConstruct CALLED =========="));
+    UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] NativeConstruct CALLED"));
 
-    APlayerController* PC = GetOwningPlayer();
-    if (PC)
+    // 입력 모드 설정
+    if (APlayerController* PC = GetOwningPlayer())
     {
         FInputModeUIOnly InputMode;
-        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        InputMode.SetWidgetToFocus(TakeWidget());
         PC->SetInputMode(InputMode);
-        PC->SetShowMouseCursor(true);
-
-        UE_LOG(LogTemp, Error, TEXT("Input mode set to UI Only"));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("PlayerController is NULL!"));
+        PC->bShowMouseCursor = true;
     }
 
     // 버튼 바인딩
-    if (BTN_Close)
-    {
-        UE_LOG(LogTemp, Log, TEXT("BTN_Close found, binding..."));
-        BTN_Close->OnClicked.AddDynamic(this, &UShopWidget::OnCloseButtonClicked);
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("BTN_Close is NULL!"));
-    }
-
     if (BTN_BuyTab)
     {
         BTN_BuyTab->OnClicked.AddDynamic(this, &UShopWidget::OnBuyTabClicked);
@@ -56,111 +42,91 @@ void UShopWidget::NativeConstruct()
         BTN_SellTab->OnClicked.AddDynamic(this, &UShopWidget::OnSellTabClicked);
     }
 
-    SwitchTab(true);
+    if (BTN_Close)
+    {
+        BTN_Close->OnClicked.AddDynamic(this, &UShopWidget::OnCloseButtonClicked);
+    }
 
-    UE_LOG(LogTemp, Error, TEXT("========== NativeConstruct FINISHED =========="));
+    // 기본 탭: Buy
+    SwitchTab(true);
 }
 
 void UShopWidget::NativeDestruct()
 {
-    // 델리게이트 해제
+    // 인벤토리 델리게이트 해제
     if (PlayerInventory)
     {
         PlayerInventory->OnInventoryUpdated.RemoveAll(this);
     }
+
+    // 타이머 정리
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().ClearTimer(RestockTimerHandle);
-        UE_LOG(LogTemp, Log, TEXT("ShopWidget: Restock timer cleared"));
     }
 
     Super::NativeDestruct();
 }
 
-void UShopWidget::InitializeShop(ANPCCharacter* NPC)
+// ============================================
+// InitializeShop
+// ============================================
+void UShopWidget::InitializeShop(ANPCCharacter* InNPCCharacter)
 {
-    if (!NPC)
+    if (!InNPCCharacter)
     {
-        UE_LOG(LogTemp, Error, TEXT("ShopWidget: Invalid NPC"));
+        UE_LOG(LogTemp, Error, TEXT("[ShopWidget] NPCCharacter is NULL!"));
         return;
     }
 
-    NPCCharacter = NPC;
+    NPCCharacter = InNPCCharacter;
 
-    // 플레이어 인벤토리
-    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(
-        UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-
-    if (Player)
+    // Player 가져오기
+    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
+    if (!Player)
     {
-        PlayerInventory = Player->GetInventory();
+        UE_LOG(LogTemp, Error, TEXT("[ShopWidget] Failed to get Player!"));
+        return;
     }
 
+    PlayerInventory = Player->GetInventory();
     if (!PlayerInventory)
     {
-        UE_LOG(LogTemp, Error, TEXT("ShopWidget: Player inventory not found"));
+        UE_LOG(LogTemp, Error, TEXT("[ShopWidget] PlayerInventory is NULL!"));
         return;
     }
 
-    // 상점 이름
+    // 인벤토리 업데이트 델리게이트 바인딩
+    PlayerInventory->OnInventoryUpdated.AddDynamic(this, &UShopWidget::OnInventoryUpdated);
+
+    // 상점 이름 설정
     if (TXT_ShopName)
     {
         TXT_ShopName->SetText(NPCCharacter->ShopName);
     }
 
-    // 델리게이트 바인딩
-    PlayerInventory->OnInventoryUpdated.AddUObject(this, &UShopWidget::RefreshShop);
-
-    // 초기 표시
+    // 상점 새로고침
     RefreshShop();
 
-    UE_LOG(LogTemp, Log, TEXT("ShopWidget: Initialized shop '%s'"), *NPCCharacter->ShopName.ToString());
-
-    // 재고 리셋 타이머 시작
+    // 재고 초기화 타이머 (10분 = 600초)
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().SetTimer(
             RestockTimerHandle,
             this,
             &UShopWidget::OnRestockTimer,
-            RestockIntervalSeconds,
-            true  // 반복
+            600.0f,  // 10분 고정
+            true     // 반복
         );
-
-        UE_LOG(LogTemp, Log, TEXT("Restock timer started (%.0f seconds)"),
-            RestockIntervalSeconds);
-    }
-}
-
-void UShopWidget::OnRestockTimer()
-{
-    if (!NPCCharacter) return;
-
-    // NPC의 상점 아이템 재초기화
-    NPCCharacter->InitializeShopItems();
-
-    // UI 새로고침
-    RefreshShop();
-
-    UE_LOG(LogTemp, Log, TEXT("Shop restocked!"));
-}
-
-
-void UShopWidget::CloseShop()
-{
-    // 입력 모드 복원
-    if (APlayerController* PC = GetOwningPlayer())
-    {
-        FInputModeGameOnly InputMode;
-        PC->SetInputMode(InputMode);
-        PC->SetShowMouseCursor(false);
     }
 
-    RemoveFromParent();
-
-    UE_LOG(LogTemp, Log, TEXT("ShopWidget: Closed"));
+    UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] InitializeShop complete: '%s'"),
+        *NPCCharacter->ShopName.ToString());
 }
 
+// ============================================
+// RefreshShop
+// ============================================
 void UShopWidget::RefreshShop()
 {
     if (bShowBuyTab)
@@ -171,138 +137,280 @@ void UShopWidget::RefreshShop()
     {
         DisplayPlayerInventory();
     }
+
     UpdateGoldDisplay();
 }
 
-bool UShopWidget::BuyItem(FName ItemID, int32 Quantity)
+// ============================================
+// DisplayShopItems
+// ============================================
+void UShopWidget::DisplayShopItems()
 {
-    if (!NPCCharacter || !PlayerInventory) return false;
-
-    // 1. 가격 계산
-    int32 UnitPrice = NPCCharacter->GetItemPrice(ItemID);
-    int32 TotalPrice = UnitPrice * Quantity;
-
-    // 2. 골드 체크
-    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(
-        UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-
-    if (!Player || !Player->HasEnoughGold(TotalPrice))
+    if (!WB_ShopItems || !NPCCharacter || !ShopItemSlotClass)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Not enough gold! Need: %d, Have: %d"),
-            TotalPrice, Player ? Player->GetGold() : 0);
-
-        // TODO: "골드 부족" UI 표시
-        return false;
+        UE_LOG(LogTemp, Error, TEXT("[ShopWidget] DisplayShopItems: Missing components"));
+        return;
     }
-    //  3. 아이템 구매 시도
-    if (NPCCharacter->SellItemToPlayer(ItemID, Quantity))
+
+    WB_ShopItems->ClearChildren();
+
+    const TArray<FShopItemData>& ShopItems = NPCCharacter->GetShopItemList();
+
+    UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] DisplayShopItems: %d items"), ShopItems.Num());
+
+    for (const FShopItemData& ShopItem : ShopItems)
     {
-        // 4. 골드 차감
+        UShopItemSlot* ItemSlot = CreateWidget<UShopItemSlot>(this, ShopItemSlotClass);
+        if (ItemSlot)
+        {
+            ItemSlot->SetShopItemData(ShopItem, this, NPCCharacter);
+
+            // 품절이면 버튼 비활성화
+            if (ShopItem.CurrentStock <= 0)
+            {
+                ItemSlot->SetIsEnabled(false);
+                UE_LOG(LogTemp, Warning, TEXT("  Item out of stock: %s"),
+                    *ShopItem.ItemRowName.ToString());
+            }
+
+            WB_ShopItems->AddChildToWrapBox(ItemSlot);
+        }
+    }
+}
+
+// ============================================
+// DisplayPlayerInventory
+// ============================================
+void UShopWidget::DisplayPlayerInventory()
+{
+    if (!WB_PlayerInventory || !PlayerInventory || !InventoryItemSlotClass)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[ShopWidget] DisplayPlayerInventory: Missing components"));
+        return;
+    }
+
+    WB_PlayerInventory->ClearChildren();
+
+    const TArray<UItemBase*>& InventorySlots = PlayerInventory->GetInventorySlots();
+
+    UE_LOG(LogTemp, Log, TEXT("[ShopWidget] DisplayPlayerInventory: %d items"),
+        InventorySlots.Num());
+
+    for (int32 i = 0; i < InventorySlots.Num(); ++i)
+    {
+        UInventoryItemSlot* ItemSlot = CreateWidget<UInventoryItemSlot>(this, InventoryItemSlotClass);
+        if (ItemSlot)
+        {
+            ItemSlot->InitSlot(ESlotContainer::Inventory, i, PlayerInventory);
+
+            if (InventorySlots[i])
+            {
+                ItemSlot->SetItemReference(InventorySlots[i]);
+            }
+
+            WB_PlayerInventory->AddChildToWrapBox(ItemSlot);
+        }
+    }
+}
+
+// ============================================
+// UpdateGoldDisplay
+// ============================================
+void UShopWidget::UpdateGoldDisplay()
+{
+    if (!TXT_PlayerGold)
+    {
+        return;
+    }
+
+    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
+    if (Player)
+    {
+        FText GoldText = FText::Format(
+            FText::FromString(TEXT("Gold: {0}")),
+            FText::AsNumber(Player->GetGold())
+        );
+        TXT_PlayerGold->SetText(GoldText);
+    }
+}
+
+// ============================================
+// BuyItem
+// ============================================
+void UShopWidget::BuyItem(FName ItemRowName, int32 Quantity)
+{
+    if (!NPCCharacter)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[ShopWidget] BuyItem: NPCCharacter is NULL"));
+        return;
+    }
+
+    // 아이템 데이터 조회
+    const FItemDataRow* ItemData = NPCCharacter->GetItemData(ItemRowName);
+    if (!ItemData)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[ShopWidget] Item not found: %s"), *ItemRowName.ToString());
+        return;
+    }
+
+    const int32 UnitPrice = ItemData->ItemStatistics.SellValue;
+    const int32 TotalPrice = UnitPrice * Quantity;
+
+    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
+    if (!Player)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[ShopWidget] Player not found"));
+        return;
+    }
+
+    // 골드 체크
+    if (Player->GetGold() < TotalPrice)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] Not enough gold! Need %dG, have %dG"),
+            TotalPrice, Player->GetGold());
+        return;
+    }
+
+    // NPC에서 아이템 판매
+    if (NPCCharacter->SellItemToPlayer(Player, ItemRowName, Quantity))
+    {
+        // 골드 차감
         Player->ModifyGold(-TotalPrice);
 
-        UE_LOG(LogTemp, Log, TEXT("Bought %d x %s for %d gold"),
-            Quantity, *ItemID.ToString(), TotalPrice);
+        // UI 업데이트
+        UpdateGoldDisplay();
 
-        // 5. UI 새로고침
-        RefreshShop();
-        return true;
+        UE_LOG(LogTemp, Log, TEXT("[ShopWidget] Purchased %dx %s for %dG"),
+            Quantity, *ItemRowName.ToString(), TotalPrice);
     }
-
-    return false;
 }
 
-
+// ============================================
+// NativeOnDrop
+// ============================================
 bool UShopWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
-    // ItemDragDropOperation인지 확인
-    UItemDragDropOperation* ItemDragDrop = Cast<UItemDragDropOperation>(InOperation);
-
-    if (!ItemDragDrop || !ItemDragDrop->SourceItem)
+    UItemDragDropOperation* DragOp = Cast<UItemDragDropOperation>(InOperation);
+    if (!DragOp || !DragOp->SourceItem)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Invalid drag operation"));
         return false;
     }
 
-    UItemBase* Item = ItemDragDrop->SourceItem;
+    UItemBase* DraggedItem = DragOp->SourceItem;
 
-    // 판매 불가 아이템 체크
-    if (Item->ItemStatistics.SellValue <= 0)
+    const int32 BaseSellValue = DraggedItem->ItemStatistics.SellValue;
+    const int32 SellPrice = FMath::FloorToInt(BaseSellValue * 0.8f);
+
+    // 판매 불가 체크
+    if (SellPrice <= 0)
     {
-        UE_LOG(LogTemp, Warning, TEXT("This item cannot be sold"));
-        // TODO: "판매 불가" 메시지 표시
-        return false;
-    }
+        UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] This item cannot be sold: %s"),
+            *DraggedItem->TextData.Name.ToString());
 
-    // 판매 가격 계산 (80%)
-    int32 SellPrice = FMath::FloorToInt(Item->ItemStatistics.SellValue * 0.8f);
-
-    // 판매 수량 결정 (전체 vs 1개)
-    int32 SellQuantity = 1;  // 기본: 1개씩 판매
-
-    // Shift 키를 누르고 있으면 전체 판매
-    if (InDragDropEvent.IsShiftDown() && Item->NumericData.bIsStackable)
-    {
-        SellQuantity = Item->Quantity;
-    }
-
-    // NPC에게 판매
-    int32 GoldReceived = 0;
-    bool bSuccess = NPCCharacter->BuyItemFromPlayer(Item, SellQuantity, GoldReceived);
-
-    if (bSuccess)
-    {
-        // 골드 지급
-        APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(
-            UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-
-        if (Player)
+        if (DropZone)
         {
-            Player->ModifyGold(GoldReceived);
+            DropZone->SetBrushColor(FLinearColor::White);
         }
-
-        UE_LOG(LogTemp, Log, TEXT("Sold %d x %s for %dG"),
-            SellQuantity, *Item->TextData.Name.ToString(), GoldReceived);
-
-        // TODO: 판매 성공 피드백 (효과음, 애니메이션)
-
+        if (TXT_DropHint)
+        {
+            TXT_DropHint->SetText(FText::FromString(TEXT("Drag item here to sell")));
+        }
         return true;
     }
 
-    return false;
-}
+    // Shift 키로 전체 판매 여부 확인
+    int32 SellQuantity = 1;
+    if (InDragDropEvent.IsShiftDown())
+    {
+        SellQuantity = DraggedItem->Quantity;
+    }
 
-void UShopWidget::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
-{
-    Super::NativeOnDragEnter(InGeometry, InDragDropEvent, InOperation);
+    const int32 TotalGold = SellPrice * SellQuantity;
 
-    // 드롭 영역 하이라이트
+    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
+    if (!Player)
+    {
+        return false;
+    }
+
+    // NPC에게 아이템 판매
+    if (NPCCharacter && NPCCharacter->BuyItemFromPlayer(Player, DraggedItem, SellQuantity))
+    {
+        // 플레이어에게 골드 지급
+        Player->ModifyGold(TotalGold);
+
+        // UI 업데이트
+        UpdateGoldDisplay();
+        RefreshShop();
+
+        UE_LOG(LogTemp, Log, TEXT("[ShopWidget] Sold %dx %s for %dG"),
+            SellQuantity,
+            *DraggedItem->TextData.Name.ToString(),
+            TotalGold);
+    }
+
+    // DropZone 색상 초기화
     if (DropZone)
     {
-        DropZone->SetBrushColor(FLinearColor(0.2f, 1.0f, 0.2f, 0.5f));  // 초록색
+        DropZone->SetBrushColor(FLinearColor::White);
     }
 
     if (TXT_DropHint)
     {
-        UItemDragDropOperation* ItemDragDrop = Cast<UItemDragDropOperation>(InOperation);
-        if (ItemDragDrop && ItemDragDrop->SourceItem)
-        {
-            int32 SellPrice = FMath::FloorToInt(
-                ItemDragDrop->SourceItem->ItemStatistics.SellValue * 0.8f);
+        TXT_DropHint->SetText(FText::FromString(TEXT("Drag item here to sell")));
+    }
 
-            TXT_DropHint->SetText(FText::Format(
-                FText::FromString(TEXT("Sell Price: {0}G")), SellPrice));
+    return true;
+}
+
+void UShopWidget::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+    UItemDragDropOperation* DragOp = Cast<UItemDragDropOperation>(InOperation);
+    if (!DragOp || !DragOp->SourceItem)
+    {
+        return;
+    }
+
+    UItemBase* Item = DragOp->SourceItem;
+
+    const int32 SellPrice = FMath::FloorToInt(Item->ItemStatistics.SellValue * 0.8f);
+
+    // DropZone 하이라이트
+    if (DropZone)
+    {
+        if (SellPrice > 0)
+        {
+            DropZone->SetBrushColor(FLinearColor::Green);
+        }
+        else
+        {
+            DropZone->SetBrushColor(FLinearColor::Red);
+        }
+    }
+
+    // 가격 표시
+    if (TXT_DropHint)
+    {
+        if (SellPrice > 0)
+        {
+            FText HintText = FText::Format(
+                FText::FromString(TEXT("Sell Price: {0}G")),
+                FText::AsNumber(SellPrice)
+            );
+            TXT_DropHint->SetText(HintText);
+        }
+        else
+        {
+            TXT_DropHint->SetText(FText::FromString(TEXT("Cannot be sold")));
         }
     }
 }
 
 void UShopWidget::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
-    Super::NativeOnDragLeave(InDragDropEvent, InOperation);
-
-    // 하이라이트 제거
     if (DropZone)
     {
-        DropZone->SetBrushColor(FLinearColor(0.1f, 0.1f, 0.1f, 0.3f));  // 기본색
+        DropZone->SetBrushColor(FLinearColor::White);
     }
 
     if (TXT_DropHint)
@@ -311,27 +419,9 @@ void UShopWidget::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDrag
     }
 }
 
-void UShopWidget::OnCloseButtonClicked()
-{
-    UE_LOG(LogTemp, Log, TEXT("ShopWidget: Close button clicked"));
-    /*
-    // 상점 닫기
-    RemoveFromParent();
-
-    // Input Mode 복원
-    APlayerController* PC = GetOwningPlayer();
-    if (PC)
-    {
-        FInputModeGameOnly InputMode;
-        PC->SetInputMode(InputMode);
-        PC->SetShowMouseCursor(false);
-
-        UE_LOG(LogTemp, Log, TEXT("ShopWidget: Input mode restored to Game"));
-    }
-    */
-    CloseShop();
-}
-
+// ============================================
+// 탭 전환
+// ============================================
 void UShopWidget::OnBuyTabClicked()
 {
     SwitchTab(true);
@@ -342,120 +432,85 @@ void UShopWidget::OnSellTabClicked()
     SwitchTab(false);
 }
 
-void UShopWidget::DisplayShopItems()
+void UShopWidget::SwitchTab(bool bShowBuy)
 {
-    if (!WB_ShopItems || !ShopItemSlotClass || !NPCCharacter) return;
+    bShowBuyTab = bShowBuy;
 
-    WB_ShopItems->ClearChildren();
-
-    // Getter 함수로 가져오기!
-    const TArray<FName>& ShopItems = NPCCharacter->GetShopItemList();
-
-    UE_LOG(LogTemp, Log, TEXT("Shop items count: %d"), ShopItems.Num());
-
-    // 순회
-    for (const FName& ItemID : ShopItems)
+    if (Border_BuyPanel)
     {
-        UE_LOG(LogTemp, Log, TEXT("Processing item: %s"), *ItemID.ToString());
-
-        FItemDataRow* ItemData = NPCCharacter->GetItemData(ItemID);
-        if (!ItemData)
-        {
-            UE_LOG(LogTemp, Error, TEXT("  ItemData is NULL for %s"), *ItemID.ToString());
-            continue;
-        }
-
-        int32 Price = NPCCharacter->GetItemPrice(ItemID);
-
-        UShopItemSlot* ItemSlot = CreateWidget<UShopItemSlot>(this, ShopItemSlotClass);
-        if (ItemSlot)
-        {
-            // ItemID (RowName)을 함께 전달!
-            ItemSlot->SetShopItemData(ItemID, ItemData, Price, NPCCharacter);
-            WB_ShopItems->AddChildToWrapBox(ItemSlot);
-        }
+        Border_BuyPanel->SetVisibility(bShowBuy ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
     }
 
-    UE_LOG(LogTemp, Log, TEXT("ShopWidget: Displayed %d shop items"), ShopItems.Num());
-}
-
-void UShopWidget::DisplayPlayerInventory()
-{
-    if (!WB_PlayerInventory || !InventoryItemSlotClass || !PlayerInventory)
+    if (Border_SellPanel)
     {
-        UE_LOG(LogTemp, Warning, TEXT("DisplayPlayerInventory: Missing components"));
-        return;
+        Border_SellPanel->SetVisibility(bShowBuy ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
     }
 
-    WB_PlayerInventory->ClearChildren();
-
-    const TArray<TObjectPtr<UItemBase>>& Items = PlayerInventory->GetInventorySlots();
-
-    int32 DisplayCount = 0;
-
-    for (int32 i = 0; i < Items.Num(); ++i)
-    {
-        UItemBase* Item = Items[i];
-
-        // nullptr 체크 (빈 슬롯 제외)
-        if (!Item) continue;
-
-        UInventoryItemSlot* ItemSlot = CreateWidget<UInventoryItemSlot>(
-            this, InventoryItemSlotClass);
-
-        if (ItemSlot)
-        {
-            // 슬롯 초기화 (드래그 앤 드롭을 위해 필요!)
-            ItemSlot->InitSlot(ESlotContainer::Inventory, i, PlayerInventory);
-
-            // 아이템 설정
-            ItemSlot->SetItemReference(Item);
-
-            // WrapBox에 추가
-            WB_PlayerInventory->AddChildToWrapBox(ItemSlot);
-
-            DisplayCount++;
-        }
-    }
-
-}
-
-void UShopWidget::UpdateGoldDisplay()
-{
-    if (TXT_PlayerGold)
-    {
-        // TODO: 실제 골드 시스템 연동
-        TXT_PlayerGold->SetText(FText::FromString(TEXT("Gold: 1000")));
-    }
-    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(
-        UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-    if (Player)
-    {
-        int32 Gold = Player->GetGold();
-        TXT_PlayerGold->SetText(FText::Format(
-            FText::FromString(TEXT("Gold: {0}")), Gold));
-    }
-    else
-    {
-        TXT_PlayerGold->SetText(FText::FromString(TEXT("Gold: 0")));
-    }
-}
-
-void UShopWidget::SwitchTab(bool bBuyTab)
-{
-    bShowBuyTab = bBuyTab;
-
-    if (Border_BuyPanel && Border_SellPanel)
-    {
-        Border_BuyPanel->SetVisibility(bBuyTab ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-        Border_SellPanel->SetVisibility(bBuyTab ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
-    }
-    // 왼쪽 패널은 Sell 탭에만 표시
     if (Border_LeftPanel)
     {
-        Border_LeftPanel->SetVisibility(
-            bBuyTab ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+        Border_LeftPanel->SetVisibility(bShowBuy ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
     }
 
     RefreshShop();
+}
+
+// ============================================
+// 상점 닫기
+// ============================================
+void UShopWidget::OnCloseButtonClicked()
+{
+    CloseShop();
+}
+
+void UShopWidget::CloseShop()
+{
+    // 입력 모드 복구
+    if (APlayerController* PC = GetOwningPlayer())
+    {
+        FInputModeGameOnly InputMode;
+        PC->SetInputMode(InputMode);
+        PC->bShowMouseCursor = false;
+    }
+
+    // 타이머 정리
+    if (GetWorld())
+    {
+        GetWorld()->GetTimerManager().ClearTimer(RestockTimerHandle);
+    }
+
+    // Widget 제거
+    RemoveFromParent();
+
+    UE_LOG(LogTemp, Log, TEXT("[ShopWidget] Shop closed"));
+}
+
+// ============================================
+// 재고 초기화 타이머
+// ============================================
+void UShopWidget::OnRestockTimer()
+{
+    if (!NPCCharacter)
+    {
+        return;
+    }
+
+    // 상점 아이템 재초기화
+    NPCCharacter->InitializeShopItems();
+
+    // UI 새로고침
+    RefreshShop();
+
+    UE_LOG(LogTemp, Log, TEXT("[ShopWidget] Shop restocked!"));
+}
+
+// ============================================
+// 인벤토리 업데이트 델리게이트
+// ============================================
+void UShopWidget::OnInventoryUpdated()
+{
+    // Sell 탭일 때만 새로고침
+    if (!bShowBuyTab)
+    {
+        DisplayPlayerInventory();
+    }
 }

@@ -27,6 +27,32 @@ enum class ENPCRegion : uint8
 	//Volcano UMETA(DisplayName = "화산 (지역 D)")
 };
 
+USTRUCT(BlueprintType)
+struct FShopItemData
+{
+    GENERATED_BODY()
+
+    /** 아이템 Row Name */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName ItemRowName;
+
+    /** 현재 재고 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 CurrentStock;
+
+    /** 최대 재고 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 MaxStock;
+
+    // 기본 생성자
+    FShopItemData()
+        : ItemRowName(NAME_None)
+        , CurrentStock(99)
+        , MaxStock(99)
+    {
+    }
+};
+
 UCLASS()
 class STILLBOUND_API ANPCCharacter : public ACharacter,
     public IInteractionInterface
@@ -44,6 +70,7 @@ public:
     virtual FInteractableData GetInteractableData_Implementation() override;
     virtual float GetInteractionDistance_Implementation() override;
 
+    UFUNCTION(BlueprintCallable, Category = "Shop")
     void OpenShop();
 
     // === 대화 컴포넌트 ===
@@ -56,10 +83,6 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
     FText ShopName;
-
-    // NPC가 판매할 아이템 타입들
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
-    TArray<EItemType> SellableItemTypes;
 
     // 최대 판매 아이템 수 (랜덤 선택)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
@@ -80,23 +103,23 @@ public:
     UDataTable* ItemDataTable;
 
     UFUNCTION(BlueprintCallable, Category = "Shop")
-    bool SellItemToPlayer(FName ItemID, int32 Quantity);
+    bool SellItemToPlayer(APlayerCharacter_SB* Player, FName ItemRowName, int32 Quantity = 1);
 
     UFUNCTION(BlueprintPure, Category = "Shop")
-    int32 GetItemPrice(FName ItemID) const;
+    int32 GetItemPrice(FName ItemRowName) const;
 
-    FItemDataRow* GetItemData(FName ItemID) const;
+    FItemDataRow* GetItemData(FName ItemRowName) const;
 
     // 플레이어로부터 아이템 구매 (새로 추가)
     UFUNCTION(BlueprintCallable, Category = "Shop")
-    bool BuyItemFromPlayer(UItemBase* Item, int32 Quantity, int32& OutGoldReceived);
+    bool BuyItemFromPlayer(APlayerCharacter_SB* Player, UItemBase* Item, int32 Quantity = 1);
 
     // 상점 초기화
     void InitializeShopItems();
 
     // NPC 상점 아이템 리스트 가져오기
     UFUNCTION(BlueprintPure, Category = "Shop")
-    const TArray<FName>& GetShopItemList() const { return SellableItemIDs; }
+    const TArray<FShopItemData>& GetShopItemList() const { return ShopItemList; }
 
 
 protected:
@@ -146,6 +169,9 @@ protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
     TSubclassOf<UShopWidget> ShopWidgetClass;
+
+    UPROPERTY(VisibleAnywhere, Category = "Shop")
+    TArray<FShopItemData> ShopItemList;
 
 private:
     uint8 LastNPCState = 0;

@@ -19,7 +19,7 @@ void UInventoryPanel::NativeOnInitialized()
 		InventoryReference = PlayerCharacter->GetInventory();
 		if (InventoryReference)
 		{
-			InventoryReference->OnInventoryUpdated.AddUObject(this, &UInventoryPanel::RefreshInventory);
+			InventoryReference->OnInventoryUpdated.AddDynamic(this, &UInventoryPanel::RefreshInventory);
 			SetInfoText();
 
 			BuildSlotGrid();

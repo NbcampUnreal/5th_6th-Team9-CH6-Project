@@ -3,12 +3,15 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "NPC/NPCCharacter.h"
 #include "ShopItemSlot.generated.h"
 
 class UImage;
 class UTextBlock;
 class UButton;
-class UShopTooltip;
+class UBorder;
+class UInventoryTooltip;
+class UShopWidget;
 class ANPCCharacter;
 struct FItemDataRow;
 
@@ -19,16 +22,12 @@ class STILLBOUND_API UShopItemSlot : public UUserWidget
 
 protected:
     virtual void NativeConstruct() override;
-
     virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
     virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
-
-    // ≈¯∆¡ ¿ß¡¨
-    UPROPERTY(EditAnywhere, Category = "UI")
-    TSubclassOf< UShopTooltip> TooltipClass;
     
 public:
-    void SetShopItemData(FName InItemID, FItemDataRow* ItemData, int32 InPrice, ANPCCharacter* NPC);
+    UFUNCTION(BlueprintCallable, Category = "Shop")
+    void SetShopItemData(const FShopItemData& InItemData, UShopWidget* InShopWidget, ANPCCharacter* InNPC);
 
 protected:
     UPROPERTY(meta = (BindWidget))
@@ -46,19 +45,29 @@ protected:
     UPROPERTY(meta = (BindWidget))
     UButton* BTN_Buy;
 
+    // ≈¯∆¡ ¿ß¡¨
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf< UInventoryTooltip> TooltipClass;
+
 private:
     
     UPROPERTY()
     ANPCCharacter* NPCRef = nullptr;
 
-    FName ItemID;
-    int32 Price = 0;
-    int32 Stock = -1;
-
     UFUNCTION()
     void OnBuyButtonClicked();
 
+    // === µ•¿Ã≈Õ ===
+    FShopItemData ItemData;
+
     UPROPERTY()
-    UShopTooltip* ShopTooltipWidget = nullptr;
+    UShopWidget* ShopWidget;
+
+    UPROPERTY()
+    UInventoryTooltip* ShopItemTooltip;
+
+    // ƒ≥Ω√µ» æ∆¿Ã≈€ µ•¿Ã≈Õ
+    const FItemDataRow* CachedItemData;
+    int32 CachedPrice;
 
 };

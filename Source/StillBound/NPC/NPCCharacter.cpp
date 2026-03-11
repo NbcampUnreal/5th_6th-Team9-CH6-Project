@@ -10,6 +10,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "ShopWidget.h"
+#include "Blueprint/UserWidget.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 // Sets default values
@@ -31,11 +32,13 @@ ANPCCharacter::ANPCCharacter()
 		ECollisionResponse::ECR_Block);
 
 	// 기본값 설정
-	SellableItemTypes = { EItemType::Tool, EItemType::Weapon, EItemType::Ammo, EItemType::Consumable };
-	LowTierKeywords = { TEXT("Stone"), TEXT("Wood"), TEXT("Basic") };
-	MaxShopItems = 10;
-	bOnlyLowTierEquipment = true;
-
+	NPCName = TEXT("NPC");
+	bIsInteracting = false;
+	CurrentInteractor = nullptr;
+	LastNPCState = 0;
+	DialogueWidget = nullptr;
+	ShopWidget = nullptr;
+	float RestockTime = 600.f;
 }
 
 // Called when the game starts or when spawned
@@ -62,6 +65,7 @@ void ANPCCharacter::BeginPlay()
 		DialogueComponent->OnDialogueStarted.AddDynamic(this, &ANPCCharacter::OnDialogueStart);
 		DialogueComponent->OnDialogueUpdated.AddDynamic(this, &ANPCCharacter::OnDialogueUpdate);
 		DialogueComponent->OnDialogueEnded.AddDynamic(this, &ANPCCharacter::OnDialogueEnd);
+		// OnOptionSelected는 DialogueWidget에서 처리
 	}
 	else
 	{
@@ -88,57 +92,78 @@ void ANPCCharacter::InitializeShopItems()
 		return;
 	}
 
-	SellableItemIDs.Empty();
-	TArray<FName> AllRowNames = ItemDataTable->GetRowNames();
+	ShopItemList.Empty();
 
-	UE_LOG(LogTemp, Error, TEXT("[%s] Initializing shop from %s (%d items)"),
-		*NPCName, *ItemDataTable->GetName(), AllRowNames.Num());
-
-	// 판매할 아이템 타입 (기획서 기준)
-	TArray<EItemType> AllowedTypes = {
-		EItemType::Tool,       // 도구
-		EItemType::Weapon,     // 무기 (Low-tier만)
-		EItemType::Consumable,  // 소비 아이템
-		EItemType::Ammo
+	TArray<FName> ShopItems = {
+		FName(TEXT("600001")),  // 최하급 체력회복물약
+		FName(TEXT("600002")),   // 최하급 마나회복물약
+		FName(TEXT("700003"))
 	};
 
-	int32 FilteredCount = 0;
+	UE_LOG(LogTemp, Warning, TEXT("[%s] Initializing shop (%d items)"),
+		*NPCName, ShopItems.Num());
 
-	// 1단계: 조건에 맞는 아이템 필터링
-	for (FName RowName : AllRowNames)
+	for (const FName& ItemRowName : ShopItems)
 	{
-		FItemDataRow* ItemData = ItemDataTable->FindRow<FItemDataRow>(RowName, TEXT("ShopInit"));
+		FString ContextString;
+		const FItemDataRow* ItemData = ItemDataTable->FindRow<FItemDataRow>(ItemRowName, ContextString);
 
-		if (!ItemData)
+		if (ItemData)
 		{
-			continue;
-		}
+			FShopItemData NewShopItem;
+			NewShopItem.ItemRowName = ItemRowName;
+			NewShopItem.CurrentStock = 99;
+			NewShopItem.MaxStock = 99;
 
-		// ItemType 필터
-		if (!AllowedTypes.Contains(ItemData->ItemType))
+			ShopItemList.Add(NewShopItem);
+
+			UE_LOG(LogTemp, Log, TEXT("  [%s] Price: %dG, Sell: %dG"),
+				*ItemData->TextData.Name.ToString(),
+				FMath::FloorToInt(ItemData->ItemStatistics.SellValue),
+				FMath::FloorToInt(ItemData->ItemStatistics.SellValue * 0.8f));
+		}
+		else
 		{
-			continue;
+			UE_LOG(LogTemp, Error, TEXT("  Item not found in DataTable: %s"),
+				*ItemRowName.ToString());
 		}
-
-		// Low-tier 필터
-		if (bOnlyLowTierEquipment &&
-			(ItemData->ItemType == EItemType::Weapon || ItemData->ItemType == EItemType::Tool))
-		{
-			if (!IsLowTierItem_ByRowName(RowName, ItemData->ItemType))
-			{
-				continue;
-			}
-		}
-
-		// 통과!
-		SellableItemIDs.Add(RowName);
-		FilteredCount++;
-
-		UE_LOG(LogTemp, Log, TEXT("  Added: %s"), *RowName.ToString());
 	}
 
-	UE_LOG(LogTemp, Error, TEXT("[%s] Shop initialized: %d/%d items"),
-		*NPCName, FilteredCount, AllRowNames.Num());
+	UE_LOG(LogTemp, Warning, TEXT("[%s] Shop initialized: %d items"), *NPCName, ShopItemList.Num());
+}
+
+void ANPCCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	MonitorStateChanges();
+
+}
+
+void ANPCCharacter::MonitorStateChanges()
+{
+	ANPCAIController* AIController = GetNPCAIController();
+	if (!AIController) return;
+
+	uint8 CurrentState = static_cast<uint8>(AIController->GetNPCState());
+
+	if (CurrentState != LastNPCState)
+	{
+		if (CurrentState == static_cast<uint8>(ENPCMode::Alert) &&
+			LastNPCState == static_cast<uint8>(ENPCMode::Idle))
+		{
+			AActor* Target = AIController->GetTargetActor();
+			if (Target)
+			{
+				OnPlayerDetected(Target);
+			}
+		}
+	}
+	else if (CurrentState == static_cast<uint8>(ENPCMode::Idle) &&
+		LastNPCState == static_cast<uint8>(ENPCMode::Alert))
+	{
+		OnPlayerLost();
+	}
+	LastNPCState = CurrentState;
 }
 
 bool ANPCCharacter::IsLowTierItem(const FItemDataRow* ItemData) const
@@ -198,40 +223,6 @@ bool ANPCCharacter::IsLowTierItem_ByRowName(FName RowName, EItemType ItemType) c
 
 	// Consumable, Ammo: 전부 판매
 	return true;
-}
-
-void ANPCCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-	MonitorStateChanges();
-
-}
-
-void ANPCCharacter::MonitorStateChanges()
-{
-	ANPCAIController* AIController = GetNPCAIController();
-	if (!AIController) return;
-
-	uint8 CurrentState = static_cast<uint8>(AIController->GetNPCState());
-
-	if (CurrentState != LastNPCState)
-	{
-		if(CurrentState == static_cast<uint8>(ENPCMode::Alert) &&
-			LastNPCState == static_cast<uint8>(ENPCMode::Idle))
-		{
-			AActor* Target = AIController->GetTargetActor();
-			if (Target)
-			{
-				OnPlayerDetected(Target);
-			}
-		}
-	}
-	else if (CurrentState == static_cast<uint8>(ENPCMode::Idle) &&
-		LastNPCState == static_cast<uint8>(ENPCMode::Alert))
-	{
-		OnPlayerLost();
-	}
-	LastNPCState = CurrentState;
 }
 
 void ANPCCharacter::BeginFocus_Implementation()
@@ -313,29 +304,41 @@ float ANPCCharacter::GetInteractionDistance_Implementation()
 	return 200.0f;
 }
 
-bool ANPCCharacter::SellItemToPlayer(FName ItemID, int32 Quantity)
+bool ANPCCharacter::SellItemToPlayer(APlayerCharacter_SB* Player, FName ItemRowName, int32 Quantity)
 {
-	// 1. 플레이어 가져오기
-	APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(
-		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-
-	if (!Player) return false;
-
-	UInventoryComponent* PlayerInv = Player->GetInventory();
-	if (!PlayerInv) return false;
-
-	// 2. 아이템 데이터 로드
-
-	FItemDataRow* ItemData = ItemDataTable->FindRow<FItemDataRow>(ItemID, TEXT("Shop"));
-	if (!ItemData)
+	if (!Player || !ItemDataTable)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Item %s not found in DataTable"), *ItemID.ToString());
+		UE_LOG(LogTemp, Error, TEXT("[%s] SellItemToPlayer: Invalid params"), *NPCName);
 		return false;
 	}
 
+	// 아이템 데이터 조회
+	FString ContextString;
+	const FItemDataRow* ItemData = ItemDataTable->FindRow<FItemDataRow>(ItemRowName, ContextString);
+
+	if (!ItemData)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] Item not found: %s"),
+			*NPCName, *ItemRowName.ToString());
+		return false;
+	}
+
+	UInventoryComponent* PlayerInventory = Player->GetInventory();
+	if (!PlayerInventory)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] Player has no inventory!"), *NPCName);
+		return false;
+	}
+
+	// 새 아이템 생성
+	UItemBase* NewItem = NewObject<UItemBase>(PlayerInventory, UItemBase::StaticClass());
+	if (!NewItem)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] Failed to create item!"), *NPCName);
+		return false;
+	}
 
 	// 3. 아이템 생성
-	UItemBase* NewItem = NewObject<UItemBase>();
 	NewItem->ID = ItemData->ID;
 	NewItem->ItemType = ItemData->ItemType;
 	NewItem->ItemQuality = ItemData->ItemQuality;
@@ -343,36 +346,36 @@ bool ANPCCharacter::SellItemToPlayer(FName ItemID, int32 Quantity)
 	NewItem->TextData = ItemData->TextData;
 	NewItem->AssetData = ItemData->AssetData;
 	NewItem->ItemStatistics = ItemData->ItemStatistics;
+	NewItem->EquipWeaponClass = ItemData->EquipWeaponClass;
 	NewItem->Quantity = Quantity;
 
 	// 4. InventoryComponent의 HandleAddItem 사용
-	FItemAddResult Result = PlayerInv->HandleAddItem(NewItem);
+	const FItemAddResult AddResult = PlayerInventory->HandleAddItem_AutoHotbarFirst(NewItem);
 
 	// 5. 결과 처리
-	if (Result.OperationResult == EItemAddResult::IAR_AllItemAdded)
+	if (AddResult.OperationResult == EItemAddResult::IAR_AllItemAdded)
 	{
-		UE_LOG(LogTemp, Log, TEXT("Successfully sold %d x %s to player"),
-			Quantity, *ItemData->TextData.Name.ToString());
+		// ============================================
+		// ItemStatistics.SellValue 사용
+		// ============================================
+		UE_LOG(LogTemp, Log, TEXT("[%s] Sold %dx %s to player for %fG"),
+			*NPCName,
+			Quantity,
+			*ItemData->TextData.Name.ToString(),
+			ItemData->ItemStatistics.SellValue * Quantity);
 		return true;
-	}
-	else if (Result.OperationResult == EItemAddResult::IAR_PartialAmountItemAdded)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Partial sale: %d / %d added"), 
-			Result.ActualAmountAdded, Quantity);
-		return true; // 부분 성공도 성공으로 처리
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to add item to inventory: %s"),
-			*Result.ResultMessage.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[%s] Failed to add item: %s"),
+			*NPCName, *AddResult.ResultMessage.ToString());
 		return false;
 	}
-
 }
 
-bool ANPCCharacter::BuyItemFromPlayer(UItemBase* Item, int32 Quantity, int32& OutGoldReceived)
+bool ANPCCharacter::BuyItemFromPlayer(APlayerCharacter_SB* Player, UItemBase* Item, int32 Quantity)
 {
-	if (!Item || Quantity <= 0) return false;
+	if (!Player || !Item) return false;
 
 	// 판매 불가 아이템 체크 (SellValue == 0)
 	if (Item->ItemStatistics.SellValue <= 0)
@@ -382,54 +385,58 @@ bool ANPCCharacter::BuyItemFromPlayer(UItemBase* Item, int32 Quantity, int32& Ou
 		return false;
 	}
 
-	APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(
-		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-
-	if (!Player) return false;
-
-	UInventoryComponent* PlayerInv = Player->GetInventory();
-	if (!PlayerInv) return false;
-
-	// 플레이어 인벤토리에서 아이템 찾기
-	UItemBase* PlayerItem = PlayerInv->FindMatchingItem(Item);
-	if (!PlayerItem || PlayerItem->Quantity < Quantity)
+	// 석판 체크
+	FString ItemName = Item->TextData.Name.ToString();
+	if (ItemName.Contains(TEXT("석판")) || ItemName.Contains(TEXT("Stone")))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Player doesn't have enough items"));
+		UE_LOG(LogTemp, Warning, TEXT("[%s] Cannot buy stone tablet: %s"),
+			*NPCName, *ItemName);
 		return false;
 	}
 
-	// 구매 가격 계산 (판매 가격의 80%)
-	int32 BuyBackPrice = FMath::FloorToInt(Item->ItemStatistics.SellValue * 0.8f);
-	int32 TotalPrice = BuyBackPrice * Quantity;
-
-	// 플레이어 인벤토리에서 제거
-	int32 RemovedAmount = PlayerInv->RemoveAmountOfItem(PlayerItem, Quantity);
-
-	if (RemovedAmount > 0)
+	UInventoryComponent* PlayerInventory = Player->GetInventory();
+	if (!PlayerInventory)
 	{
-		// TODO: 골드 지급
-		OutGoldReceived = BuyBackPrice * RemovedAmount;
-
-		UE_LOG(LogTemp, Log, TEXT("NPC bought %d x %s from player for %d gold"),
-			RemovedAmount, *Item->TextData.Name.ToString(), TotalPrice);
-
-		return true;
+		UE_LOG(LogTemp, Error, TEXT("[%s] Player has no inventory!"), *NPCName);
+		return false;
 	}
 
-	return false;
+	// 인벤토리에서 제거
+	PlayerInventory->RemoveAmountOfItem(Item, Quantity);
 
+	// ============================================
+	// ItemStatistics.SellValue 사용 (수정!)
+	// ============================================
+	const int32 SellPrice = FMath::FloorToInt(Item->ItemStatistics.SellValue * 0.8f);
+	const int32 TotalGold = SellPrice * Quantity;
+
+	UE_LOG(LogTemp, Log, TEXT("[%s] Bought %dx %s from player for %dG"),
+		*NPCName,
+		Quantity,
+		*Item->TextData.Name.ToString(),
+		TotalGold);
+
+	return true;
 }
 
-int32 ANPCCharacter::GetItemPrice(FName ItemID) const
+int32 ANPCCharacter::GetItemPrice(FName ItemRowName) const
 {
+	if (!ItemDataTable)
+	{
+		return 0;
+	}
+	FString ContextString;
+	const FItemDataRow* ItemData = ItemDataTable->FindRow<FItemDataRow>(ItemRowName, ContextString);
 
-	FItemDataRow* ItemData = ItemDataTable->FindRow<FItemDataRow>(ItemID, TEXT("Shop"));
-	if (!ItemData) return 0;
+	if (ItemData)
+	{
+		return ItemData->ItemStatistics.SellValue;
+	}
 
-	return FMath::CeilToInt(ItemData->ItemStatistics.SellValue * PriceMultiplier);
+	return 0;
 }
 
-FItemDataRow* ANPCCharacter::GetItemData(FName ItemID) const
+FItemDataRow* ANPCCharacter::GetItemData(FName ItemRowName) const
 {
 	if (!ItemDataTable)
 	{
@@ -437,15 +444,47 @@ FItemDataRow* ANPCCharacter::GetItemData(FName ItemID) const
 		return nullptr;
 	}
 
-	FItemDataRow* Row = ItemDataTable->FindRow<FItemDataRow>(ItemID, TEXT("NPCShop"));
+	FString ContextString;
+	FItemDataRow* Row = ItemDataTable->FindRow<FItemDataRow>(ItemRowName, ContextString);
 
 	if (!Row)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Item '%s' not found in DataTable"), *ItemID.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("Item '%s' not found in DataTable"), *ItemRowName.ToString());
 	}
 
 	return Row;
 }
+
+void ANPCCharacter::OpenShop()
+{
+	if (!ShopWidgetClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] ShopWidgetClass not set"), *NPCName);
+		return;
+	}
+
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] No PlayerController found"), *NPCName);
+		return;
+	}
+
+	if (!ShopWidget)
+	{
+		ShopWidget = CreateWidget<UShopWidget>(PC, ShopWidgetClass);
+		if (!ShopWidget)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[%s] Failed to create shop widget"), *NPCName);
+			return;
+		}
+	}
+	ShopWidget->AddToViewport(100);
+
+	ShopWidget->InitializeShop(this);
+	UE_LOG(LogTemp, Log, TEXT("[%s] Shop opened"), *NPCName);
+}
+
 
 ANPCAIController* ANPCCharacter::GetNPCAIController() const
 {
@@ -479,29 +518,6 @@ void ANPCCharacter::OnDialogueStart(const FDialogueRow& DialogueData)
 	DialogueWidget->ShowDialogue(DialogueData);
 
 }
-void ANPCCharacter::OpenShop()
-{
-	if (!ShopWidgetClass)
-	{
-		UE_LOG(LogTemp, Error, TEXT("[%s] ShopWidgetClass not set"), *NPCName);
-		return;
-	}
-
-	if (!ShopWidget)
-	{
-		ShopWidget = CreateWidget<UShopWidget>(GetWorld(), ShopWidgetClass);
-		if (!ShopWidget)
-		{
-			UE_LOG(LogTemp, Error, TEXT("[%s] Failed to create shop widget"), *NPCName);
-			return;
-		}
-	}
-	ShopWidget->AddToViewport(100);
-
-	ShopWidget->InitializeShop(this);
-	UE_LOG(LogTemp, Log, TEXT("[%s] Shop opened"), *NPCName);
-}
-
 
 void ANPCCharacter::OnDialogueUpdate(const FDialogueRow& DialogueData)
 {
