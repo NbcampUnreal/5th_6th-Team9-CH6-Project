@@ -4,6 +4,7 @@
 #include "Components/Button.h"
 #include "Components/ScrollBox.h"
 #include "Components/WrapBox.h"
+#include "Character/PlayerController_SB.h"
 
 void UBuildMenuWidget::Init(UBuildComponent* InBuildComponent)
 {
@@ -73,9 +74,8 @@ void UBuildMenuWidget::RefreshEntries(EBuildCategory Category)
 
 void UBuildMenuWidget::HandleBuildEntryClicked(FName BuildingID)
 {
-	if (!BuildComponentRef) return;
+	APlayerController_SB* PC = Cast<APlayerController_SB>(GetOwningPlayer());
+	if (!PC) return;
 
-	BuildComponentRef->BeginBuildMode(BuildingID);
-
-	SetVisibility(ESlateVisibility::Collapsed);
+	PC->EnterBuildPreview(BuildingID);
 }

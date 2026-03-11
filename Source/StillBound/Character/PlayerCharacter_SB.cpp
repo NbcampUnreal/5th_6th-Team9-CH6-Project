@@ -524,6 +524,7 @@ void APlayerCharacter_SB::OpenCraftingUI(FName InStationTag, UDataTable* InRecip
 	Inv->RecipeDataTable = InRecipeTable;
 
 	PlayerController->UIManager->OpenCraftingMenu(Inv);
+	PlayerController->SetOverlayInputState(EOverlayInputState::Crafting);
 }
 
 
