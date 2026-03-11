@@ -14,6 +14,12 @@ AWeaponBase::AWeaponBase()
 
 void AWeaponBase::Equip(AActor* NewOwner, UAbilitySystemComponent* InASC)
 {
+
+    UE_LOG(LogTemp, Warning, TEXT("[Weapon][Equip] Weapon=%s ASC=%s GrantedAbilities=%d"),
+        *GetNameSafe(this),
+        *GetNameSafe(InASC),
+        GrantedAbilities.Num());
+
     if (bEquipped)
     {
         Unequip();
@@ -53,15 +59,52 @@ void AWeaponBase::Unequip()
 
 bool AWeaponBase::ActivateByInputTag(FGameplayTag InputTag)
 {
+    UE_LOG(LogTemp, Warning, TEXT("[Weapon][Activate] bEquipped=%d ASC=%s InputTag=%s"),
+        bEquipped ? 1 : 0,
+        *GetNameSafe(EquippedASC.Get()),
+        *InputTag.ToString());
     if (!bEquipped || !EquippedASC.IsValid() || !InputTag.IsValid())
     {
         return false;
     }
 
-    FGameplayTagContainer AbilityTagContainer; // ? 이름 변경 (Tags 금지)
-    AbilityTagContainer.AddTag(InputTag);
+    UAbilitySystemComponent* ASC = EquippedASC.Get();
+    if (!ASC)
+    {
+        return false;
+    }
 
-    return EquippedASC->TryActivateAbilitiesByTag(AbilityTagContainer);
+    // 1) 이 무기가 Equip 때 직접 부여한 AbilityHandle들만 검사
+    for (const FGameplayAbilitySpecHandle& Handle : GrantedHandles.AbilityHandles)
+    {
+        if (!Handle.IsValid())
+        {
+            continue;
+        }
+
+        const FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromHandle(Handle);
+        if (!Spec)
+        {
+            continue;
+        }
+
+        const bool bTagMatched =
+            Spec->DynamicAbilityTags.HasTagExact(InputTag) ||
+            Spec->DynamicAbilityTags.HasTag(InputTag);
+
+        if (!bTagMatched)
+        {
+            continue;
+        }
+
+        if (ASC->TryActivateAbility(Handle))
+        {
+            return true;
+        }
+    }
+
+
+    return false;
 }
 
 void AWeaponBase::ApplyWeaponTypeTag(UAbilitySystemComponent* ASC, bool bAdd) const

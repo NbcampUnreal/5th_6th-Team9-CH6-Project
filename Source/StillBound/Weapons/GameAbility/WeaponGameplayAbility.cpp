@@ -10,6 +10,8 @@
 
 #include "Weapons/GameEffect/GE_WeaponDamage_Instant.h"
 
+// 현재 무기의 HitBox 모양 그대로 디버그 박스를 그린다.
+
 UWeaponGameplayAbility::UWeaponGameplayAbility()
 {
     // 싱글플레이 기준: LocalOnly

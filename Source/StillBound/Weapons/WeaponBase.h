@@ -95,6 +95,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "Weapon|Tags")
     FGameplayTag GetWeaponTypeTag() const { return WeaponTypeTag; }
 
+    UFUNCTION(BlueprintPure, Category = "Weapon|Equip")
+    FName GetEquipSocketName() const { return EquipSocketName; }
+
 protected:
     /** DT/아이템에서 주입 받은 공격력 캐시(SoT: DT) */
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon|Stats")
@@ -102,6 +105,10 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
     TObjectPtr<USceneComponent> Root;
+
+    /** 예: Weapon_R, Weapon_L / 비어있으면 캐릭터 기본 소켓 사용 */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Equip")
+    FName EquipSocketName = NAME_None;
 
     /** 예: Weapon.Melee.Club, Weapon.Ranged.Rifle */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Tags")

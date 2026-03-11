@@ -9,6 +9,29 @@
 #include "Components/PrimitiveComponent.h"
 #include "DrawDebugHelpers.h"
 
+static void DrawHitBoxDebug(AMeleeWeaponBase* Weapon, const FColor& Color, float LifeTime = 0.25f)
+{
+    if (!Weapon) return;
+
+    UBoxComponent* HitBox = Weapon->GetHitBox();
+    if (!HitBox) return;
+
+    UWorld* World = Weapon->GetWorld();
+    if (!World) return;
+
+    DrawDebugBox(
+        World,
+        HitBox->GetComponentLocation(),
+        HitBox->GetScaledBoxExtent(),
+        HitBox->GetComponentQuat(),
+        Color,
+        false,      // PersistentLines
+        LifeTime,   // LifeTime
+        0,
+        2.0f        // Thickness
+    );
+}
+
 UWeaponMeleeAttackAbilityBase::UWeaponMeleeAttackAbilityBase()
 {
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalOnly;
@@ -158,12 +181,18 @@ void UWeaponMeleeAttackAbilityBase::OnHitWindowOnEventReceived(FGameplayEventDat
 
     HitActors.Reset();
     Weapon->SetHitBoxEnabled(true);
+
+    // 공격 시작 시 히트박스 모양 디버그 표시
+    DrawHitBoxDebug(Weapon, FColor::Green, 0.25f);
 }
 
 void UWeaponMeleeAttackAbilityBase::OnHitWindowOffEventReceived(FGameplayEventData Payload)
 {
     AMeleeWeaponBase* Weapon = GetWeaponFromSourceObject<AMeleeWeaponBase>();
     if (!Weapon) return;
+
+    // 공격 끝 시 히트박스 모양 디버그 표시
+    DrawHitBoxDebug(Weapon, FColor::Green, 0.25f);
 
     Weapon->SetHitBoxEnabled(false);
 }

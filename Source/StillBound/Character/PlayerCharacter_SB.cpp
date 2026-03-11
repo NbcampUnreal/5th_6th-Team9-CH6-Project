@@ -91,7 +91,12 @@ void APlayerCharacter_SB::BeginPlay()
 
 bool APlayerCharacter_SB::EquipWeaponFromItem(UItemBase* Item)
 {
-	if (!Item || Item->ItemType != EItemType::Weapon) return false;
+	if (!Item ||
+		(Item->ItemType != EItemType::Weapon && Item->ItemType != EItemType::Tool))
+	{
+		return false;
+	}
+
 	if (!AbilitySystemComponent) { UE_LOG(LogTemp, Error, TEXT("[Equip] ASC is NULL")); return false; }
 
 	// DT에서 지정한 무기 BP
@@ -125,10 +130,17 @@ bool APlayerCharacter_SB::EquipWeaponFromItem(UItemBase* Item)
 	AWeaponBase* NewWeapon = GetWorld()->SpawnActor<AWeaponBase>(WeaponClass, Params);
 	if (!NewWeapon) return false;
 
-	NewWeapon->AttachToComponent(
+	FName AttachSocketName = NewWeapon->GetEquipSocketName(); //수정
+
+	if (AttachSocketName.IsNone()) //수정
+	{
+		AttachSocketName = StartingWeaponSocketName; //수정
+	}
+
+	NewWeapon->AttachToComponent( //수정
 		MeshComp,
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-		StartingWeaponSocketName
+		AttachSocketName
 	);
 
 	// ✅ DT 스탯(데미지)을 무기에 주입 (5번에서 추가할 함수)
@@ -473,7 +485,7 @@ void APlayerCharacter_SB::HandleHotbarSelectionChanged()
 
 	case EItemType::Tool:
 		//도구장착코드작성
-		//EquipToolFromItem(Item);
+		EquipWeaponFromItem(Item);
 		break;
 
 	case EItemType::Armor:
