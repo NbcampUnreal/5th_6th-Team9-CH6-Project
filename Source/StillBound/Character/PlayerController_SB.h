@@ -266,6 +266,7 @@ public:
 // =========================
 // Ping System UI
 // =========================
+
 private:
 
 	FVector2D CurrentPingUV = FVector2D::ZeroVector;
@@ -281,5 +282,20 @@ public:
 
 	bool HasPing() const { return bHasPing; }
 	FVector2D GetPingUV() const { return CurrentPingUV;}
+
+// =========================
+// Game Clear UI
+// =========================
+
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SB|UI")
+	TSubclassOf<class UUserWidget> GameClearWidgetClass;
+
+	UFUNCTION(BlueprintCallable)
+	void ShowGameClearUI(bool bBossKilled);
+
+	UFUNCTION(BlueprintCallable)
+	void GoToTitleMenu();
 
 };

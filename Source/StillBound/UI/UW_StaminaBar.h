@@ -7,6 +7,7 @@
 #include "UW_StaminaBar.generated.h"
 
 class UProgressBar;
+class UTextBlock;
 /**
  * 
  */
@@ -24,4 +25,7 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	class UProgressBar* PB_Stamina;
+
+	UPROPERTY(meta = (BindWidget))
+	class UTextBlock* TXT_Stamina;
 };
