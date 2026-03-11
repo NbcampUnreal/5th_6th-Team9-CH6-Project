@@ -5,6 +5,8 @@
 #include "UW_HPBar.generated.h"
 
 class UProgressBar;
+class UTextBlock;
+
 /**
  * 
  */
@@ -20,4 +22,7 @@ public:
 protected:
 	UPROPERTY(meta = (BindWidget))
 	class UProgressBar* PB_Health;
+
+	UPROPERTY(meta = (BindWidget))
+	class UTextBlock* TXT_HP;
 };
