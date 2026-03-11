@@ -105,7 +105,8 @@ public:
 	void OpenCraftingMenu(UInventoryComponent* InInventory);
 	void CloseMenu();
 	void ToggleMenu();
-	void ToggleBuildMenu(UBuildComponent* InBuildComponent);
+	void ShowBuildMenu(UBuildComponent* InBuildComponent);
+	void HideBuildMenu(UBuildComponent* InBuildComponent);
 
 	bool IsMenuBlockingGameplay() const { return CurrentMenuMode != EMenuMode::None; }
 

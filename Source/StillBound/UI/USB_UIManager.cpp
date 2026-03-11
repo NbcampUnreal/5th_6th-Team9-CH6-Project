@@ -201,16 +201,6 @@ void USB_UIManager::OpenInventoryMenu()
 	CurrentMenuMode = EMenuMode::InventoryOnly;
 
 	MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-
-
-	FInputModeGameAndUI InputMode;
-	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	InputMode.SetHideCursorDuringCapture(false);
-
-	OwnerPC->SetInputMode(InputMode);
-	OwnerPC->SetShowMouseCursor(true);
-	OwnerPC->SetIgnoreMoveInput(true);
-	OwnerPC->SetIgnoreLookInput(true);
 }
 
 void USB_UIManager::OpenCraftingMenu(UInventoryComponent* InInventory)
@@ -222,15 +212,6 @@ void USB_UIManager::OpenCraftingMenu(UInventoryComponent* InInventory)
 	CurrentMenuMode = EMenuMode::Crafting;
 
 	MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-
-	FInputModeGameAndUI InputMode;
-	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	InputMode.SetHideCursorDuringCapture(false);
-
-	OwnerPC->SetInputMode(InputMode);
-	OwnerPC->SetShowMouseCursor(true);
-	OwnerPC->SetIgnoreMoveInput(true);
-	OwnerPC->SetIgnoreLookInput(true);
 }
 
 void USB_UIManager::CloseMenu()
@@ -240,13 +221,6 @@ void USB_UIManager::CloseMenu()
 	CurrentMenuMode = EMenuMode::None;
 
 	MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
-
-	FInputModeGameOnly InputMode;
-	OwnerPC->SetInputMode(InputMode);
-
-	OwnerPC->SetShowMouseCursor(false);
-	OwnerPC->ResetIgnoreMoveInput();
-	OwnerPC->ResetIgnoreLookInput();
 }
 
 void USB_UIManager::ToggleMenu()
@@ -262,34 +236,22 @@ void USB_UIManager::ToggleMenu()
 
 }
 
-void USB_UIManager::ToggleBuildMenu(UBuildComponent* InBuildComponent)
+void USB_UIManager::ShowBuildMenu(UBuildComponent* InBuildComponent)
 {
-	if (!BuildMenuWidget) return;
 
-	if (BuildMenuWidget->GetVisibility() == ESlateVisibility::Collapsed)
+	if (BuildMenuWidget)
 	{
 		BuildMenuWidget->SetVisibility(ESlateVisibility::Visible);
 		BuildMenuWidget->Init(InBuildComponent);
-
-		FInputModeGameAndUI InputMode;
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		InputMode.SetHideCursorDuringCapture(false);
-
-		OwnerPC->SetInputMode(InputMode);
-		OwnerPC->SetShowMouseCursor(true);
-		OwnerPC->SetIgnoreMoveInput(true);
-		OwnerPC->SetIgnoreLookInput(true);
 	}
-	else
+
+}
+
+void USB_UIManager::HideBuildMenu(UBuildComponent* InBuildComponent)
+{
+	if (BuildMenuWidget)
 	{
 		BuildMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
-
-		FInputModeGameOnly InputMode;
-		OwnerPC->SetInputMode(InputMode);
-
-		OwnerPC->SetShowMouseCursor(false);
-		OwnerPC->ResetIgnoreMoveInput();
-		OwnerPC->ResetIgnoreLookInput();
 	}
 }
 

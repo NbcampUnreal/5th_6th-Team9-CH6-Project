@@ -14,6 +14,17 @@ class USB_UIManager;
 class AMapWorldManager;
 struct FInputActionValue;
 
+UENUM(BlueprintType)
+enum class EOverlayInputState : uint8
+{
+	Gameplay     UMETA(DisplayName = "Gameplay"),
+	Inventory    UMETA(DisplayName = "Inventory"),
+	Crafting     UMETA(DisplayName = "Crafting"),
+	BuildMenu    UMETA(DisplayName = "BuildMenu"),
+	BuildPreview UMETA(DisplayName = "BuildPreview"),
+	FullMap      UMETA(DisplayName = "FullMap")
+};
+
 UCLASS()
 class STILLBOUND_API APlayerController_SB : public APlayerController
 {
@@ -23,6 +34,9 @@ protected:
 	virtual void SetupInputComponent() override;
 
 private:
+	UPROPERTY(VisibleAnywhere, Category="SB|UI")
+	EOverlayInputState OverlayState = EOverlayInputState::Gameplay;
+
 	/// =========================
 	/// Input - Mapping Contexts
 	/// =========================
@@ -169,6 +183,21 @@ private:
 
 	void ToggleBuild();
 
+///------------------------Input Manager--------------------
+public:
+	void SetOverlayInputState(EOverlayInputState NewState);
+	void EnterBuildPreview(FName BuildingID);
+	void ExitBuildPreview(bool bCancel);
+
+	bool IsMenuLikeState() const;
+	bool IsBuildPreviewState() const;
+
+private:
+	void ApplyOverlayInputState();
+
+///---------------------------------------------------------
+		
+
 public:
 
 	virtual void BeginPlay() override;
@@ -210,8 +239,6 @@ private:
 
 	UPROPERTY()
 	bool bFullMapOpen = false;
-
-	void ApplyOverlayInputState();
 
 // =========================
 // Gather Progress System

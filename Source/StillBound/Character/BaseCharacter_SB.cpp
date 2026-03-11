@@ -41,7 +41,6 @@ void ABaseCharacter_SB::BeginPlay()
 
 	GiveStartupAbilities();
 
-	//스테미너 자동회복
 	if (DefaultStaminaRegenEffect)
 	{
 		FGameplayEffectContextHandle Context =

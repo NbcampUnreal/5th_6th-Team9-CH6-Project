@@ -68,9 +68,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Inventory")
 	TObjectPtr<UInventoryComponent> PlayerInventory;
 
-	UPROPERTY(VisibleAnywhere, Category = "Inventory")
-	TObjectPtr<UBuildComponent> BuildComponent;
-
 	UPROPERTY(VisibleAnywhere, Category = "Interaction")
 	TScriptInterface<IInteractionInterface> TargetInteractable;
 
@@ -78,6 +75,9 @@ protected:
 	TSubclassOf<APickup> PickupClass;
 
 public:
+	UPROPERTY(VisibleAnywhere, Category = "Inventory")
+	TObjectPtr<UBuildComponent> BuildComponent;
+
 	float InteractionCheckFrequency;
 
 	float InteractionCheckDistance;
