@@ -17,6 +17,7 @@
 #include "UI/UW_Minimap.h"
 #include "UI/Map/MapWorldManager.h"
 #include "UI/UW_FullMap.h"
+#include "UI/UW_GameClear.h"
 #include "Landscape.h"
 #include "EngineUtils.h"
 #include "Weapons/WeaponBase.h"
@@ -758,6 +759,27 @@ void APlayerController_SB::EndGatherProgress()
 	{
 		UIManager->HideGatherProgress();
 	}
+}
+
+void APlayerController_SB::ShowGameClearUI(bool bBossKilled)
+{
+	if (!GameClearWidgetClass) return;
+
+	UUW_GameClear* Widget = CreateWidget<UUW_GameClear>(this, GameClearWidgetClass);
+
+	if (!Widget) return;
+
+	Widget->AddToViewport();
+	Widget->SetGameClear(bBossKilled);
+
+	FInputModeUIOnly InputMode;
+	SetInputMode(InputMode);
+	bShowMouseCursor = true;
+}
+
+void APlayerController_SB::GoToTitleMenu()
+{
+	// 타이틀 이동은 여기서 나중에 연결
 }
 
 #pragma endregion 
