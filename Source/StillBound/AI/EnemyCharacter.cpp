@@ -12,6 +12,7 @@
 #include "Items/Pickup.h"
 #include "Items/ItemBase.h"
 #include "Data/ItemData.h"
+#include "UI/DamageNumberActor.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
 AEnemyCharacter::AEnemyCharacter()
@@ -239,4 +240,27 @@ void AEnemyCharacter::SetEnemyId(int32 NewId)
 {
 	EnemyId = NewId;
 	ApplyVisualFromDataTable();
+}
+
+void AEnemyCharacter::SpawnDamageText(float Damage)
+{
+	if (!DamageNumberClass) return;
+
+	FVector SpawnLocation = GetActorLocation();
+
+	SpawnLocation.X += FMath::RandRange(-40.f, 40.f);
+	SpawnLocation.Y += FMath::RandRange(-40.f, 40.f);
+	SpawnLocation.Z += FMath::RandRange(120.f, 150.f);
+
+	ADamageNumberActor* Actor =
+		GetWorld()->SpawnActor<ADamageNumberActor>(
+			DamageNumberClass,
+			SpawnLocation,
+			FRotator::ZeroRotator
+		);
+
+	if (Actor)
+	{
+		Actor->InitDamage(Damage);
+	}
 }

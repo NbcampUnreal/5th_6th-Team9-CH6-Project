@@ -67,7 +67,7 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Item")
 	TSoftClassPtr<AActor> PickupActorClass;
 
-	// ? ├▀░б: └х┬° ╣л▒т BP(╣л▒т ╛╞└╠┼█└╠╕щ ┐й▒т ├д┐Ў┴№)
+	// ? я┐╜▀░я┐╜: я┐╜я┐╜я┐╜я┐╜ я┐╜я┐╜я┐╜я┐╜ BP(я┐╜я┐╜я┐╜я┐╜ я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜я┐╜╠╕я┐╜ я┐╜я┐╜я┐╜я┐╜ ├дя┐╜я┐╜я┐╜я┐╜)
 	UPROPERTY(VisibleAnywhere, Category = "Item|Equip")
 	TSoftClassPtr<AWeaponBase> EquipWeaponClass;
 

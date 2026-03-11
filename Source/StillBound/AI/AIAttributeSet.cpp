@@ -42,6 +42,17 @@ void UAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 		if (LocalDamage > 0.f)
 		{
 			const float Reduced = FMath::Max(LocalDamage - GetDefense(), 0.f);
+
+			AActor* OwnerActor = GetOwningActor();
+
+			if (OwnerActor && Reduced > 0.f)
+			{
+				if (AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(OwnerActor))
+				{
+					Enemy->SpawnDamageText(Reduced);
+				}
+			}
+
 			const float OldHealth = GetHealth();
 			const float MaxH = GetMaxHealth();
 			const float NewHealth = FMath::Clamp(GetHealth() - Reduced, 0.f, GetMaxHealth());

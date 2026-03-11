@@ -10,6 +10,7 @@
 #include "UI/UW_RoundProgressBar.h"
 #include "UI/Interaction/InteractionWidget.h"
 #include "UI/Inventory/HotbarPanel.h"
+#include "UI/Build/BuildMenuWidget.h"
 
 void USB_UIManager::Init(APlayerController* InOwnerPC)
 {
@@ -55,6 +56,16 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 		}
 	}
 
+	if (BuildMenuClass)
+	{
+		BuildMenuWidget = CreateWidget<UBuildMenuWidget>(OwnerPC, BuildMenuClass);
+		if (BuildMenuWidget)
+		{
+			BuildMenuWidget->AddToViewport(20);
+			BuildMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+	
 	ABaseCharacter_SB* Char = Cast<ABaseCharacter_SB>(OwnerPC->GetPawn());
 	if (!Char) return;
 
@@ -66,8 +77,10 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 
 	UpdateHUD();
 	
-	auto* Chr = Cast<APlayerCharacter_SB>(Char);
-	UIHUD->InitInventory(Chr->GetInventory());
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(Char))
+	{
+		UIHUD->InitInventory(Chr->GetInventory());
+	}
 }
 
 void USB_UIManager::SetHP(float Current, float Max)
@@ -178,41 +191,104 @@ void USB_UIManager::OnLevelChanged(float OldValue, float NewValue)
 	UpdateHUD();
 }
 
-void USB_UIManager::DisplayMenu()
+void USB_UIManager::OpenInventoryMenu()
 {
-	if (MainMenuWidget)
-	{
-		bIsMenuVisible = true;
-		MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	}
+	if (!OwnerPC || !MainMenuWidget) return;
+
+	MainMenuWidget->ShowInventoryOnly();
+
+	CurrentMenuMode = EMenuMode::InventoryOnly;
+
+	MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+
+	FInputModeGameAndUI InputMode;
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	InputMode.SetHideCursorDuringCapture(false);
+
+	OwnerPC->SetInputMode(InputMode);
+	OwnerPC->SetShowMouseCursor(true);
+	OwnerPC->SetIgnoreMoveInput(true);
+	OwnerPC->SetIgnoreLookInput(true);
 }
 
-void USB_UIManager::HideMenu()
+void USB_UIManager::OpenCraftingMenu(UInventoryComponent* InInventory)
 {
-	if (MainMenuWidget)
-	{
-		bIsMenuVisible = false;
-		MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
-	}
+	if (!OwnerPC || !MainMenuWidget || !InInventory) return;
+
+	MainMenuWidget->ShowCrafting(InInventory);
+
+	CurrentMenuMode = EMenuMode::Crafting;
+
+	MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+	FInputModeGameAndUI InputMode;
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	InputMode.SetHideCursorDuringCapture(false);
+
+	OwnerPC->SetInputMode(InputMode);
+	OwnerPC->SetShowMouseCursor(true);
+	OwnerPC->SetIgnoreMoveInput(true);
+	OwnerPC->SetIgnoreLookInput(true);
+}
+
+void USB_UIManager::CloseMenu()
+{
+	if (!OwnerPC || !MainMenuWidget) return;
+
+	CurrentMenuMode = EMenuMode::None;
+
+	MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+
+	FInputModeGameOnly InputMode;
+	OwnerPC->SetInputMode(InputMode);
+
+	OwnerPC->SetShowMouseCursor(false);
+	OwnerPC->ResetIgnoreMoveInput();
+	OwnerPC->ResetIgnoreLookInput();
 }
 
 void USB_UIManager::ToggleMenu()
 {
-	if (bIsMenuVisible)
+	if (CurrentMenuMode == EMenuMode::None)
 	{
-		HideMenu();
-
-		const FInputModeGameOnly InputMode;
-		OwnerPC->SetInputMode(InputMode);
-		OwnerPC->SetShowMouseCursor(false);
+		OpenInventoryMenu();
 	}
 	else
 	{
-		DisplayMenu();
+		CloseMenu();
+	}
 
-		const FInputModeGameAndUI InputMode;
+}
+
+void USB_UIManager::ToggleBuildMenu(UBuildComponent* InBuildComponent)
+{
+	if (!BuildMenuWidget) return;
+
+	if (BuildMenuWidget->GetVisibility() == ESlateVisibility::Collapsed)
+	{
+		BuildMenuWidget->SetVisibility(ESlateVisibility::Visible);
+		BuildMenuWidget->Init(InBuildComponent);
+
+		FInputModeGameAndUI InputMode;
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		InputMode.SetHideCursorDuringCapture(false);
+
 		OwnerPC->SetInputMode(InputMode);
 		OwnerPC->SetShowMouseCursor(true);
+		OwnerPC->SetIgnoreMoveInput(true);
+		OwnerPC->SetIgnoreLookInput(true);
+	}
+	else
+	{
+		BuildMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+
+		FInputModeGameOnly InputMode;
+		OwnerPC->SetInputMode(InputMode);
+
+		OwnerPC->SetShowMouseCursor(false);
+		OwnerPC->ResetIgnoreMoveInput();
+		OwnerPC->ResetIgnoreLookInput();
 	}
 }
 

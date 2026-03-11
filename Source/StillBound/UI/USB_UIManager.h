@@ -12,9 +12,21 @@ struct FInteractableData;
 class UUW_FullMap;
 class UUW_RoundProgressBar;
 class UHotbarPanel;
+class UInventoryComponent;
+class UBuildMenuWidget;
+class UBuildComponent;
 /**
  * 
  */
+
+UENUM(BlueprintType)
+enum class EMenuMode : uint8
+{
+	None,
+	InventoryOnly,
+	Crafting
+};
+
 UCLASS(BlueprintType, Blueprintable)
 class STILLBOUND_API USB_UIManager : public UObject
 {
@@ -70,24 +82,32 @@ private:
 
 public:
 
-	//===============================================================================
-	// PROPERTIES & VARIABLES
-	//===============================================================================
+	///===============================================================================
+	/// PROPERTIES & VARIABLES
+	///===============================================================================
 	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
 	TSubclassOf<UMainMenu> MainMenuClass;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
 	TSubclassOf<UInteractionWidget> InteractionWidgetClass;
 
-	bool bIsMenuVisible;
+	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
+	TSubclassOf<UBuildMenuWidget> BuildMenuClass;
+
+	UPROPERTY()
+	TObjectPtr<UBuildMenuWidget> BuildMenuWidget;
 
 	///===============================================================================
 	/// FUNCTIONS
 	///===============================================================================
 
-	void DisplayMenu();
-	void HideMenu();
+	void OpenInventoryMenu();
+	void OpenCraftingMenu(UInventoryComponent* InInventory);
+	void CloseMenu();
 	void ToggleMenu();
+	void ToggleBuildMenu(UBuildComponent* InBuildComponent);
+
+	bool IsMenuBlockingGameplay() const { return CurrentMenuMode != EMenuMode::None; }
 
 	void ShowInteractionWidget();
 	void HideInteractionWidget();
@@ -106,6 +126,9 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UInteractionWidget> InteractionWidget;
+
+	UPROPERTY()
+	EMenuMode CurrentMenuMode = EMenuMode::None;
 
 	///===============================================================================
 	/// FUNCTIONS

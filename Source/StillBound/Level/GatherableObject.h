@@ -151,4 +151,15 @@ protected:
 
     UFUNCTION(BlueprintImplementableEvent, Category = "Gather")
     void BP_OnEndFocus();
+
+    //쓰러지는 딜레이용
+    FTimerHandle FallTimerHandle;
+
+    //쓰러진 후 실제숨김 처리
+    UFUNCTION()
+    void OnFallComplete();
+
+    //BP에서 쓰러지는 연출 시작과 FallDuration이후 메시 숨김.
+    UFUNCTION(BlueprintImplementableEvent, Category = "Gather")
+    void BP_OnStartFalling(float FallDuration);
 };

@@ -119,4 +119,10 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Enemy|AI")
     float GetPreferredAttackRange() const { return PreferredAttackRange; }
+
+    //============ UI=========
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<class ADamageNumberActor> DamageNumberClass;
+
+    void SpawnDamageText(float Damage);
 };
