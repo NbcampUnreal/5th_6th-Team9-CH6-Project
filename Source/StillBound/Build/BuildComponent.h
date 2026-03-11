@@ -17,11 +17,19 @@ class STILLBOUND_API UBuildComponent : public UActorComponent
 public:	
 	UBuildComponent();
 
+	virtual void BeginPlay() override;
+
+	UPROPERTY()
 	TObjectPtr<UCameraComponent> Camera;
 
+	UPROPERTY()
 	TObjectPtr<APlayerCharacter_SB> Player;
 
+	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> BuildGhost;
+
+	UPROPERTY()
+	FTransform BuildTransform;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
 	TObjectPtr<UDataTable> BuildingDataTable;
@@ -29,9 +37,12 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
 	FName CurrentBuildingID = NAME_None;
 
-	FTransform BuildTransform;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	bool IsBuildModeOn = false;
 
-	FTimerHandle  CycleHandle;
+	FTimerHandle BuildPreviewTimerHandle;
+
+
 
 	UFUNCTION(BlueprintCallable)
 	void BeginBuildMode(FName InBuildingID);
@@ -41,16 +52,11 @@ public:
 
 	bool GetBuildingData(FName InBuildingID, FBuildingDataRow& OutRow) const;
 
-	bool IsBuildModeOn;
-	bool DoOnce = true;
-
-	//void ToggleBuildMode();
-	void BuildCycle();
 	void SpawnBuildGhost();
 
 	void UpdateBuildPreview();
+	void UpdatePreviewTransform();
 
-protected:
-	virtual void BeginPlay() override;
+
 
 };
