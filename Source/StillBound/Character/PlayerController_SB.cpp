@@ -810,7 +810,7 @@ void APlayerController_SB::StartGatherProgress(float Duration)
 		GatherUpdateTimer,
 		this,
 		&APlayerController_SB::UpdateGatherUI,
-		0.01f,
+		0.016f,
 		true
 	);
 }
