@@ -577,8 +577,6 @@ int32 UInventoryComponent::RemoveAmountInContainer(ESlotContainer InContainer, i
 		OnHotbarUpdated.Broadcast();
 	}
 
-	OnInventoryUpdated.Broadcast();
-
 	return Removed;
 }
 
