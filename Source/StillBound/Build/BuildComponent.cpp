@@ -2,6 +2,7 @@
 #include "Character/PlayerCharacter_SB.h"
 #include "Camera/CameraComponent.h"
 #include "Public/Data/BuildingData.h"
+#include "Engine/OverlapResult.h"
 
 bool UBuildComponent::GetBuildingData(FName InBuildingID, FBuildingDataRow& OutRow) const
 {
@@ -137,6 +138,17 @@ void UBuildComponent::UpdateBuildPreview()
 
 	BuildGhost->SetWorldLocation(BuildTransform.GetLocation());
 	BuildGhost->SetWorldRotation(FRotator::ZeroRotator);
+
+	FBuildingDataRow Row;
+	if (!GetBuildingData(CurrentBuildingID, Row))
+	{
+		bCanPlace = false;
+		ApplyPreviewMaterial(false);
+		return;
+	}
+
+	bCanPlace = CheckCanPlace(Row);
+	ApplyPreviewMaterial(bCanPlace);
 }
 
 void UBuildComponent::UpdatePreviewTransform()
@@ -146,23 +158,114 @@ void UBuildComponent::UpdatePreviewTransform()
 	const FVector StartLocation = Camera->GetComponentLocation();
 	const FVector EndLocation = StartLocation + Camera->GetForwardVector() * 1000.f;
 
-	FHitResult HitResult;
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(Player);
 
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, StartLocation, EndLocation, ECC_Visibility, Params);
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(LastPreviewHit, StartLocation, EndLocation, ECC_Visibility, Params);
 
 	if (bHit)
 	{
-		BuildTransform.SetLocation(HitResult.ImpactPoint);
+		BuildTransform.SetLocation(LastPreviewHit.ImpactPoint);
 	}
 	else
 	{
 		BuildTransform.SetLocation(EndLocation);
+		LastPreviewHit = FHitResult();
 	}
 
 	BuildTransform.SetRotation(FQuat(FRotator::ZeroRotator));
 
 	/// LineTrace Debugging
 	// DrawDebugLine(GetWorld(), StartLocation, EndLocation, FColor::Yellow, false, 0.f, 0, 1.f);
+}
+
+bool UBuildComponent::CheckCanPlace(const FBuildingDataRow& Row)
+{
+	switch (Row.SnapRule)
+	{
+	case EBuildSnapRule::None:
+
+		//일단은 GroundOnly취급함. 자유배치면 단순 겹침만 검사
+		return CheckGroundOnlyPlacement(Row);
+
+	case EBuildSnapRule::GroundOnly:
+		return CheckGroundOnlyPlacement(Row);
+
+	case EBuildSnapRule::FoundationEdgeOnly:
+		// 추후 구현예정
+		return false;
+
+	case EBuildSnapRule::OnTopOfWall:
+		//추후 구현예정
+		return false;
+
+	default:
+		return false;
+	}
+}
+
+bool UBuildComponent::CheckGroundOnlyPlacement(const FBuildingDataRow& Row)
+{
+	if (!LastPreviewHit.bBlockingHit)
+	{
+		return false;
+	}
+
+	AActor* HitActor = LastPreviewHit.GetActor();
+	if (!HitActor)
+	{
+		return false;
+	}
+
+	if (CheckOverlapAtPreview(Row))
+	{
+		return false;
+	}
+	
+	return true;
+}
+
+bool UBuildComponent::CheckOverlapAtPreview(const FBuildingDataRow& Row) const
+{
+	if (!BuildGhost) return true;
+
+	const FBoxSphereBounds Bounds = BuildGhost->CalcBounds(BuildGhost->GetComponentTransform());
+
+	const FVector BoxCenter = Bounds.Origin;
+	const FVector BoxExtent = Bounds.BoxExtent * 0.95f;
+
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(Player);
+
+	TArray<FOverlapResult> Overlaps;
+
+	const bool bOverlapped = GetWorld()->OverlapMultiByChannel(Overlaps, BoxCenter, FQuat::Identity, ECC_WorldStatic, FCollisionShape::MakeBox(BoxExtent), Params);
+
+	if (!bOverlapped) return false;
+
+	for (const FOverlapResult& Result : Overlaps)
+	{
+		const AActor* OverlapActor = Result.GetActor();
+		if (!OverlapActor) continue;
+
+		if (OverlapActor == BuildGhost->GetOwner()) continue;
+
+		return true;
+	}
+
+	return false;
+}
+
+void UBuildComponent::ApplyPreviewMaterial(bool bInCanPlace)
+{
+	if (!BuildGhost) return;
+
+	UMaterialInterface* TargetMaterial = bInCanPlace ? ValidPreviewMaterial : InvalidPreviewMaterial;
+	if (!TargetMaterial) return;
+
+	const int32 MaterialCount = BuildGhost->GetNumMaterials();
+	for (int32 i = 0; i < MaterialCount; ++i)
+	{
+		BuildGhost->SetMaterial(i, TargetMaterial);
+	}
 }

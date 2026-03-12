@@ -42,6 +42,18 @@ public:
 
 	FTimerHandle BuildPreviewTimerHandle;
 
+	UPROPERTY(VisibleAnyWhere, BlueprintReadOnly, Category="Build")
+	bool bCanPlace = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Build|Preview")
+	TObjectPtr<UMaterialInterface> ValidPreviewMaterial;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Build|Preview")
+	TObjectPtr<UMaterialInterface> InvalidPreviewMaterial;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	FHitResult LastPreviewHit;
+
 
 
 	UFUNCTION(BlueprintCallable)
@@ -56,6 +68,11 @@ public:
 
 	void UpdateBuildPreview();
 	void UpdatePreviewTransform();
+
+	bool CheckCanPlace(const FBuildingDataRow& Row);
+	bool CheckGroundOnlyPlacement(const FBuildingDataRow& Row);
+	bool CheckOverlapAtPreview(const FBuildingDataRow& Row) const;
+	void ApplyPreviewMaterial(bool bInCanPlace);
 
 
 
