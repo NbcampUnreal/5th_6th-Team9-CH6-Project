@@ -39,6 +39,7 @@ class UInventoryComponent;
 class IInteractionInterface;
 class AWeaponBase;
 class APickup;
+class UBuildComponent;
 
 UCLASS()
 class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB, public IInteractionInterface
@@ -52,9 +53,13 @@ public:
 
 	FORCEINLINE UInventoryComponent* GetInventory() const { return PlayerInventory; };
 
+	FORCEINLINE UBuildComponent* GetBuildComponent() const { return BuildComponent; };
+
 	void UpdateInteractionWidget() const;
 
 	void DropItemFromSlot(ESlotContainer FromContainer, int32 FromIndex, int32 QuantityToDrop);
+	
+	void DestroyActorComponent(UActorComponent* ComponentToDestroy);
 
 protected:
 	virtual void BeginPlay() override;
@@ -70,6 +75,9 @@ protected:
 	TSubclassOf<APickup> PickupClass;
 
 public:
+	UPROPERTY(VisibleAnywhere, Category = "Inventory")
+	TObjectPtr<UBuildComponent> BuildComponent;
+
 	float InteractionCheckFrequency;
 
 	float InteractionCheckDistance;

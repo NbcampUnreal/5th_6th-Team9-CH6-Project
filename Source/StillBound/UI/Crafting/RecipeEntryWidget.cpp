@@ -1,4 +1,5 @@
 #include "UI/Crafting/RecipeEntryWidget.h"
+#include "UI/Build/BuildEntryWidget.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"

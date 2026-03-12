@@ -17,6 +17,7 @@
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Items/ItemBase.h"
 #include "UI/UW_UIHUD.h"
+#include "Build/BuildComponent.h"
 
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
@@ -58,6 +59,7 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	InteractionCheckFrequency = 0.1f;
 	InteractionCheckDistance = 225.f;
 
+	BuildComponent = CreateDefaultSubobject<UBuildComponent>(TEXT("BuildComponent"));
 }
 
 FInteractableData APlayerCharacter_SB::GetInteractableData_Implementation()
@@ -86,7 +88,9 @@ void APlayerCharacter_SB::BeginPlay()
 
 	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
 
-	
+
+	BuildComponent->Camera = FollowCamera;
+
 }
 
 bool APlayerCharacter_SB::EquipWeaponFromItem(UItemBase* Item)
@@ -542,6 +546,7 @@ void APlayerCharacter_SB::OpenCraftingUI(FName InStationTag, UDataTable* InRecip
 	Inv->RecipeDataTable = InRecipeTable;
 
 	PlayerController->UIManager->OpenCraftingMenu(Inv);
+	PlayerController->SetOverlayInputState(EOverlayInputState::Crafting);
 }
 
 
@@ -702,5 +707,11 @@ void APlayerCharacter_SB::NotifyGatherEnd()
 	{
 		PC->EndGatherProgress();
 	}
+}
+
+
+void APlayerCharacter_SB::DestroyActorComponent(UActorComponent* ComponentToDestroy)
+{
+	ComponentToDestroy->DestroyComponent();
 }
 

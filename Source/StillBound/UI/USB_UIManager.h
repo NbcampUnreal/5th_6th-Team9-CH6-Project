@@ -13,6 +13,8 @@ class UUW_FullMap;
 class UUW_RoundProgressBar;
 class UHotbarPanel;
 class UInventoryComponent;
+class UBuildMenuWidget;
+class UBuildComponent;
 /**
  * 
  */
@@ -89,6 +91,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
 	TSubclassOf<UInteractionWidget> InteractionWidgetClass;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
+	TSubclassOf<UBuildMenuWidget> BuildMenuClass;
+
+	UPROPERTY()
+	TObjectPtr<UBuildMenuWidget> BuildMenuWidget;
+
 	///===============================================================================
 	/// FUNCTIONS
 	///===============================================================================
@@ -97,6 +105,8 @@ public:
 	void OpenCraftingMenu(UInventoryComponent* InInventory);
 	void CloseMenu();
 	void ToggleMenu();
+	void ShowBuildMenu(UBuildComponent* InBuildComponent);
+	void HideBuildMenu(UBuildComponent* InBuildComponent);
 
 	bool IsMenuBlockingGameplay() const { return CurrentMenuMode != EMenuMode::None; }
 
