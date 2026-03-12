@@ -149,7 +149,6 @@ public:
 
     bool MoveSlotItem(ESlotContainer FromContainer, int32 FromIndex, ESlotContainer ToContainer, int32 ToIndex, bool bAllowSwap);
 
-
     /// setters
     UFUNCTION(Category = "Inventory")
     FORCEINLINE void SetSlotsCapacity(const int32 NewSlotsCapacity) { InventorySlotsCapacity = NewSlotsCapacity; };

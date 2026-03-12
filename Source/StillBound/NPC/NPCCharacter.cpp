@@ -62,9 +62,9 @@ void ANPCCharacter::BeginPlay()
 			UE_LOG(LogTemp, Error, TEXT("[%s] MainMenu Table Name: %s"),
 				*NPCName, *DialogueComponent->MainMenuDataTable->GetName());
 		}
-		DialogueComponent->OnDialogueStarted.AddDynamic(this, &ANPCCharacter::OnDialogueStart);
-		DialogueComponent->OnDialogueUpdated.AddDynamic(this, &ANPCCharacter::OnDialogueUpdate);
-		DialogueComponent->OnDialogueEnded.AddDynamic(this, &ANPCCharacter::OnDialogueEnd);
+		DialogueComponent->OnDialogueStarted.AddUniqueDynamic(this, &ANPCCharacter::OnDialogueStart);
+		DialogueComponent->OnDialogueUpdated.AddUniqueDynamic(this, &ANPCCharacter::OnDialogueUpdate);
+		DialogueComponent->OnDialogueEnded.AddUniqueDynamic(this, &ANPCCharacter::OnDialogueEnd);
 		// OnOptionSelected는 DialogueWidget에서 처리
 	}
 	else
@@ -157,13 +157,13 @@ void ANPCCharacter::MonitorStateChanges()
 				OnPlayerDetected(Target);
 			}
 		}
+		else if (CurrentState == static_cast<uint8>(ENPCMode::Idle) &&
+			LastNPCState == static_cast<uint8>(ENPCMode::Alert))
+		{
+			OnPlayerLost();
+		}
+		LastNPCState = CurrentState;
 	}
-	else if (CurrentState == static_cast<uint8>(ENPCMode::Idle) &&
-		LastNPCState == static_cast<uint8>(ENPCMode::Alert))
-	{
-		OnPlayerLost();
-	}
-	LastNPCState = CurrentState;
 }
 
 bool ANPCCharacter::IsLowTierItem(const FItemDataRow* ItemData) const
@@ -402,17 +402,22 @@ bool ANPCCharacter::BuyItemFromPlayer(APlayerCharacter_SB* Player, UItemBase* It
 	}
 
 	// 인벤토리에서 제거
-	PlayerInventory->RemoveAmountOfItem(Item, Quantity);
+	const int32 ActualRemoved = PlayerInventory->RemoveAmountOfItem(Item, Quantity);
 
+	if (ActualRemoved <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s] Nothing was removed from inventory!"), *NPCName);
+		return false;
+	}
 	// ============================================
-	// ItemStatistics.SellValue 사용 (수정!)
+	// ItemStatistics.SellValue 사용 
 	// ============================================
 	const int32 SellPrice = FMath::FloorToInt(Item->ItemStatistics.SellValue * 0.8f);
-	const int32 TotalGold = SellPrice * Quantity;
+	const int32 TotalGold = SellPrice * ActualRemoved;
 
 	UE_LOG(LogTemp, Log, TEXT("[%s] Bought %dx %s from player for %dG"),
 		*NPCName,
-		Quantity,
+		ActualRemoved,
 		*Item->TextData.Name.ToString(),
 		TotalGold);
 
@@ -457,13 +462,13 @@ FItemDataRow* ANPCCharacter::GetItemData(FName ItemRowName) const
 
 void ANPCCharacter::OpenShop()
 {
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (!ShopWidgetClass)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[%s] ShopWidgetClass not set"), *NPCName);
 		return;
 	}
 
-	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (!PC)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[%s] No PlayerController found"), *NPCName);
@@ -505,7 +510,7 @@ void ANPCCharacter::OnDialogueStart(const FDialogueRow& DialogueData)
 		if (!DialogueWidget) return;
 
 		// 옵션 클릭 이벤트 바인딩
-		DialogueWidget->OnOptionClicked.AddDynamic(this, &ANPCCharacter::OnOptionSelected);
+		DialogueWidget->OnOptionClicked.AddUniqueDynamic(this, &ANPCCharacter::OnOptionSelected);
 	}
 	DialogueWidget->SetDialogueComponent(DialogueComponent);
 

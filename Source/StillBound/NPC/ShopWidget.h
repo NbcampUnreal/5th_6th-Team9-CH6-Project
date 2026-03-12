@@ -74,6 +74,9 @@ protected:
     UFUNCTION()
     void OnInventoryUpdated();
 
+    UFUNCTION()
+    void OnHotbarUpdated();
+
     // === Widget ÄÄÆ÷³ÍÆ® ===
 
     UPROPERTY(meta = (BindWidget))

@@ -34,17 +34,17 @@ void UShopWidget::NativeConstruct()
     // 버튼 바인딩
     if (BTN_BuyTab)
     {
-        BTN_BuyTab->OnClicked.AddDynamic(this, &UShopWidget::OnBuyTabClicked);
+        BTN_BuyTab->OnClicked.AddUniqueDynamic(this, &UShopWidget::OnBuyTabClicked);
     }
 
     if (BTN_SellTab)
     {
-        BTN_SellTab->OnClicked.AddDynamic(this, &UShopWidget::OnSellTabClicked);
+        BTN_SellTab->OnClicked.AddUniqueDynamic(this, &UShopWidget::OnSellTabClicked);
     }
 
     if (BTN_Close)
     {
-        BTN_Close->OnClicked.AddDynamic(this, &UShopWidget::OnCloseButtonClicked);
+        BTN_Close->OnClicked.AddUniqueDynamic(this, &UShopWidget::OnCloseButtonClicked);
     }
 
     // 기본 탭: Buy
@@ -57,6 +57,7 @@ void UShopWidget::NativeDestruct()
     if (PlayerInventory)
     {
         PlayerInventory->OnInventoryUpdated.RemoveAll(this);
+        PlayerInventory->OnHotbarUpdated.RemoveAll(this);
     }
 
     // 타이머 정리
@@ -97,7 +98,8 @@ void UShopWidget::InitializeShop(ANPCCharacter* InNPCCharacter)
     }
 
     // 인벤토리 업데이트 델리게이트 바인딩
-    PlayerInventory->OnInventoryUpdated.AddDynamic(this, &UShopWidget::OnInventoryUpdated);
+    PlayerInventory->OnInventoryUpdated.AddUniqueDynamic(this, &UShopWidget::OnInventoryUpdated);
+    PlayerInventory->OnHotbarUpdated.AddUObject(this, &UShopWidget::OnInventoryUpdated);
 
     // 상점 이름 설정
     if (TXT_ShopName)
@@ -183,19 +185,25 @@ void UShopWidget::DisplayShopItems()
 // ============================================
 void UShopWidget::DisplayPlayerInventory()
 {
-    if (!WB_PlayerInventory || !PlayerInventory || !InventoryItemSlotClass)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[ShopWidget] DisplayPlayerInventory: Missing components"));
-        return;
-    }
+    if (!WB_PlayerInventory || !PlayerInventory || !InventoryItemSlotClass) return;
 
     WB_PlayerInventory->ClearChildren();
 
+    const TArray<UItemBase*>& HotbarSlots = PlayerInventory->GetHotbarSlots();
+    for (int32 i = 0; i < HotbarSlots.Num(); ++i)
+    {
+        if (!HotbarSlots[i]) continue; // 빈 슬롯은 스킵 (판매 탭이니 아이템 있는 것만)
+
+        UInventoryItemSlot* ItemSlot = CreateWidget<UInventoryItemSlot>(this, InventoryItemSlotClass);
+        if (ItemSlot)
+        {
+            ItemSlot->InitSlot(ESlotContainer::Hotbar, i, PlayerInventory);
+            ItemSlot->SetItemReference(HotbarSlots[i]);
+            WB_PlayerInventory->AddChildToWrapBox(ItemSlot);
+        }
+    }
+
     const TArray<UItemBase*>& InventorySlots = PlayerInventory->GetInventorySlots();
-
-    UE_LOG(LogTemp, Log, TEXT("[ShopWidget] DisplayPlayerInventory: %d items"),
-        InventorySlots.Num());
-
     for (int32 i = 0; i < InventorySlots.Num(); ++i)
     {
         UInventoryItemSlot* ItemSlot = CreateWidget<UInventoryItemSlot>(this, InventoryItemSlotClass);
@@ -279,6 +287,7 @@ void UShopWidget::BuyItem(FName ItemRowName, int32 Quantity)
 
         // UI 업데이트
         UpdateGoldDisplay();
+        RefreshShop();
 
         UE_LOG(LogTemp, Log, TEXT("[ShopWidget] Purchased %dx %s for %dG"),
             Quantity, *ItemRowName.ToString(), TotalPrice);
@@ -319,34 +328,27 @@ bool UShopWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
     }
 
     // Shift 키로 전체 판매 여부 확인
-    int32 SellQuantity = 1;
-    if (InDragDropEvent.IsShiftDown())
-    {
-        SellQuantity = DraggedItem->Quantity;
-    }
-
-    const int32 TotalGold = SellPrice * SellQuantity;
-
+    int32 SellQuantity = InDragDropEvent.IsShiftDown() ? DraggedItem->Quantity : 1;
     APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
-    if (!Player)
-    {
-        return false;
-    }
+    if (!Player) return false;
 
-    // NPC에게 아이템 판매
-    if (NPCCharacter && NPCCharacter->BuyItemFromPlayer(Player, DraggedItem, SellQuantity))
-    {
-        // 플레이어에게 골드 지급
-        Player->ModifyGold(TotalGold);
+    if (NPCCharacter) {
+        // NPC에게 아이템 판매
+        if (NPCCharacter && NPCCharacter->BuyItemFromPlayer(Player, DraggedItem, SellQuantity))
+        {
+            const int32 TotalGold = SellPrice * SellQuantity;
+            // 플레이어에게 골드 지급
+            Player->ModifyGold(TotalGold);
 
-        // UI 업데이트
-        UpdateGoldDisplay();
-        RefreshShop();
+            // UI 업데이트
+            UpdateGoldDisplay();
+            RefreshShop();
 
-        UE_LOG(LogTemp, Log, TEXT("[ShopWidget] Sold %dx %s for %dG"),
-            SellQuantity,
-            *DraggedItem->TextData.Name.ToString(),
-            TotalGold);
+            UE_LOG(LogTemp, Log, TEXT("[ShopWidget] Sold %dx %s for %dG"),
+                SellQuantity,
+                *DraggedItem->TextData.Name.ToString(),
+                TotalGold);
+        }
     }
 
     // DropZone 색상 초기화
@@ -509,6 +511,14 @@ void UShopWidget::OnRestockTimer()
 void UShopWidget::OnInventoryUpdated()
 {
     // Sell 탭일 때만 새로고침
+    if (!bShowBuyTab)
+    {
+        DisplayPlayerInventory();
+    }
+}
+
+void UShopWidget::OnHotbarUpdated()
+{
     if (!bShowBuyTab)
     {
         DisplayPlayerInventory();
