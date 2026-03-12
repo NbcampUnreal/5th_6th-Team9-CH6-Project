@@ -17,7 +17,7 @@ public:
 	float MasterVolume = 1.0f;
 
 	UPROPERTY(Config, BlueprintReadWrite, Category = "Audio", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float BGMVolume = 1.0f;
+	float BGMVolume = 1.0f;	
 
 	UPROPERTY(Config, BlueprintReadWrite, Category = "Audio", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float SFXVolume = 1.0f;
