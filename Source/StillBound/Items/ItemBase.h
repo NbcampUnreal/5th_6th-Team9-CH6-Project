@@ -2,8 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "Data/ItemData.h"
+#include "GameplayTagContainer.h" // FGameplayTag
 #include "ItemBase.generated.h"
 
+class UGameplayEffect;
 class ABaseCharacter_SB;
 class UInventoryComponent;
 class AWeaponBase;
@@ -67,9 +69,15 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Item")
 	TSoftClassPtr<AActor> PickupActorClass;
 
-	// ? Ãß°¡: ÀåÂø ¹«±â BP(¹«±â ¾ÆÀÌÅÛÀÌ¸é ¿©±â Ã¤¿öÁü)
+	// ? ï¿½ß°ï¿½: ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ BP(ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½ Ã¤ï¿½ï¿½ï¿½ï¿½)
 	UPROPERTY(VisibleAnywhere, Category = "Item|Equip")
 	TSoftClassPtr<AWeaponBase> EquipWeaponClass;
+
+	UPROPERTY(VisibleAnywhere, Category = "Item|Consumable")
+	TSoftClassPtr<UGameplayEffect> ConsumableEffectClass; //¼öÁ¤
+
+	UPROPERTY(VisibleAnywhere, Category = "Item|Consumable")
+	FGameplayTag ConsumableSetByCallerTag; //¼öÁ¤
 
 	bool bIsCopy;
 	bool bIsPickup;

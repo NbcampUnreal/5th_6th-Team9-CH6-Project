@@ -17,11 +17,13 @@
 #include "UI/UW_Minimap.h"
 #include "UI/Map/MapWorldManager.h"
 #include "UI/UW_FullMap.h"
+#include "UI/UW_GameClear.h"
 #include "Landscape.h"
 #include "EngineUtils.h"
 #include "Weapons/WeaponBase.h"
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Inventory/InventoryComponent.h"
+#include "Build/BuildComponent.h"
 
 void APlayerController_SB::SetupInputComponent()
 {
@@ -64,6 +66,7 @@ void APlayerController_SB::SetupInputComponent()
 
 	EnhancedInputComponent->BindAction(ToggleMenuAction, ETriggerEvent::Started, this, &ThisClass::ToggleMenu);
 	EnhancedInputComponent->BindAction(FullMapAction,ETriggerEvent::Started,this,&ThisClass::ToggleFullMap);
+	EnhancedInputComponent->BindAction(ToggleBuildAction, ETriggerEvent::Started, this, &ThisClass::ToggleBuild);
 }
 
 #pragma region ========================= Input - Movement =========================
@@ -116,6 +119,8 @@ void APlayerController_SB::Jump()
 
 void APlayerController_SB::StopJumping()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	if (!IsValid(GetCharacter())) return;
 
 	GetCharacter()->StopJumping();
@@ -123,6 +128,8 @@ void APlayerController_SB::StopJumping()
 
 void APlayerController_SB::ToggleCrouch()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
 
@@ -156,6 +163,8 @@ void APlayerController_SB::ToggleCrouch()
 
 void APlayerController_SB::BeginInteract()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	if (APlayerCharacter_SB* PlayerChar = Cast<APlayerCharacter_SB>(GetPawn()))
 	{
 		PlayerChar->BeginInteract();
@@ -164,6 +173,8 @@ void APlayerController_SB::BeginInteract()
 
 void APlayerController_SB::EndInteract()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	if (auto* PC = Cast<APlayerCharacter_SB>(GetPawn()))
 	{
 		// [핵심] 만약 지금 '대화 중'이거나 '잠금 상태'라면, 
@@ -181,19 +192,39 @@ void APlayerController_SB::ToggleMenu()
 {
 	if (!UIManager) return;
 
-	if (bFullMapOpen)
+	APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn());
+
+	switch (OverlayState)
 	{
+	case EOverlayInputState::Gameplay:
+		UIManager->OpenInventoryMenu();
+		SetOverlayInputState(EOverlayInputState::Inventory);
+		break;
+
+	case EOverlayInputState::Inventory:
+		UIManager->CloseMenu();
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		break;
+
+	case EOverlayInputState::Crafting:
+		UIManager->CloseMenu();
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		break;
+
+	case EOverlayInputState::BuildMenu:
+		UIManager->HideBuildMenu(Chr->GetBuildComponent());
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		break;
+
+	case EOverlayInputState::BuildPreview:
+		ExitBuildPreview(true);
+		break;
+
+	case EOverlayInputState::FullMap:
 		UIManager->ToggleFullMap();
-		bFullMapOpen = false;
-
-		ApplyOverlayInputState();
-		return;
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		break;
 	}
-
-	UIManager->ToggleMenu();
-	bMenuOpen = !bMenuOpen;
-
-	ApplyOverlayInputState();
 }
 
 #pragma endregion
@@ -221,9 +252,10 @@ bool APlayerController_SB::ActivateAbility(const FGameplayTag& AbilityTag) const
 	return bActivated;
 }
 
-
 void APlayerController_SB::Evasion()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
 
@@ -239,6 +271,8 @@ void APlayerController_SB::Evasion()
 
 void APlayerController_SB::Emote()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	const FGameplayTag EvasionTag = FGameplayTag::RequestGameplayTag(TEXT("Player.Ability.Emote"));
 
 	ActivateAbility(EvasionTag);
@@ -292,6 +326,7 @@ bool APlayerController_SB::ActivateAbilityAttack(const FGameplayTag& InputTag) c
 
 void APlayerController_SB::Attack()
 {
+	if (IsGameplayInputBlocked()) return;
 
 	ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
@@ -319,7 +354,7 @@ void APlayerController_SB::Attack()
 
 void APlayerController_SB::Skill()
 {
-
+	if (IsGameplayInputBlocked()) return;
 }
 
 #pragma endregion
@@ -328,6 +363,8 @@ void APlayerController_SB::Skill()
 
 void APlayerController_SB::OnMouseWheel(const FInputActionValue& Value)
 {
+	if (IsGameplayInputBlocked()) return;
+
 	float Axis = Value.Get<float>();
 	if (FMath::IsNearlyZero(Axis)) return;
 
@@ -337,65 +374,119 @@ void APlayerController_SB::OnMouseWheel(const FInputActionValue& Value)
 
 void APlayerController_SB::OnHotbar1()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(0);
 }
 
 void APlayerController_SB::OnHotbar2()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(1);
 }
 
 void APlayerController_SB::OnHotbar3()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(2);
 }
 
 void APlayerController_SB::OnHotbar4()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(3);
 }
 
 void APlayerController_SB::OnHotbar5()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(4);
 }
 
 void APlayerController_SB::OnHotbar6()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(5);
 }
 
 void APlayerController_SB::OnHotbar7()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(6);
 }
 
 void APlayerController_SB::OnHotbar8()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(7);
 }
 
 void APlayerController_SB::OnHotbar9()
 {
+	if (IsGameplayInputBlocked()) return;
+
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 	Char->SelectHotbarIndex(8);
 }
 
 void APlayerController_SB::OnUseHotbar(const FInputActionValue& Value)
 {
+	if (IsGameplayInputBlocked()) return;
+
 	UE_LOG(LogTemp, Warning, TEXT("[UseHotbar] Started"));
 
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetCharacter());
 
 	Char->UseSelectedHotbarItem();
+}
+
+void APlayerController_SB::ToggleBuild()
+{
+	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetPawn());
+	if (!Char || !UIManager || !Char->GetBuildComponent()) return;
+
+	if (OverlayState == EOverlayInputState::Crafting
+		|| OverlayState == EOverlayInputState::Inventory
+		|| OverlayState == EOverlayInputState::FullMap)
+	{
+		return;
+	}
+
+	if (OverlayState == EOverlayInputState::BuildPreview)
+	{
+		ExitBuildPreview(true);
+		return;
+	}
+
+	if (OverlayState == EOverlayInputState::Gameplay)
+	{
+
+		UIManager->ShowBuildMenu(Char->GetBuildComponent());
+		SetOverlayInputState(EOverlayInputState::BuildMenu);
+		return;
+	}
+
+	if (OverlayState == EOverlayInputState::BuildMenu)
+	{
+		UIManager->HideBuildMenu(Char->GetBuildComponent());
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+	}
 }
 
 #pragma endregion
@@ -404,7 +495,6 @@ void APlayerController_SB::OnUseHotbar(const FInputActionValue& Value)
 void APlayerController_SB::BeginPlay()
 {
 	Super::BeginPlay();
-
 
 	bShowMouseCursor = false;
 	bEnableClickEvents = false;
@@ -493,34 +583,54 @@ void APlayerController_SB::ApplyOverlayInputState()
 	auto* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
 	if (!Subsystem) return;
 
-	const bool bOverlayOpen = bMenuOpen || bFullMapOpen;
+	if (IMC_Movement) Subsystem->RemoveMappingContext(IMC_Movement);
+	if (IMC_Abilities) Subsystem->RemoveMappingContext(IMC_Abilities);
 
-	if (bOverlayOpen)
+	switch (OverlayState)
 	{
-		if (IMC_Movement) Subsystem->RemoveMappingContext(IMC_Movement);
-		if (IMC_Abilities) Subsystem->RemoveMappingContext(IMC_Abilities);
-
-		SetIgnoreMoveInput(true);
-		SetIgnoreLookInput(true);
-
-		FInputModeGameAndUI Mode;
-		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		SetInputMode(Mode);
-
-		bShowMouseCursor = true;
-	}
-	else
-	{
+	case EOverlayInputState::Gameplay:
 		if (IMC_Movement) Subsystem->AddMappingContext(IMC_Movement, 0);
 		if (IMC_Abilities) Subsystem->AddMappingContext(IMC_Abilities, 0);
 
-		SetIgnoreMoveInput(false);
-		SetIgnoreLookInput(false);
+		ResetIgnoreMoveInput();
+		ResetIgnoreLookInput();
 
-		FInputModeGameOnly Mode;
-		SetInputMode(Mode);
-
+		{
+			FInputModeGameOnly Mode;
+			SetInputMode(Mode);
+		}
 		bShowMouseCursor = false;
+		break;
+
+	case EOverlayInputState::Inventory:
+	case EOverlayInputState::Crafting:
+	case EOverlayInputState::BuildMenu:
+	case EOverlayInputState::FullMap:
+		SetIgnoreMoveInput(true);
+		SetIgnoreLookInput(true);
+
+		{
+			FInputModeGameAndUI Mode;
+			Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			SetInputMode(Mode);
+		}
+		bShowMouseCursor = true;
+		break;
+
+	case EOverlayInputState::BuildPreview:
+		if (IMC_Movement) Subsystem->AddMappingContext(IMC_Movement, 0);
+
+		ResetIgnoreMoveInput();
+		ResetIgnoreLookInput();
+
+		{
+			FInputModeGameOnly Mode;
+			SetInputMode(Mode);
+		}
+		bShowMouseCursor = false;
+
+		// 추후 좌/우클릭 IMC_Abilities 분기 예정
+		break;
 	}
 }
 
@@ -575,33 +685,6 @@ void APlayerController_SB::Tick(float DeltaTime)
 			}
 		}
 	}
-
-	if (UUW_FullMap* FullMap = UIManager->GetFullMapWidget())
-	{
-		if (FullMap->IsInViewport())
-		{
-			FullMap->UpdatePlayerPosition(PlayerUV);
-
-			if (HasPing())
-			{
-				FullMap->UpdatePing(GetPingUV());
-			}
-			else
-			{
-				FullMap->ClearPing();
-			}
-		}
-	}
-
-	if (bGathering && UIManager)
-	{
-		float Elapsed = GetWorld()->GetTimeSeconds() - GatherStartTime;
-		float Percent = Elapsed / GatherDuration;
-
-		Percent = FMath::Clamp(Percent, 0.f, 1.f);
-
-		UIManager->UpdateGatherProgress(Percent);
-	}
 }
 
 void APlayerController_SB::ToggleFullMap()
@@ -613,6 +696,8 @@ void APlayerController_SB::ToggleFullMap()
 	UUW_FullMap* FullMap = UIManager->GetFullMapWidget();
 	if (!FullMap) return;
 
+	bFullMapOpen = FullMap->IsInViewport();
+
 	if (FullMap->IsInViewport())
 	{
 		FInputModeGameAndUI Mode;
@@ -621,12 +706,22 @@ void APlayerController_SB::ToggleFullMap()
 
 		SetInputMode(Mode);
 		bShowMouseCursor = true;
+
+		GetWorldTimerManager().SetTimer(
+			FullMapUpdateTimer,
+			this,
+			&APlayerController_SB::UpdateFullMap,
+			0.05f,
+			true
+		);
 	}
 	else
 	{
 		FInputModeGameOnly Mode;
 		SetInputMode(Mode);
 		bShowMouseCursor = false;
+
+		GetWorldTimerManager().ClearTimer(FullMapUpdateTimer);
 	}
 }
 
@@ -650,6 +745,56 @@ void APlayerController_SB::ClearPing()
 	bHasPing = false;
 }
 
+void APlayerController_SB::UpdateGatherUI()
+{
+	if (!bGathering || !UIManager)
+	{
+		GetWorldTimerManager().ClearTimer(GatherUpdateTimer);
+		return;
+	}
+
+	float Elapsed = GetWorld()->GetTimeSeconds() - GatherStartTime;
+	float Percent = Elapsed / GatherDuration;
+
+	Percent = FMath::Clamp(Percent, 0.f, 1.f);
+
+	UIManager->UpdateGatherProgress(Percent);
+
+	float Remaining = GatherDuration - Elapsed;
+	Remaining = FMath::Max(Remaining, 0.f);
+
+	UIManager->UpdateGatherTime(Remaining);
+
+	if (Percent >= 1.f)
+	{
+		GetWorldTimerManager().ClearTimer(GatherUpdateTimer);
+	}
+}
+
+void APlayerController_SB::UpdateFullMap()
+{
+	if (!MapWorldManager || !UIManager) return;
+
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn) return;
+
+	FVector2D PlayerUV = MapWorldManager->WorldToUV(ControlledPawn->GetActorLocation());
+
+	if (UUW_FullMap* FullMap = UIManager->GetFullMapWidget())
+	{
+		FullMap->UpdatePlayerPosition(PlayerUV);
+
+		if (HasPing())
+		{
+			FullMap->UpdatePing(GetPingUV());
+		}
+		else
+		{
+			FullMap->ClearPing();
+		}
+	}
+}
+
 void APlayerController_SB::StartGatherProgress(float Duration)
 {
 	GatherDuration = Duration;
@@ -660,16 +805,47 @@ void APlayerController_SB::StartGatherProgress(float Duration)
 	{
 		UIManager->ShowGatherProgress();
 	}
+
+	GetWorldTimerManager().SetTimer(
+		GatherUpdateTimer,
+		this,
+		&APlayerController_SB::UpdateGatherUI,
+		0.016f,
+		true
+	);
 }
 
 void APlayerController_SB::EndGatherProgress()
 {
 	bGathering = false;
 
+	GetWorldTimerManager().ClearTimer(GatherUpdateTimer);
+
 	if (UIManager)
 	{
 		UIManager->HideGatherProgress();
 	}
+}
+
+void APlayerController_SB::ShowGameClearUI(bool bBossKilled)
+{
+	if (!GameClearWidgetClass) return;
+
+	UUW_GameClear* Widget = CreateWidget<UUW_GameClear>(this, GameClearWidgetClass);
+
+	if (!Widget) return;
+
+	Widget->AddToViewport();
+	Widget->SetGameClear(bBossKilled);
+
+	FInputModeUIOnly InputMode;
+	SetInputMode(InputMode);
+	bShowMouseCursor = true;
+}
+
+void APlayerController_SB::GoToTitleMenu()
+{
+	// 타이틀 이동은 여기서 나중에 연결
 }
 
 #pragma endregion 
@@ -714,6 +890,56 @@ void APlayerController_SB::EndPlay(const EEndPlayReason::Type EndPlayReason)
 }
 #pragma endregion
 
+bool APlayerController_SB::IsGameplayInputBlocked() const
+{
+	return UIManager && UIManager->IsMenuBlockingGameplay();
+}
 
-#pragma endregion
 
+void APlayerController_SB::SetOverlayInputState(EOverlayInputState NewState)
+{
+	if (OverlayState == NewState) return;
+
+	OverlayState = NewState;
+	ApplyOverlayInputState();
+
+	//UE_LOG(LogTemp, Warning, TEXT("[InputState] OverlayState -> %d"), (int32)OverlayState);
+}
+
+void APlayerController_SB::EnterBuildPreview(FName BuildingID)
+{
+	APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn());
+	if (!Chr || !Chr->BuildComponent || !UIManager) return;
+
+	UIManager->HideBuildMenu(Chr->GetBuildComponent());
+
+	Chr->BuildComponent->BeginBuildMode(BuildingID);
+
+	SetOverlayInputState(EOverlayInputState::BuildPreview);
+}
+
+void APlayerController_SB::ExitBuildPreview(bool bCancel)
+{
+	APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn());
+	if (!Chr || !Chr->BuildComponent) return;
+
+	if (bCancel)
+	{
+		Chr->BuildComponent->CancelBuildMode();
+	}
+
+	SetOverlayInputState(EOverlayInputState::Gameplay);
+}
+
+bool APlayerController_SB::IsMenuLikeState() const
+{
+	return OverlayState == EOverlayInputState::Inventory
+		|| OverlayState == EOverlayInputState::Crafting
+		|| OverlayState == EOverlayInputState::BuildMenu
+		|| OverlayState == EOverlayInputState::FullMap;
+}
+
+bool APlayerController_SB::IsBuildPreviewState() const
+{
+	return OverlayState == EOverlayInputState::BuildPreview;
+}

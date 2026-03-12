@@ -2,9 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
+#include "GameplayTagContainer.h" // FGameplayTag
 #include "ItemData.generated.h"
 
 
+class UGameplayEffect;
 class AWeaponBase;
 
 UENUM(BlueprintType)
@@ -51,6 +53,9 @@ struct FItemStatistics
 
 	UPROPERTY(EditAnywhere)
 	float SellValue = 0.f;
+
+	UPROPERTY(EditAnywhere)
+	float BuyValue;
 };
 
 USTRUCT(BlueprintType)
@@ -130,9 +135,16 @@ struct FItemDataRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, Category = "Item")
 	TSoftClassPtr<AActor> PickupActorClass;
 
-	// 장착용 무기 BP(무기 아이템일 때만 세팅)
 	UPROPERTY(EditAnywhere, Category = "Item|Equip")
 	TSoftClassPtr<AWeaponBase> EquipWeaponClass;
+
+	/** Consumable이면 적용할 GE 클래스 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Consumable")
+	TSoftClassPtr<UGameplayEffect> ConsumableEffectClass; //수정
+
+	/** 위 GE가 SetByCaller로 기대하는 Tag (예: Data.RestoreHealth) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Consumable")
+	FGameplayTag ConsumableSetByCallerTag; //수정
 };
 
 #pragma endregion

@@ -17,8 +17,14 @@
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Items/ItemBase.h"
 #include "UI/UW_UIHUD.h"
+#include "Build/BuildComponent.h"
 
+#include "GameplayEffect.h"
+#include "GameplayEffectTypes.h"
+#include "GameplayTagContainer.h"
 
+#include "Weapons/GameEffect/GE_RestoreHealth_Instant.h"
+#include "Weapons/GameEffect/GE_RestoreStamina_Instant.h"
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -53,6 +59,7 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	InteractionCheckFrequency = 0.1f;
 	InteractionCheckDistance = 225.f;
 
+	BuildComponent = CreateDefaultSubobject<UBuildComponent>(TEXT("BuildComponent"));
 }
 
 FInteractableData APlayerCharacter_SB::GetInteractableData_Implementation()
@@ -82,11 +89,18 @@ void APlayerCharacter_SB::BeginPlay()
 	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
 
 
+	BuildComponent->Camera = FollowCamera;
+
 }
 
 bool APlayerCharacter_SB::EquipWeaponFromItem(UItemBase* Item)
 {
-	if (!Item || Item->ItemType != EItemType::Weapon) return false;
+	if (!Item ||
+		(Item->ItemType != EItemType::Weapon && Item->ItemType != EItemType::Tool))
+	{
+		return false;
+	}
+
 	if (!AbilitySystemComponent) { UE_LOG(LogTemp, Error, TEXT("[Equip] ASC is NULL")); return false; }
 
 	// DT에서 지정한 무기 BP
@@ -120,10 +134,17 @@ bool APlayerCharacter_SB::EquipWeaponFromItem(UItemBase* Item)
 	AWeaponBase* NewWeapon = GetWorld()->SpawnActor<AWeaponBase>(WeaponClass, Params);
 	if (!NewWeapon) return false;
 
-	NewWeapon->AttachToComponent(
+	FName AttachSocketName = NewWeapon->GetEquipSocketName(); //수정
+
+	if (AttachSocketName.IsNone()) //수정
+	{
+		AttachSocketName = StartingWeaponSocketName; //수정
+	}
+
+	NewWeapon->AttachToComponent( //수정
 		MeshComp,
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-		StartingWeaponSocketName
+		AttachSocketName
 	);
 
 	// ✅ DT 스탯(데미지)을 무기에 주입 (5번에서 추가할 함수)
@@ -231,20 +252,15 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 		{
 			AActor* HitActor = TraceHit.GetActor();
 
-			// [�ٽ�] 1. �� �ڽ�(this)�̸� ����, 2. ��ȿ�� �������� Ȯ��
 			if (HitActor && HitActor != this)
 			{
-				// �������̽��� ������ �ִ�?
 				if (HitActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
 				{
-					// ���ο� ����-> FoundInteractable ȣ��
 					if (HitActor != InteractionData.CurrentInteractable)
 					{
 						FoundInteractable(HitActor);
 					}
 
-					// � ��찣��?�������̽��� �ִ� ���͸� ������
-					// �ؿ� �ִ� NoInteractableFound()�� ���� �� �ǵ��� Ż��
 					return;
 				}
 			}
@@ -351,7 +367,7 @@ void APlayerCharacter_SB::BeginInteract()
 					TimerHandle_Interaction,
 					this,
 					&APlayerCharacter_SB::Interact,
-					TargetData.InteractionDuration, // �޾ƿ� �������� �ð� ���?
+					TargetData.InteractionDuration, 
 					false);
 			}
 		}
@@ -394,11 +410,9 @@ void APlayerCharacter_SB::Interact()
 		return;
 	}
 
-	// 1. NPC���� Ȯ��
 	UDialogueComponent* DialogueComp = TargetActor->FindComponentByClass<UDialogueComponent>();
 	if (DialogueComp)
 	{
-		// ��ȣ�ۿ� ������Ʈ ����
 		if (auto* PC = Cast<APlayerController_SB>(GetController()))
 		{
 			if (PC->UIManager)
@@ -407,22 +421,24 @@ void APlayerCharacter_SB::Interact()
 			}
 		}
 
-		// ���� ���ε�
 		DialogueComp->OnDialogueEnded.RemoveAll(this);
 		DialogueComp->OnDialogueEnded.AddDynamic(this, &APlayerCharacter_SB::EndInteract);
 	
 		InteractionData.bIsInteracting = true;
 	}
-		IInteractionInterface::Execute_Interact(TargetActor, this);
-		//�������϶�
-		if (DialogueComp == nullptr)
-		{
-			EndInteract();
-		}
+
+	IInteractionInterface::Execute_Interact(TargetActor, this);
+
+	if (DialogueComp == nullptr)
+	{
+		EndInteract();
+	}
 }
 
 void APlayerCharacter_SB::SelectHotbarIndex(int32 NewIndex)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[Hotbar] SelectHotbarIndex -> %d"), NewIndex);
+
 	if (!PlayerInventory) return;
 
 	const int32 HotbarSize = PlayerInventory->GetHotbarCapacity();
@@ -452,13 +468,15 @@ void APlayerCharacter_SB::HandleHotbarSelectionChanged()
 	
 	UItemBase* Item = PlayerInventory->GetItemInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex);
 
-	if (!Item)
+	if(!Item)
 	{
-		// 무기장착해제 로직 작성
-		//UnequipWeapon();
 		UnequipWeapon();
-		
 		return;
+	}
+
+	if (Item->ItemType != EItemType::Weapon)
+	{
+		UnequipWeapon();
 	}
 
 	switch (Item->ItemType)
@@ -470,14 +488,13 @@ void APlayerCharacter_SB::HandleHotbarSelectionChanged()
 
 	case EItemType::Tool:
 		//도구장착코드작성
-		//EquipToolFromItem(Item);
+		EquipWeaponFromItem(Item);
 		break;
 
 	case EItemType::Armor:
 	case EItemType::Ammo:
 	case EItemType::Consumable:
 		SelectedConsumable = Item;
-		UE_LOG(LogTemp, Warning, TEXT("ddddd"));
 		break;
 
 	case EItemType::Material:
@@ -498,9 +515,10 @@ void APlayerCharacter_SB::UseSelectedHotbarItem()
 	if (!Cur || Cur != SelectedConsumable) return;
 
 
-	// 아이템 효과적용코드작성부분
-	//ApplyConsumableEffectByID(Cur->ID);
-
+	if (!ApplyConsumablePotionGE(Cur))
+	{
+		return;
+	}
 
 	PlayerInventory->RemoveAmountInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex, 1);
 
@@ -514,6 +532,22 @@ void APlayerCharacter_SB::UseSelectedHotbarItem()
 		SelectedConsumable = Cur;
 	}
 }
+
+void APlayerCharacter_SB::OpenCraftingUI(FName InStationTag, UDataTable* InRecipeTable)
+{
+	APlayerController_SB* PlayerController = Cast<APlayerController_SB>(GetController());
+	if (!PlayerController || !PlayerController->UIManager) return;
+
+	UInventoryComponent* Inv = GetInventory();
+	if (!Inv || !InRecipeTable) return;
+
+	Inv->CurrentStationTag = InStationTag;
+	Inv->RecipeDataTable = InRecipeTable;
+
+	PlayerController->UIManager->OpenCraftingMenu(Inv);
+	PlayerController->SetOverlayInputState(EOverlayInputState::Crafting);
+}
+
 
 void APlayerCharacter_SB::UpdateInteractionWidget() const
 {
@@ -640,6 +674,51 @@ void APlayerCharacter_SB::SetGold(int32 NewAmount)
 	OnGoldChanged.Broadcast(CurrentGold);
 }
 
+bool APlayerCharacter_SB::ApplyConsumablePotionGE(UItemBase* Item)
+{
+	if (!Item || !AbilitySystemComponent) return false;
+	if (Item->ItemType != EItemType::Consumable) return false;
+
+	// DT에서 넘어온 GE가 없으면 실패(소모도 안 됨)
+	if (Item->ConsumableEffectClass.IsNull())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Potion] ConsumableEffectClass is null. ID=%s"), *Item->ID.ToString());
+		return false;
+	}
+
+	TSubclassOf<UGameplayEffect> GEClass = Item->ConsumableEffectClass.LoadSynchronous();
+	if (!GEClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Potion] Failed to load GEClass. ID=%s"), *Item->ID.ToString());
+		return false;
+	}
+
+	const float Amount = Item->ItemStatistics.RestorationAmount;
+	if (Amount <= 0.f)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Potion] Amount<=0. ID=%s"), *Item->ID.ToString());
+		return false;
+	}
+
+	// SetByCaller 태그(예: Data.RestoreHealth / Data.RestoreStamina)
+	if (!Item->ConsumableSetByCallerTag.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Potion] ConsumableSetByCallerTag invalid. ID=%s"), *Item->ID.ToString());
+		return false;
+	}
+
+	FGameplayEffectContextHandle Ctx = AbilitySystemComponent->MakeEffectContext();
+	Ctx.AddSourceObject(Item); // 소스 오브젝트로 아이템 넘김(디버깅/확장에 유리)
+
+	FGameplayEffectSpecHandle Spec = AbilitySystemComponent->MakeOutgoingSpec(GEClass, 1.f, Ctx);
+	if (!Spec.IsValid()) return false;
+
+	Spec.Data->SetSetByCallerMagnitude(Item->ConsumableSetByCallerTag, Amount);
+	AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+
+	return true;
+}
+
 //============채집 기능 추가
 void APlayerCharacter_SB::NotifyGatherStart(float Duration)
 {
@@ -661,3 +740,10 @@ void APlayerCharacter_SB::NotifyGatherEnd()
 		PC->EndGatherProgress();
 	}
 }
+
+
+void APlayerCharacter_SB::DestroyActorComponent(UActorComponent* ComponentToDestroy)
+{
+	ComponentToDestroy->DestroyComponent();
+}
+

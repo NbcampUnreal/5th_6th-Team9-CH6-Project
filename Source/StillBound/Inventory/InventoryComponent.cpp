@@ -1,7 +1,15 @@
 #include "Inventory/InventoryComponent.h"
-#include "InventoryComponent.h"
 #include "Data/ItemData.h"
 #include "Items/ItemBase.h"
+
+static bool GetRecipeRow(UDataTable* Table, FName RecipeID, FCraftingRecipeRow& OutRow)
+{
+	if (!Table || RecipeID.IsNone()) return false;
+	const FCraftingRecipeRow* Found = Table->FindRow<FCraftingRecipeRow>(RecipeID, TEXT("RecipeLookup"));
+	if (!Found) return false;
+	OutRow = *Found;
+	return true;
+}
 
 UInventoryComponent::UInventoryComponent()
 {
@@ -607,5 +615,213 @@ bool UInventoryComponent::MoveSlotItem(ESlotContainer FromContainer, int32 FromI
 	return true;
 }
 
+int32 UInventoryComponent::GetTotalCountByID(FName ItemID) const
+{
+	int32 Total = 0;
+
+	for (const TObjectPtr<UItemBase>& Ptr : InventorySlots)
+	{
+		const UItemBase* It = Ptr.Get();
+		if (It && It->ID == ItemID)
+		{
+			Total += It->Quantity;
+		}
+	}
+
+	for (const TObjectPtr<UItemBase>& Ptr : HotbarContents)
+	{
+		const UItemBase* It = Ptr.Get();
+		if (It && It->ID == ItemID)
+		{
+			Total += It->Quantity;
+		}
+	}
+
+	return Total;
+}
+
+bool UInventoryComponent::ConsumeByID(FName ItemID, int32 Count)
+{
+	if (ItemID.IsNone() || Count <= 0) return false;
+	
+	int32 Remaining = Count;
+
+	//핫바 재료 차감
+	for (int32 i = 0; i < HotbarContents.Num() && Remaining > 0; ++i)
+	{
+		UItemBase* It = HotbarContents[i].Get();
+		if (!It || It->ID != ItemID) continue;
+
+		const int32 Removed = RemoveAmountInContainer(ESlotContainer::Hotbar, i, Remaining);
+		Remaining -= Removed;
+	}
+
+	//인벤 재료 차감
+	for (int32 i = 0; i < InventorySlots.Num() && Remaining > 0; ++i)
+	{
+		UItemBase* It = InventorySlots[i].Get();
+		if (!It || It->ID != ItemID) continue;
+
+		const int32 Removed = RemoveAmountInContainer(ESlotContainer::Inventory, i, Remaining);
+		Remaining -= Removed;
+	}
+
+	return Remaining == 0;
+}
+
+bool UInventoryComponent::AddByID(FName ItemID, int32 Count)
+{
+	UItemBase* NewItem = CreateItemInstanceByID(ItemID, Count);
+
+	if (!NewItem) return false;
+
+	const FItemAddResult Res = HandleAddItem_AutoHotbarFirst(NewItem);
+
+	return Res.ActualAmountAdded == Count;
+}
+
+UItemBase* UInventoryComponent::CreateItemInstanceByID(FName ItemID, int32 Quantity) const
+{
+	if (ItemID.IsNone() || Quantity <= 0) return nullptr;
+	if (!ItemDataTable)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Craft] ItemDataTable is null"));
+		return nullptr;
+	}
+
+	const FItemDataRow* ItemData = ItemDataTable->FindRow<FItemDataRow>(ItemID, TEXT("CraftCreateItem"));
+	if (!ItemData)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Craft] ItemData not found: %s"), *ItemID.ToString());
+		return nullptr;
+	}
+
+
+	UItemBase* NewItem = NewObject<UItemBase>(GetOwner());
+	if (!NewItem) return nullptr;
+
+	NewItem->ID = ItemID;
+	NewItem->ItemType = ItemData->ItemType;
+	NewItem->ItemQuality = ItemData->ItemQuality;
+	NewItem->NumericData = ItemData->NumericData;
+	NewItem->TextData = ItemData->TextData;
+	NewItem->AssetData = ItemData->AssetData;
+	NewItem->PickupActorClass = ItemData->PickupActorClass;
+
+	NewItem->NumericData.bIsStackable = (ItemData->NumericData.MaxStackSize > 1);
+
+	NewItem->OwningInventory = const_cast<UInventoryComponent*>(this);
+	NewItem->ResetItemFlags();
+	NewItem->SetQuantity(Quantity);
+
+	return NewItem;
+}
+
+bool UInventoryComponent::CanCraft(FName RecipeID, int32 CraftCount, TArray<FCraftMissing>& OutMissing) const
+{
+	OutMissing.Reset();
+	if (CraftCount <= 0)
+	{
+		CraftCount = 1;
+	}
+
+	FCraftingRecipeRow Row;
+	if (!GetRecipeRow(RecipeDataTable, RecipeID, Row))
+	{
+		return false;
+	}
+
+	if (!Row.RequiredStationTag.IsNone() && Row.RequiredStationTag != CurrentStationTag)
+	{
+		return false;
+	}
+
+	for (const FRecipeIngredient& Ing : Row.Ingredients)
+	{
+		const int32 Need = Ing.Count * CraftCount;
+		const int32 Have = GetTotalCountByID(Ing.ItemID);
+
+		if (Have < Need)
+		{
+			FCraftMissing M;
+			M.ItemID = Ing.ItemID;
+			M.Needed = Need;
+			M.Have = Have;
+			OutMissing.Add(M);
+		}
+	}
+
+	return OutMissing.Num() == 0;
+}
+
+FCraftResult UInventoryComponent::Craft(FName RecipeID, int32 CraftCount)
+{
+	FCraftResult R;
+	if (CraftCount <= 0)
+	{
+		CraftCount = 1;
+	}
+
+	FCraftingRecipeRow Row;
+	if (!GetRecipeRow(RecipeDataTable, RecipeID, Row))
+	{
+		R.Message = FText::FromString(TEXT("Recipe not found"));
+		return R;
+	}
+
+	if (!Row.RequiredStationTag.IsNone() && Row.RequiredStationTag != CurrentStationTag)
+	{
+		R.Message = FText::FromString(TEXT("Wrong station"));
+		return R;
+	}
+
+	TArray<FCraftMissing> Missing;
+	if (!CanCraft(RecipeID, CraftCount, Missing))
+	{
+		R.Message = FText::FromString(TEXT("Not enough materials"));
+		return R;
+	}
+
+	for (const FRecipeIngredient& Ing : Row.Ingredients)
+	{
+		const int32 ConsumeCount = Ing.Count * CraftCount;
+		if (!ConsumeByID(Ing.ItemID, ConsumeCount))
+		{
+			R.Message = FText::FromString(TEXT("Consume failed"));
+			return R;
+		}
+	}
+
+	const int32 GiveCount = Row.ResultCount * CraftCount;
+	if (!AddByID(Row.ResultItemID, GiveCount))
+	{
+		R.Message = FText::FromString(TEXT("Inventory full"));
+		return R;
+	}
+
+	OnInventoryUpdated.Broadcast();
+
+	R.bSuccess = true;
+	R.Message = FText::FromString(TEXT("Craft success"));
+	return R;
+}
+
+bool UInventoryComponent::GetRecipeRowForUI(FName RecipeID, FCraftingRecipeRow& OutRow) const
+{
+	if (!RecipeDataTable || RecipeID.IsNone()) return false;
+
+	const FCraftingRecipeRow* Found = RecipeDataTable->FindRow<FCraftingRecipeRow>(RecipeID, TEXT("GetRecipeRowForUI"));
+
+	if (!Found) return false;
+
+	OutRow = *Found;
+	return true;
+}
+
+int32 UInventoryComponent::GetTotalCountByID_ForUI(FName ItemID) const
+{
+	return GetTotalCountByID(ItemID);
+
+}
 
 

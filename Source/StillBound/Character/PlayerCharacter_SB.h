@@ -40,8 +40,8 @@ class UTextureRenderTarget2D;
 class UInventoryComponent;
 class IInteractionInterface;
 class AWeaponBase;
-class USB_UIManager;
 class APickup;
+class UBuildComponent;
 
 UCLASS()
 class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB, public IInteractionInterface
@@ -55,9 +55,13 @@ public:
 
 	FORCEINLINE UInventoryComponent* GetInventory() const { return PlayerInventory; };
 
+	FORCEINLINE UBuildComponent* GetBuildComponent() const { return BuildComponent; };
+
 	void UpdateInteractionWidget() const;
 
 	void DropItemFromSlot(ESlotContainer FromContainer, int32 FromIndex, int32 QuantityToDrop);
+	
+	void DestroyActorComponent(UActorComponent* ComponentToDestroy);
 
 protected:
 	virtual void BeginPlay() override;
@@ -73,6 +77,9 @@ protected:
 	TSubclassOf<APickup> PickupClass;
 
 public:
+	UPROPERTY(VisibleAnywhere, Category = "Inventory")
+	TObjectPtr<UBuildComponent> BuildComponent;
+
 	float InteractionCheckFrequency;
 
 	float InteractionCheckDistance;
@@ -95,6 +102,9 @@ public:
 	void SelectHotbarIndex(int32 NewIndex);
 	void HandleHotbarSelectionChanged();
 	void UseSelectedHotbarItem();
+
+	UFUNCTION(BlueprintCallable)
+	void OpenCraftingUI(FName InStationTag, UDataTable* InRecipeTable);
 
 	UFUNCTION(BlueprintCallable)
 	void Die();
@@ -124,6 +134,13 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	bool EquipWeaponFromItem(UItemBase* Item);
+
+
+	// ? PC�� ���� ���⸦ ������ �� �ְ� Getter ����
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	AWeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
+
+	bool ApplyConsumablePotionGE(UItemBase* Item);
 
 	int32 CurrentHotbarIndex = 0;
 

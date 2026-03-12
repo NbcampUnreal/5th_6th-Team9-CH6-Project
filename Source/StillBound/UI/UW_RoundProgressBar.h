@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Image.h"
+#include "Components/TextBlock.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UW_RoundProgressBar.generated.h"
 
@@ -19,16 +20,23 @@ class STILLBOUND_API UUW_RoundProgressBar : public UUserWidget
 public:
 
     virtual void NativeConstruct() override;
-
+   
     UFUNCTION(BlueprintCallable)
     void SetPercent(float Percent);
+
+    UFUNCTION(BlueprintCallable)
+    void SetRemainingTime(float Remaining);
 
 protected:
 
     UPROPERTY(meta = (BindWidget))
     UImage* ProgressImage;
 
+    UPROPERTY(meta = (BindWidget))
+    UTextBlock* TimeText;
+
 private:
 
     UMaterialInstanceDynamic* ProgressMaterial;
+
 };

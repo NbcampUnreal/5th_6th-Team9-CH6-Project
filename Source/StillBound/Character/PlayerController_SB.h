@@ -14,6 +14,17 @@ class USB_UIManager;
 class AMapWorldManager;
 struct FInputActionValue;
 
+UENUM(BlueprintType)
+enum class EOverlayInputState : uint8
+{
+	Gameplay     UMETA(DisplayName = "Gameplay"),
+	Inventory    UMETA(DisplayName = "Inventory"),
+	Crafting     UMETA(DisplayName = "Crafting"),
+	BuildMenu    UMETA(DisplayName = "BuildMenu"),
+	BuildPreview UMETA(DisplayName = "BuildPreview"),
+	FullMap      UMETA(DisplayName = "FullMap")
+};
+
 UCLASS()
 class STILLBOUND_API APlayerController_SB : public APlayerController
 {
@@ -23,6 +34,9 @@ protected:
 	virtual void SetupInputComponent() override;
 
 private:
+	UPROPERTY(VisibleAnywhere, Category="SB|UI")
+	EOverlayInputState OverlayState = EOverlayInputState::Gameplay;
+
 	/// =========================
 	/// Input - Mapping Contexts
 	/// =========================
@@ -112,6 +126,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|UI")
 	TObjectPtr<UInputAction> FullMapAction;
 
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Build")
+	TObjectPtr<UInputAction> ToggleBuildAction;
+
 	/// =========================
 	/// UI Map
 	/// =========================
@@ -140,7 +157,9 @@ private:
 
 	bool ActivateAbility(const FGameplayTag& AbilityTag) const;
 
-	// ? ���� ���� ���� (InputTag ���)
+	bool IsGameplayInputBlocked() const;
+
+
 	UFUNCTION(BlueprintCallable, Category = "SB|Abilities")
 	bool ActivateAbilityAttack(const FGameplayTag& InputTag) const;
 
@@ -161,6 +180,23 @@ private:
 	void OnHotbar8();
 	void OnHotbar9();
 	void OnUseHotbar(const FInputActionValue& Value);
+
+	void ToggleBuild();
+
+///------------------------Input Manager--------------------
+public:
+	void SetOverlayInputState(EOverlayInputState NewState);
+	void EnterBuildPreview(FName BuildingID);
+	void ExitBuildPreview(bool bCancel);
+
+	bool IsMenuLikeState() const;
+	bool IsBuildPreviewState() const;
+
+private:
+	void ApplyOverlayInputState();
+
+///---------------------------------------------------------
+		
 
 public:
 
@@ -204,8 +240,6 @@ private:
 	UPROPERTY()
 	bool bFullMapOpen = false;
 
-	void ApplyOverlayInputState();
-
 // =========================
 // Gather Progress System
 // =========================
@@ -216,6 +250,14 @@ private:
 	float GatherDuration = 0.f;
 	bool bGathering = false;
 
+	FTimerHandle GatherUpdateTimer;
+
+	void UpdateGatherUI();
+
+	FTimerHandle FullMapUpdateTimer;
+	void UpdateFullMap();
+
+
 public:
 
 	void StartGatherProgress(float Duration);
@@ -224,6 +266,7 @@ public:
 // =========================
 // Ping System UI
 // =========================
+
 private:
 
 	FVector2D CurrentPingUV = FVector2D::ZeroVector;
@@ -239,5 +282,20 @@ public:
 
 	bool HasPing() const { return bHasPing; }
 	FVector2D GetPingUV() const { return CurrentPingUV;}
+
+// =========================
+// Game Clear UI
+// =========================
+
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SB|UI")
+	TSubclassOf<class UUserWidget> GameClearWidgetClass;
+
+	UFUNCTION(BlueprintCallable)
+	void ShowGameClearUI(bool bBossKilled);
+
+	UFUNCTION(BlueprintCallable)
+	void GoToTitleMenu();
 
 };

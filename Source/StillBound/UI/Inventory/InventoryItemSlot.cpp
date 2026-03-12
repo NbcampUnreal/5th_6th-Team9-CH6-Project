@@ -99,6 +99,11 @@ void UInventoryItemSlot::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 
 void UInventoryItemSlot::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[DragDetected] Container=%d Index=%d Item=%s"),
+		(int32)Container,
+		SlotIndex,
+		*GetNameSafe(ItemReference));
+
 	Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
 
 	if (!ItemReference)

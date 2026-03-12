@@ -10,6 +10,7 @@
 #include "UI/UW_RoundProgressBar.h"
 #include "UI/Interaction/InteractionWidget.h"
 #include "UI/Inventory/HotbarPanel.h"
+#include "UI/Build/BuildMenuWidget.h"
 
 void USB_UIManager::Init(APlayerController* InOwnerPC)
 {
@@ -55,6 +56,16 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 		}
 	}
 
+	if (BuildMenuClass)
+	{
+		BuildMenuWidget = CreateWidget<UBuildMenuWidget>(OwnerPC, BuildMenuClass);
+		if (BuildMenuWidget)
+		{
+			BuildMenuWidget->AddToViewport(20);
+			BuildMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+	
 	ABaseCharacter_SB* Char = Cast<ABaseCharacter_SB>(OwnerPC->GetPawn());
 	if (!Char) return;
 
@@ -66,8 +77,10 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 
 	UpdateHUD();
 	
-	auto* Chr = Cast<APlayerCharacter_SB>(Char);
-	UIHUD->InitInventory(Chr->GetInventory());
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(Char))
+	{
+		UIHUD->InitInventory(Chr->GetInventory());
+	}
 }
 
 void USB_UIManager::SetHP(float Current, float Max)
@@ -89,16 +102,19 @@ void USB_UIManager::SetExp(float Current, float Required)
 	UIHUD->SetExp(Current, Required);
 }
 
-void USB_UIManager::SetLevel(int32 Level)
-{
-	if (!UIHUD) return;
-	UIHUD->SetLevel(Level);
-}
+//경험치 임시비활성화
+//void USB_UIManager::SetLevel(int32 Level)
+//{
+//	if (!UIHUD) return;
+//	UIHUD->SetLevel(Level);
+//}
 
 void USB_UIManager::ShowGatherProgress()
 {
 	if (GatherProgressWidget)
 	{
+		GatherProgressWidget->SetPercent(0.f);
+
 		GatherProgressWidget->SetVisibility(ESlateVisibility::Visible);
 	}
 }
@@ -116,6 +132,14 @@ void USB_UIManager::UpdateGatherProgress(float Percent)
 	if (GatherProgressWidget)
 	{
 		GatherProgressWidget->SetPercent(Percent);
+	}
+}
+
+void USB_UIManager::UpdateGatherTime(float Remaining)
+{
+	if (GatherProgressWidget)
+	{
+		GatherProgressWidget->SetRemainingTime(Remaining);
 	}
 }
 
@@ -170,41 +194,66 @@ void USB_UIManager::OnLevelChanged(float OldValue, float NewValue)
 	UpdateHUD();
 }
 
-void USB_UIManager::DisplayMenu()
+void USB_UIManager::OpenInventoryMenu()
 {
-	if (MainMenuWidget)
-	{
-		bIsMenuVisible = true;
-		MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	}
+	if (!OwnerPC || !MainMenuWidget) return;
+
+	MainMenuWidget->ShowInventoryOnly();
+
+	CurrentMenuMode = EMenuMode::InventoryOnly;
+
+	MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }
 
-void USB_UIManager::HideMenu()
+void USB_UIManager::OpenCraftingMenu(UInventoryComponent* InInventory)
 {
-	if (MainMenuWidget)
-	{
-		bIsMenuVisible = false;
-		MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
-	}
+	if (!OwnerPC || !MainMenuWidget || !InInventory) return;
+
+	MainMenuWidget->ShowCrafting(InInventory);
+
+	CurrentMenuMode = EMenuMode::Crafting;
+
+	MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+}
+
+void USB_UIManager::CloseMenu()
+{
+	if (!OwnerPC || !MainMenuWidget) return;
+
+	CurrentMenuMode = EMenuMode::None;
+
+	MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
 }
 
 void USB_UIManager::ToggleMenu()
 {
-	if (bIsMenuVisible)
+	if (CurrentMenuMode == EMenuMode::None)
 	{
-		HideMenu();
-
-		const FInputModeGameOnly InputMode;
-		OwnerPC->SetInputMode(InputMode);
-		OwnerPC->SetShowMouseCursor(false);
+		OpenInventoryMenu();
 	}
 	else
 	{
-		DisplayMenu();
+		CloseMenu();
+	}
 
-		const FInputModeGameAndUI InputMode;
-		OwnerPC->SetInputMode(InputMode);
-		OwnerPC->SetShowMouseCursor(true);
+}
+
+void USB_UIManager::ShowBuildMenu(UBuildComponent* InBuildComponent)
+{
+
+	if (BuildMenuWidget)
+	{
+		BuildMenuWidget->SetVisibility(ESlateVisibility::Visible);
+		BuildMenuWidget->Init(InBuildComponent);
+	}
+
+}
+
+void USB_UIManager::HideBuildMenu(UBuildComponent* InBuildComponent)
+{
+	if (BuildMenuWidget)
+	{
+		BuildMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
 
