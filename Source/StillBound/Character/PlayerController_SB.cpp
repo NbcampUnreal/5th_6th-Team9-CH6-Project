@@ -363,7 +363,8 @@ void APlayerController_SB::OnEscapePressed()
 	switch (OverlayState)
 	{
 	case EOverlayInputState::Gameplay:
-		/// 시스템 메뉴 (예를들어 게임옵션,저장,나가기등)
+		/// 시스템 메뉴UI Visible 함수추가
+		SetOverlayInputState(EOverlayInputState::PauseMenu);
 		return;
 
 	case EOverlayInputState::Inventory:
@@ -398,8 +399,7 @@ void APlayerController_SB::OnEscapePressed()
 		return;
 
 	case EOverlayInputState::PauseMenu:
-		/// PauseMenu 닫기
-		/// Close PauseMenu
+		/// PauseMenu UI Close
 		SetOverlayInputState(EOverlayInputState::Gameplay);
 		return;
 	}
