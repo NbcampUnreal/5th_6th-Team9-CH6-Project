@@ -41,6 +41,9 @@ private:
 	/// Input - Mapping Contexts
 	/// =========================
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
+	TObjectPtr<UInputMappingContext> IMC_System;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
 	TObjectPtr<UInputMappingContext> IMC_Movement;
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
@@ -48,6 +51,9 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
 	TObjectPtr<UInputMappingContext> IMC_Hotbar;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
+	TObjectPtr<UInputMappingContext> IMC_BuildPreviewMode;
 
 	/// =========================
 	/// Input - Movement
@@ -128,6 +134,15 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Build")
 	TObjectPtr<UInputAction> ToggleBuildAction;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> PlaceBuildAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> CancelBuildAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|System")
+	TObjectPtr<UInputAction> ESCAction;
 
 	/// =========================
 	/// UI Map
@@ -167,6 +182,8 @@ private:
 
 	void Skill();
 
+	void OnEscapePressed();
+
 	void ToggleMenu();
 
 	void OnMouseWheel(const FInputActionValue& Value);
@@ -182,6 +199,8 @@ private:
 	void OnUseHotbar(const FInputActionValue& Value);
 
 	void ToggleBuild();
+	void OnBuildPlace();
+	void OnBuildCancel();
 
 ///------------------------Input Manager--------------------
 public:

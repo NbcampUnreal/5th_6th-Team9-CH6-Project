@@ -82,6 +82,7 @@ public:
 	bool CheckOverlapAtPreview(const FBuildingDataRow& Row) const;
 	void ApplyPreviewMaterial(bool bInCanPlace);
 
+	bool HasEnoughBuildCost(const FBuildingDataRow& Row) const;
 	
 
 
