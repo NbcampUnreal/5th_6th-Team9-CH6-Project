@@ -1,4 +1,4 @@
-
+﻿
 #pragma once
 
 #include "CoreMinimal.h"
@@ -76,6 +76,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category="Drop")
 	TSubclassOf<APickup> PickupClass;
+	
+	//사망 애니메이션 관련
+	UFUNCTION(BlueprintImplementableEvent, Category = "Death", meta = (DisplayName = "On Death Animation Finished"))
+	void K2_OnDeathAnimationFinished();
 
 public:
 	float InteractionCheckFrequency;

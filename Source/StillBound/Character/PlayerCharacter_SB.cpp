@@ -1,4 +1,4 @@
-#include "Character/PlayerCharacter_SB.h"
+﻿#include "Character/PlayerCharacter_SB.h"
 #include "AbilitySystemComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -612,10 +612,28 @@ void APlayerCharacter_SB::Die()
 		}
 	}
 
+	float DelayTimer = 2.0f;
+
 	if (DeathMontage)
 	{
-		PlayAnimMontage(DeathMontage, 1.5f);
-		return;
+		DelayTimer = PlayAnimMontage(DeathMontage, 1.5f);
+	}
+
+	if (DelayTimer <= 0.0f)
+	{
+		DelayTimer = 0.1f;
+	}
+
+	FTimerHandle TimerHandle_DeathUI;
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			TimerHandle_DeathUI,
+			this,
+			&APlayerCharacter_SB::K2_OnDeathAnimationFinished,
+			DelayTimer,
+			false
+		);
 	}
 }
 
