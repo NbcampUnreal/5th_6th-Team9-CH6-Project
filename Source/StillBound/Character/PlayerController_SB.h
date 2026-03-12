@@ -22,7 +22,8 @@ enum class EOverlayInputState : uint8
 	Crafting     UMETA(DisplayName = "Crafting"),
 	BuildMenu    UMETA(DisplayName = "BuildMenu"),
 	BuildPreview UMETA(DisplayName = "BuildPreview"),
-	FullMap      UMETA(DisplayName = "FullMap")
+	FullMap      UMETA(DisplayName = "FullMap"),
+	PauseMenu    UMETA(DisplayName = "PauseMenu")
 };
 
 UCLASS()

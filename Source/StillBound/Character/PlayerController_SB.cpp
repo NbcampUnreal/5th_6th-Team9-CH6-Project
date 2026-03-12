@@ -216,6 +216,7 @@ void APlayerController_SB::ToggleMenu()
 	case EOverlayInputState::BuildMenu:
 	case EOverlayInputState::BuildPreview:
 	case EOverlayInputState::FullMap:
+	case EOverlayInputState::PauseMenu:
 		break;
 	}
 }
@@ -362,7 +363,7 @@ void APlayerController_SB::OnEscapePressed()
 	switch (OverlayState)
 	{
 	case EOverlayInputState::Gameplay:
-		// 시스템 메뉴 (예를들어 게임옵션,저장,나가기등)
+		/// 시스템 메뉴 (예를들어 게임옵션,저장,나가기등)
 		return;
 
 	case EOverlayInputState::Inventory:
@@ -393,6 +394,12 @@ void APlayerController_SB::OnEscapePressed()
 
 	case EOverlayInputState::FullMap:
 		UIManager->ToggleFullMap();
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+
+	case EOverlayInputState::PauseMenu:
+		/// PauseMenu 닫기
+		/// Close PauseMenu
 		SetOverlayInputState(EOverlayInputState::Gameplay);
 		return;
 	}
@@ -504,7 +511,8 @@ void APlayerController_SB::ToggleBuild()
 
 	if (OverlayState == EOverlayInputState::Crafting
 		|| OverlayState == EOverlayInputState::Inventory
-		|| OverlayState == EOverlayInputState::FullMap)
+		|| OverlayState == EOverlayInputState::FullMap
+		|| OverlayState == EOverlayInputState::PauseMenu)
 	{
 		return;
 	}
@@ -698,6 +706,7 @@ void APlayerController_SB::ApplyOverlayInputState()
 	case EOverlayInputState::Inventory:
 	case EOverlayInputState::Crafting:
 	case EOverlayInputState::BuildMenu:
+	case EOverlayInputState::PauseMenu:
 	case EOverlayInputState::FullMap:
 		SetIgnoreMoveInput(true);
 		SetIgnoreLookInput(true);
@@ -989,7 +998,8 @@ bool APlayerController_SB::IsGameplayInputBlocked() const
 	return OverlayState == EOverlayInputState::Inventory
 		|| OverlayState == EOverlayInputState::Crafting
 		|| OverlayState == EOverlayInputState::BuildMenu
-		|| OverlayState == EOverlayInputState::FullMap;
+		|| OverlayState == EOverlayInputState::FullMap
+		|| OverlayState == EOverlayInputState::PauseMenu;
 }
 
 
@@ -1033,7 +1043,8 @@ bool APlayerController_SB::IsMenuLikeState() const
 	return OverlayState == EOverlayInputState::Inventory
 		|| OverlayState == EOverlayInputState::Crafting
 		|| OverlayState == EOverlayInputState::BuildMenu
-		|| OverlayState == EOverlayInputState::FullMap;
+		|| OverlayState == EOverlayInputState::FullMap
+		|| OverlayState == EOverlayInputState::PauseMenu;
 }
 
 bool APlayerController_SB::IsBuildPreviewState() const
