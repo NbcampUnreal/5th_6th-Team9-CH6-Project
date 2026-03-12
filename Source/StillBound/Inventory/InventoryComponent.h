@@ -218,12 +218,13 @@ private:
     ///===============================================================================
     /// FUNCTIONS
     ///===============================================================================
-
     int32 GetTotalCountByID(FName ItemID) const;
-    bool ConsumeByID(FName ItemID, int32 Count);
     bool AddByID(FName ItemID, int32 Count);
     UItemBase* CreateItemInstanceByID(FName ItemID, int32 Quantity) const;
     
+public:
+    bool ConsumeByID(FName ItemID, int32 Count);
+
 
     ///===============================================================================
     /// PROPERTIES & VARIABLES

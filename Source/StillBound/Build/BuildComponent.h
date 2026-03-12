@@ -38,7 +38,7 @@ public:
 	FName CurrentBuildingID = NAME_None;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
-	bool IsBuildModeOn = false;
+	bool bIsBuildModeOn = false;
 
 	FTimerHandle BuildPreviewTimerHandle;
 
@@ -62,6 +62,14 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void CancelBuildMode();
 
+	UFUNCTION(BlueprintCallable)
+	bool ConfirmBuild();
+
+	UFUNCTION(BlueprintCallable)
+	void HandleBuildCancel();
+
+	bool ConsumeBuildCost(const FBuildingDataRow& Row);
+
 	bool GetBuildingData(FName InBuildingID, FBuildingDataRow& OutRow) const;
 
 	void SpawnBuildGhost();
@@ -74,6 +82,7 @@ public:
 	bool CheckOverlapAtPreview(const FBuildingDataRow& Row) const;
 	void ApplyPreviewMaterial(bool bInCanPlace);
 
+	
 
 
 };

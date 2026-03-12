@@ -3,6 +3,7 @@
 #include "Camera/CameraComponent.h"
 #include "Public/Data/BuildingData.h"
 #include "Engine/OverlapResult.h"
+#include "Inventory/InventoryComponent.h"
 
 bool UBuildComponent::GetBuildingData(FName InBuildingID, FBuildingDataRow& OutRow) const
 {
@@ -63,7 +64,7 @@ void UBuildComponent::BeginBuildMode(FName InBuildingID)
 	}
 
 	CurrentBuildingID = InBuildingID;
-	IsBuildModeOn = true;;
+	bIsBuildModeOn = true;;
 
 	GetWorld()->GetTimerManager().ClearTimer(BuildPreviewTimerHandle);
 
@@ -81,7 +82,7 @@ void UBuildComponent::BeginBuildMode(FName InBuildingID)
 
 void UBuildComponent::CancelBuildMode()
 {
-	IsBuildModeOn = false;
+	bIsBuildModeOn = false;
 	CurrentBuildingID = NAME_None;
 
 	GetWorld()->GetTimerManager().ClearTimer(BuildPreviewTimerHandle);
@@ -123,7 +124,7 @@ void UBuildComponent::SpawnBuildGhost()
 
 void UBuildComponent::UpdateBuildPreview()
 {
-	if (!IsBuildModeOn) return;
+	if (!bIsBuildModeOn) return;
 
 	if (!BuildGhost)
 	{
@@ -268,4 +269,82 @@ void UBuildComponent::ApplyPreviewMaterial(bool bInCanPlace)
 	{
 		BuildGhost->SetMaterial(i, TargetMaterial);
 	}
+}
+
+bool UBuildComponent::ConfirmBuild()
+{
+	if (!bIsBuildModeOn) return false;
+
+	if (!bCanPlace)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Build] ConfirmBuild failed: bCanPlace is false"));
+		return false;
+	}
+	
+	if (!Player || CurrentBuildingID.IsNone()) return false;
+
+	FBuildingDataRow Row;
+	if (!GetBuildingData(CurrentBuildingID, Row)) return false;
+
+	if (!Row.BuildActorClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Build] BuildActorClass is null for %s"), *CurrentBuildingID.ToString());
+		return false;
+	}
+
+	if (!ConsumeBuildCost(Row))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Build] ConfirmBuild failed: cost consume failed"));
+		return false;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = Player;
+	SpawnParams.Instigator = Player;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	AActor* Spawned = GetWorld()->SpawnActor<AActor>(Row.BuildActorClass, BuildTransform, SpawnParams);
+
+	if (!Spawned)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Build] SpawnActor failed for %s"), *CurrentBuildingID.ToString());
+		return false;
+	}
+
+	//만약 한번 설치하고 프리뷰유지하고싶지않으면 false;
+	return true;
+}
+
+void UBuildComponent::HandleBuildCancel()
+{
+	CancelBuildMode();
+}
+
+bool UBuildComponent::ConsumeBuildCost(const FBuildingDataRow& Row)
+{
+	if (!Player) return false;
+
+	UInventoryComponent* Inv = Player->GetInventory();
+	if (!Inv) return false;
+
+	for (const FBuildCost& Cost : Row.Costs)
+	{
+		const int32 Have = Inv->GetTotalCountByID_ForUI(Cost.ItemID);
+		if (Have < Cost.Count)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Build] Not enough cost: %s Need=%d Have=%d"), *Cost.ItemID.ToString(), Cost.Count, Have);
+			return false;
+		}
+	}
+
+	for (const FBuildCost& Cost : Row.Costs)
+	{
+		const bool bConsumed = Inv->ConsumeByID(Cost.ItemID, Cost.Count);
+		if (!bConsumed)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[Build] ConsumeByID failed: %s x%d"), *Cost.ItemID.ToString(), Cost.Count);
+			return false;
+		}
+	}
+	return true;
 }
