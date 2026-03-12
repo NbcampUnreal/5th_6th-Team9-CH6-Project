@@ -113,6 +113,8 @@ void USB_UIManager::ShowGatherProgress()
 {
 	if (GatherProgressWidget)
 	{
+		GatherProgressWidget->SetPercent(0.f);
+
 		GatherProgressWidget->SetVisibility(ESlateVisibility::Visible);
 	}
 }
