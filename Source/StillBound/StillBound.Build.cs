@@ -16,7 +16,7 @@ public class StillBound : ModuleRules
 			"EnhancedInput",
             "NavigationSystem",
             "AIModule",
-
+			
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
@@ -27,8 +27,9 @@ public class StillBound : ModuleRules
 
             "GameplayAbilities",
             "GameplayTasks",
-            "GameplayTags"
+            "GameplayTags",
 
+			"AudioModulation",
         });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

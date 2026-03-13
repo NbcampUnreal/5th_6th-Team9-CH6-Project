@@ -745,7 +745,32 @@ void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
 	}
 
 	UIManager->UpdateHUD();
+
+	APawn* P = GetPawn();
+	if (!P) return;
+
+	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(P);
+	if (!ASI) return;
+
+	UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent();
+	if (!ASC) return;
+
+	float Health = ASC->GetNumericAttribute(UPlayerAttributeSet::GetHealthAttribute());
+	float MaxHealth = ASC->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
+
+	float Percent = Health / MaxHealth;
+
+	if (Percent <= 0.3f)
+	{
+		UIManager->ShowDamageOverlay();
+		UIManager->UpdateDamageOverlay(Percent);
+	}
+	else
+	{
+		UIManager->HideDamageOverlay();
+	}
 }
+
 
 void APlayerController_SB::OnStaminaChanged(float OldValue, float NewValue)
 {
