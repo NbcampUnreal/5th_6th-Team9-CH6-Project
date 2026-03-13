@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Interface/InteractionInterface.h"
+#include "Components/SphereComponent.h"
 #include "Pickup.generated.h"
 
 class UItemBase;
@@ -43,6 +44,21 @@ protected:
 	///===============================================================================
 	UPROPERTY(VisibleAnywhere, Category = "Pickup|Components")
 	TObjectPtr<UStaticMeshComponent> PickupMesh;
+
+	UPROPERTY(VisibleAnywhere, Category = "Pickup|Components")
+	TObjectPtr<USphereComponent> AutoPickupSphere;
+
+	UFUNCTION()
+	void OnAutoPickupSphereBeginOverlap(
+		UPrimitiveComponent* OverlappedComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult
+	);
+
+	bool IsAutoPickupGold() const;
 
 	UPROPERTY(VisibleAnywhere, Category = "Pickup|Item Reference")
 	TObjectPtr<UItemBase> ItemReference;

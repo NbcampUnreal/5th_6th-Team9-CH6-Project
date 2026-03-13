@@ -37,6 +37,15 @@ enum class EWeaponKind : uint8
 	Ranged UMETA(DisplayName = "Ranged")
 };
 
+//채집 도구 추가
+UENUM(BlueprintType)
+enum class EToolKind : uint8
+{
+	None     UMETA(DisplayName = "None"),
+	Axe      UMETA(DisplayName = "Axe"), 
+	Pickaxe  UMETA(DisplayName = "Pickaxe")   
+};
+
 USTRUCT(BlueprintType)
 struct FItemStatistics
 {
@@ -56,6 +65,13 @@ struct FItemStatistics
 
 	UPROPERTY(EditAnywhere)
 	float BuyValue;
+
+	//채집도구 티어 관련 추가
+	UPROPERTY(EditAnywhere)
+	float ObjectTier;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EToolKind ToolKind = EToolKind::None;
 };
 
 USTRUCT(BlueprintType)

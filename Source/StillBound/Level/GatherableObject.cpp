@@ -198,15 +198,28 @@ int32 AGatherableObject::GetCharacterToolTier(APlayerCharacter_SB* Character) co
     if (!EquippedItem) { return 0; }
     if (EquippedItem->ItemType != EItemType::Tool) { return 0; }
 
-    // ToolStatDataTable에서 티어 조회
-    if (!ToolStatDataTable) { return 0; }
+    //// ToolStatDataTable에서 티어 조회
+    //if (!ToolStatDataTable) { return 0; }
 
-    FToolStatRow* ToolRow = ToolStatDataTable->FindRow<FToolStatRow>(
-        EquippedItem->ID, TEXT("GetToolTier")
-    );
-    if (!ToolRow) { return 0; }
+    //FToolStatRow* ToolRow = ToolStatDataTable->FindRow<FToolStatRow>(
+    //    EquippedItem->ID, TEXT("GetToolTier")
+    //);
+    //if (!ToolRow) { return 0; }
 
-    return ToolRow->Tier;
+    //return ToolRow->Tier;
+
+   // 오브젝트 타입에 맞는 도구 종류 확인, 나무는 도끼, 돌은 곡괭이만 채집 속도 감소 적용
+    EToolKind RequiredKind = (GatherType == EGatherType::Wood)
+        ? EToolKind::Axe
+        : EToolKind::Pickaxe;
+
+    // 도구 종류 불일치 시 0 반환, 맨손 취급
+    if (EquippedItem->ItemStatistics.ToolKind != RequiredKind)
+    {
+        return 0;
+    }
+    //ItemStatistics.ObjectTier 직접 사용으로 수정
+    return (int32)EquippedItem->ItemStatistics.ObjectTier;
 }
 
 // ============채집 시간 계산

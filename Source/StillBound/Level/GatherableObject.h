@@ -91,9 +91,9 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Setup")
     UDataTable* ItemDataTable;
 
-    // ToolStatTable 도구 티어 조회용
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Setup")
-    UDataTable* ToolStatDataTable;
+    // ToolStatTable 도구 티어 조회용, 이제 안씀
+    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Setup")
+    //UDataTable* ToolStatDataTable;
 
     //pickup 액터 클래스
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Setup")

@@ -148,7 +148,7 @@ void UBuildComponent::UpdateBuildPreview()
 		return;
 	}
 
-	bCanPlace = CheckCanPlace(Row);
+	bCanPlace = CheckCanPlace(Row) /* && HasEnoughBuildCost(Row) */ ;
 	ApplyPreviewMaterial(bCanPlace);
 }
 
@@ -269,6 +269,25 @@ void UBuildComponent::ApplyPreviewMaterial(bool bInCanPlace)
 	{
 		BuildGhost->SetMaterial(i, TargetMaterial);
 	}
+}
+
+bool UBuildComponent::HasEnoughBuildCost(const FBuildingDataRow& Row) const
+{
+	if (Player) return false;
+
+	UInventoryComponent* Inv = Player->GetInventory();
+	if (!Inv) return false;
+
+	for (const FBuildCost& Cost : Row.Costs)
+	{
+		const int32 Have = Inv->GetTotalCountByID_ForUI(Cost.ItemID);
+		if (Have < Cost.Count)
+		{
+			return false;
+		}
+	}
+	
+	return true;
 }
 
 bool UBuildComponent::ConfirmBuild()
