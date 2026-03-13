@@ -1,6 +1,7 @@
 #include "UI/Crafting/IngredientRowWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
+#include "Components/SizeBox.h"
 #include "Engine/Texture2D.h"
 
 void UIngredientRowWidget::InitRow(const FText& InDisplayName, int32 Have, int32 Need, UTexture2D* IconTexture)
@@ -24,10 +25,12 @@ void UIngredientRowWidget::InitRow(const FText& InDisplayName, int32 Have, int32
 		}
 	}
 
-	if (ItemIconImage)
+	if (ItemIconImage && IconSizeBox)
 	{
 		if (IconTexture)
 		{
+			IconSizeBox->SetWidthOverride(64.f);
+			IconSizeBox->SetHeightOverride(64.f);
 			ItemIconImage->SetBrushFromTexture(IconTexture, true);
 			ItemIconImage->SetVisibility(ESlateVisibility::Visible);
 		}
