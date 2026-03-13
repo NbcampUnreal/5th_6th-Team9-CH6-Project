@@ -8,6 +8,8 @@
 #include "Character/BaseCharacter_SB.h"
 #include "AI/EnemyAIController.h"
 #include "AI/EnemyVisualRow.h"
+#include "Components/WidgetComponent.h"
+#include "Components/SceneComponent.h"
 #include "Data/ItemData.h"
 #include "EnemyCharacter.generated.h"
 
@@ -125,4 +127,18 @@ public:
     TSubclassOf<class ADamageNumberActor> DamageNumberClass;
 
     void SpawnDamageText(float Damage);
+
+    UPROPERTY(VisibleAnywhere, Category = "UI")
+    TObjectPtr<UWidgetComponent> AlertWidgetComponent;
+
+    UPROPERTY(VisibleAnywhere)
+    TObjectPtr<USceneComponent> AlertAnchor;
+
+    FTimerHandle AlertHideTimer;
+
+public:
+    void ShowAlert();
+
+private:
+    void HideAlert();
 };

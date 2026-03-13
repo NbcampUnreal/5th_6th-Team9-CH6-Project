@@ -45,6 +45,9 @@ public:
 	void UpdateGatherProgress(float Percent);
 	void UpdateGatherTime(float Remaining);
 	void ToggleFullMap();
+	void ShowDamageOverlay();
+	void HideDamageOverlay();
+	void UpdateDamageOverlay(float HealthPercent);
 	void UpdateHUD();
 
 	UUW_FullMap* GetFullMapWidget() const { return FullMapWidget; }
@@ -72,6 +75,12 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UUW_RoundProgressBar> GatherProgressWidget;
+
+	UPROPERTY()
+	class UUW_DamageOverlay* DamageOverlayWidget;
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUW_DamageOverlay> DamageOverlayClass;
 
 	UFUNCTION()
 	void OnExpChanged(float OldValue, float NewValue);
