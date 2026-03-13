@@ -44,16 +44,16 @@ protected:
 	TObjectPtr<UAnimMontage> DeathMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|AI")
-	float DetectRange = 2500.f;
+	float DetectRange = 3000.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|AI")
-	float LoseRange = 2700.f;
+	float LoseRange = 3500.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|AI")
-	float MeleeAttackRange = 450.f;
+	float MeleeAttackRange = 500.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|AI")
-	float RangedAttackRange = 2000.f;
+	float RangedAttackRange = 1500.f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Boss|Death")
 	bool bIsDead = false;
