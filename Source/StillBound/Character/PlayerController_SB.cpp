@@ -390,6 +390,9 @@ void APlayerController_SB::OnEscapePressed()
 		{
 			Chr->GetBuildComponent()->HandleBuildCancel();
 		}
+
+		UIManager->HideBuildPreviewPanel();
+
 		SetOverlayInputState(EOverlayInputState::Gameplay);
 		return;
 
@@ -550,11 +553,28 @@ void APlayerController_SB::OnBuildPlace()
 		{
 			if (PC->BuildComponent)
 			{
-				const bool bPlaced = PC->BuildComponent->ConfirmBuild();
+				EBuildFailReason FailReason = EBuildFailReason::None;
+				const bool bPlaced = PC->BuildComponent->ConfirmBuild(FailReason);
 
-				if (!bPlaced)
+				if (!bPlaced && UIManager)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[Build] Attack input -> ConfirmBuild failed"));
+					switch (FailReason)
+					{
+					case EBuildFailReason::NotEnoughCost:
+						UIManager->ShowBuildPreviewStateMessage(FText::FromString(TEXT("재료 부족")), 1.f);
+						break;
+
+					case EBuildFailReason::InvalidPlacement:
+						UIManager->ShowBuildPreviewStateMessage(FText::FromString(TEXT("설치 불가")), 1.f);
+						break;
+
+					case EBuildFailReason::SpawnFailed:
+						UIManager->ShowBuildPreviewStateMessage(FText::FromString(TEXT("설치 실패")), 1.f);
+						break;
+
+					default:
+						break;
+					}
 				}
 			}
 		}
@@ -573,6 +593,8 @@ void APlayerController_SB::OnBuildCancel()
 				Chr->BuildComponent->HandleBuildCancel();
 			}
 		}
+
+		UIManager->HideBuildPreviewPanel();
 
 		SetOverlayInputState(EOverlayInputState::Gameplay);
 		return;
@@ -1047,6 +1069,8 @@ void APlayerController_SB::EnterBuildPreview(FName BuildingID)
 
 	Chr->BuildComponent->BeginBuildMode(BuildingID);
 
+	UIManager->ShowBuildPreviewPanel();
+
 	SetOverlayInputState(EOverlayInputState::BuildPreview);
 }
 
@@ -1058,6 +1082,11 @@ void APlayerController_SB::ExitBuildPreview(bool bCancel)
 	if (bCancel)
 	{
 		Chr->BuildComponent->CancelBuildMode();
+	}
+
+	if (UIManager)
+	{
+		UIManager->HideBuildPreviewPanel();
 	}
 
 	SetOverlayInputState(EOverlayInputState::Gameplay);

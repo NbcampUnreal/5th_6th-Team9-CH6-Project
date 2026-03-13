@@ -9,6 +9,15 @@ class UCameraComponent;
 class UDataTable;
 struct FBuildingDataRow;
 
+UENUM(BlueprintType)
+enum class EBuildFailReason : uint8
+{
+	None,
+	NotEnoughCost,
+	InvalidPlacement,
+	SpawnFailed
+};
+
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class STILLBOUND_API UBuildComponent : public UActorComponent
 {
@@ -54,6 +63,8 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
 	FHitResult LastPreviewHit;
 
+	UPROPERTY()
+	FText LastBuildPreviewStateMessage;
 
 
 	UFUNCTION(BlueprintCallable)
@@ -63,7 +74,7 @@ public:
 	void CancelBuildMode();
 
 	UFUNCTION(BlueprintCallable)
-	bool ConfirmBuild();
+	bool ConfirmBuild(EBuildFailReason& OutFailReason);
 
 	UFUNCTION(BlueprintCallable)
 	void HandleBuildCancel();

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "UI/Build/BuildPreview_IngredientPanel.h"
 #include "USB_UIManager.generated.h"
 
 class APlayerController;
@@ -123,6 +124,10 @@ public:
 	void HideInteractionWidget();
 	void UpdateInteractionWidget(const FInteractableData& InteractableData);
 
+	void ShowBuildPreviewPanel();
+	void HideBuildPreviewPanel();
+	void UpdateBuildPreviewPanel(const TArray<FBuildPreviewCostUIData>& InCosts);
+	void ShowBuildPreviewStateMessage(const FText& InMessage, float Duration = 2.f);
 
 	//getter
 	TObjectPtr<UMainMenu> GetMainMenuWidget() const { return MainMenuWidget; };

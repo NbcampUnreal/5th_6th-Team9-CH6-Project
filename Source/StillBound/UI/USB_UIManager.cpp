@@ -319,3 +319,44 @@ void USB_UIManager::UpdateInteractionWidget(const FInteractableData& Interactabl
 		InteractionWidget->UpdateWidget(InteractableData);
 	}
 }
+
+void USB_UIManager::ShowBuildPreviewPanel()
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void USB_UIManager::HideBuildPreviewPanel()
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->SetVisibility(ESlateVisibility::Collapsed);
+		Panel->HidePlacementStateMessage();
+	}
+}
+
+void USB_UIManager::UpdateBuildPreviewPanel(const TArray<FBuildPreviewCostUIData>& InCosts)
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->UpdateIngredientList(InCosts);
+	}
+}
+
+void USB_UIManager::ShowBuildPreviewStateMessage(const FText& InMessage, float Duration)
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->ShowPlacementStateMessage(InMessage, Duration);
+	}
+}

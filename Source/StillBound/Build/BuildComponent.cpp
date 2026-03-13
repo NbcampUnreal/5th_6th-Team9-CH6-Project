@@ -1,9 +1,12 @@
 #include "Build/BuildComponent.h"
 #include "Character/PlayerCharacter_SB.h"
+#include "Character/PlayerController_SB.h"
 #include "Camera/CameraComponent.h"
 #include "Public/Data/BuildingData.h"
 #include "Engine/OverlapResult.h"
 #include "Inventory/InventoryComponent.h"
+#include "Public/Data/ItemData.h"
+#include "UI/Build/BuildPreview_IngredientPanel.h"
 
 bool UBuildComponent::GetBuildingData(FName InBuildingID, FBuildingDataRow& OutRow) const
 {
@@ -148,8 +151,49 @@ void UBuildComponent::UpdateBuildPreview()
 		return;
 	}
 
-	bCanPlace = CheckCanPlace(Row) /* && HasEnoughBuildCost(Row) */ ;
+	const bool bCanPlaceByLocation = CheckCanPlace(Row);
+	const bool bHasEnoughCost = HasEnoughBuildCost(Row);
+
+	bCanPlace = bCanPlaceByLocation && bHasEnoughCost;
 	ApplyPreviewMaterial(bCanPlace);
+
+	if (Player)
+	{
+		APlayerController_SB* PC = Cast<APlayerController_SB>(Player->GetController());
+		if (PC && PC->UIManager)
+		{
+			FBuildingDataRow BuildingDataRow;
+			if (GetBuildingData(CurrentBuildingID, BuildingDataRow))
+			{
+				TArray<FBuildPreviewCostUIData> CostUIList;
+
+				if (UInventoryComponent* Inv = Player->GetInventory())
+				{
+					for (const FBuildCost& Cost : BuildingDataRow.Costs)
+					{
+						FBuildPreviewCostUIData Data;
+						Data.Need = Cost.Count;
+						Data.Have = Inv->GetTotalCountByID_ForUI(Cost.ItemID);
+						Data.ItemName = FText::FromName(Cost.ItemID);
+
+						if (Inv->ItemDataTable)
+						{
+							const FItemDataRow* ItemRow = Inv->ItemDataTable->FindRow<FItemDataRow>(Cost.ItemID, TEXT("BuildPreviewCost"));
+							if (ItemRow)
+							{
+								Data.Icon = ItemRow->AssetData.Icon;
+								Data.ItemName = ItemRow->TextData.Name;
+							}
+						}
+
+						CostUIList.Add(Data);
+					}
+				}
+
+				PC->UIManager->UpdateBuildPreviewPanel(CostUIList);
+			}
+		}
+	}
 }
 
 void UBuildComponent::UpdatePreviewTransform()
@@ -273,7 +317,7 @@ void UBuildComponent::ApplyPreviewMaterial(bool bInCanPlace)
 
 bool UBuildComponent::HasEnoughBuildCost(const FBuildingDataRow& Row) const
 {
-	if (Player) return false;
+	if (!Player) return false;
 
 	UInventoryComponent* Inv = Player->GetInventory();
 	if (!Inv) return false;
@@ -290,30 +334,41 @@ bool UBuildComponent::HasEnoughBuildCost(const FBuildingDataRow& Row) const
 	return true;
 }
 
-bool UBuildComponent::ConfirmBuild()
+bool UBuildComponent::ConfirmBuild(EBuildFailReason& OutFailReason)
 {
-	if (!bIsBuildModeOn) return false;
+	OutFailReason = EBuildFailReason::None;
 
-	if (!bCanPlace)
+	if (!bIsBuildModeOn)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Build] ConfirmBuild failed: bCanPlace is false"));
+		OutFailReason = EBuildFailReason::InvalidPlacement;
 		return false;
 	}
-	
-	if (!Player || CurrentBuildingID.IsNone()) return false;
 
 	FBuildingDataRow Row;
-	if (!GetBuildingData(CurrentBuildingID, Row)) return false;
-
-	if (!Row.BuildActorClass)
+	if (!GetBuildingData(CurrentBuildingID, Row))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Build] BuildActorClass is null for %s"), *CurrentBuildingID.ToString());
+		OutFailReason = EBuildFailReason::SpawnFailed;
 		return false;
 	}
 
+	//위치 불가
+	if (!CheckCanPlace(Row))
+	{
+		OutFailReason = EBuildFailReason::InvalidPlacement;
+		return false;
+	}
+
+	//재료 부족
+	if (!HasEnoughBuildCost(Row))
+	{
+		OutFailReason = EBuildFailReason::NotEnoughCost;
+		return false;
+	}
+
+	//재료 차감
 	if (!ConsumeBuildCost(Row))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Build] ConfirmBuild failed: cost consume failed"));
+		OutFailReason = EBuildFailReason::NotEnoughCost;
 		return false;
 	}
 
@@ -324,9 +379,10 @@ bool UBuildComponent::ConfirmBuild()
 
 	AActor* Spawned = GetWorld()->SpawnActor<AActor>(Row.BuildActorClass, BuildTransform, SpawnParams);
 
+
 	if (!Spawned)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[Build] SpawnActor failed for %s"), *CurrentBuildingID.ToString());
+		OutFailReason = EBuildFailReason::SpawnFailed;
 		return false;
 	}
 
