@@ -14,6 +14,18 @@ class USB_UIManager;
 class AMapWorldManager;
 struct FInputActionValue;
 
+UENUM(BlueprintType)
+enum class EOverlayInputState : uint8
+{
+	Gameplay     UMETA(DisplayName = "Gameplay"),
+	Inventory    UMETA(DisplayName = "Inventory"),
+	Crafting     UMETA(DisplayName = "Crafting"),
+	BuildMenu    UMETA(DisplayName = "BuildMenu"),
+	BuildPreview UMETA(DisplayName = "BuildPreview"),
+	FullMap      UMETA(DisplayName = "FullMap"),
+	PauseMenu    UMETA(DisplayName = "PauseMenu")
+};
+
 UCLASS()
 class STILLBOUND_API APlayerController_SB : public APlayerController
 {
@@ -23,9 +35,15 @@ protected:
 	virtual void SetupInputComponent() override;
 
 private:
+	UPROPERTY(VisibleAnywhere, Category="SB|UI")
+	EOverlayInputState OverlayState = EOverlayInputState::Gameplay;
+
 	/// =========================
 	/// Input - Mapping Contexts
 	/// =========================
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
+	TObjectPtr<UInputMappingContext> IMC_System;
+
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
 	TObjectPtr<UInputMappingContext> IMC_Movement;
 
@@ -34,6 +52,9 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
 	TObjectPtr<UInputMappingContext> IMC_Hotbar;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
+	TObjectPtr<UInputMappingContext> IMC_BuildPreviewMode;
 
 	/// =========================
 	/// Input - Movement
@@ -114,6 +135,15 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Build")
 	TObjectPtr<UInputAction> ToggleBuildAction;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> PlaceBuildAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> CancelBuildAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|System")
+	TObjectPtr<UInputAction> ESCAction;
 
 	/// =========================
 	/// UI Map
@@ -153,6 +183,8 @@ private:
 
 	void Skill();
 
+	void OnEscapePressed();
+
 	void ToggleMenu();
 
 	void OnMouseWheel(const FInputActionValue& Value);
@@ -168,6 +200,23 @@ private:
 	void OnUseHotbar(const FInputActionValue& Value);
 
 	void ToggleBuild();
+	void OnBuildPlace();
+	void OnBuildCancel();
+
+///------------------------Input Manager--------------------
+public:
+	void SetOverlayInputState(EOverlayInputState NewState);
+	void EnterBuildPreview(FName BuildingID);
+	void ExitBuildPreview(bool bCancel);
+
+	bool IsMenuLikeState() const;
+	bool IsBuildPreviewState() const;
+
+private:
+	void ApplyOverlayInputState();
+
+///---------------------------------------------------------
+		
 
 public:
 
@@ -211,8 +260,6 @@ private:
 	UPROPERTY()
 	bool bFullMapOpen = false;
 
-	void ApplyOverlayInputState();
-
 // =========================
 // Gather Progress System
 // =========================
@@ -239,6 +286,7 @@ public:
 // =========================
 // Ping System UI
 // =========================
+
 private:
 
 	FVector2D CurrentPingUV = FVector2D::ZeroVector;
@@ -254,5 +302,20 @@ public:
 
 	bool HasPing() const { return bHasPing; }
 	FVector2D GetPingUV() const { return CurrentPingUV;}
+
+// =========================
+// Game Clear UI
+// =========================
+
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SB|UI")
+	TSubclassOf<class UUserWidget> GameClearWidgetClass;
+
+	UFUNCTION(BlueprintCallable)
+	void ShowGameClearUI(bool bBossKilled);
+
+	UFUNCTION(BlueprintCallable)
+	void GoToTitleMenu();
 
 };

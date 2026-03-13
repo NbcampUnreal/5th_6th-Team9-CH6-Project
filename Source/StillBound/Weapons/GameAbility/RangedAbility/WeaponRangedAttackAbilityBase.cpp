@@ -5,7 +5,6 @@
 #include "Weapons/RangedWeapon/RangedWeaponBase.h"
 #include "Weapons/WeaponBase.h"
 
-#include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 
@@ -24,7 +23,6 @@ UWeaponRangedAttackAbilityBase::UWeaponRangedAttackAbilityBase()
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalOnly;
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
-    FireTag = FGameplayTag::RequestGameplayTag(TEXT("Attack.Primary"), false);
     FireEventTag = FGameplayTag::RequestGameplayTag(TEXT("Event.Ranged.Fire"), false);
 
     bFireImmediatelyIfNoMontageOrEvent = true;
@@ -44,7 +42,7 @@ void UWeaponRangedAttackAbilityBase::ActivateAbility(
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
     ARangedWeaponBase* Weapon = GetWeaponFromSourceObject<ARangedWeaponBase>();
-    if (!Weapon || !FireTag.IsValid())
+    if (!Weapon)
     {
         EndAbility(Handle, ActorInfo, ActivationInfo, false, true);
         return;
@@ -56,7 +54,7 @@ void UWeaponRangedAttackAbilityBase::ActivateAbility(
         return;
     }
 
-    // 발사 이벤트 대기 (몽타주 타이밍)
+    // 발사 이벤트 대기(몽타주 타이밍)
     if (FireEventTag.IsValid())
     {
         FireEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
@@ -88,7 +86,7 @@ void UWeaponRangedAttackAbilityBase::ActivateAbility(
 
         MontageTask->ReadyForActivation();
 
-        // 몽타주가 있는데 FireEventTag가 유효하지 않으면 즉시 1회 발사 옵션
+        // 몽타주가 있는데 이벤트 태그가 유효하지 않으면 즉시 1회 발사 옵션
         if (bFireImmediatelyIfNoMontageOrEvent && !FireEventTag.IsValid())
         {
             FireHitscanOnce(Weapon);
@@ -123,13 +121,25 @@ void UWeaponRangedAttackAbilityBase::EndAbility(
 bool UWeaponRangedAttackAbilityBase::CacheFireProfileFromWeapon(ARangedWeaponBase* Weapon)
 {
     bHasCachedProfile = false;
-    if (!Weapon) return false;
+    if (!Weapon)
+    {
+        return false;
+    }
+
+    // ? (3단계) 공용 헬퍼(WeaponGameplayAbility) 사용
+    const FGameplayTag InputTag = GetInputTagFromCurrentSpec();
+    if (!InputTag.IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[RangedGA] Missing InputTag in AbilitySpec. Weapon=%s Ability=%s"),
+            *GetNameSafe(Weapon), *GetNameSafe(this));
+        return false;
+    }
 
     FRangedFireProfile Profile;
-    if (!Weapon->GetFireProfile(FireTag, Profile))
+    if (!Weapon->GetFireProfile(InputTag, Profile))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[RangedGA] GetFireProfile failed FireTag=%s Weapon=%s"),
-            *FireTag.ToString(), *GetNameSafe(Weapon));
+        UE_LOG(LogTemp, Warning, TEXT("[RangedGA] GetFireProfile failed InputTag=%s Weapon=%s"),
+            *InputTag.ToString(), *GetNameSafe(Weapon));
         return false;
     }
 
@@ -151,7 +161,7 @@ bool UWeaponRangedAttackAbilityBase::GetViewPoint(FVector& OutLoc, FRotator& Out
         Controller = Pawn->GetController();
     }
 
-    // 플레이어: 카메라 매니저 기준 ViewPoint
+    // 플레이어: PlayerViewPoint
     if (APlayerController* PC = Cast<APlayerController>(Controller))
     {
         PC->GetPlayerViewPoint(OutLoc, OutRot);
@@ -261,13 +271,13 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
 
     const FVector ViewEnd = ViewLoc + ViewDir * Hitscan.MaxDistance;
 
-    // 1차: 카메라 트레이스 -> AimPoint
+    // 1차: ViewTrace -> AimPoint
     FHitResult ViewHit;
     const bool bViewBlocking = TraceSingle(ViewLoc, ViewEnd, Hitscan, ViewHit);
 
     OutAimPoint = bViewBlocking ? ViewHit.ImpactPoint : ViewEnd;
 
-    // 2차: 총구 -> AimPoint 방향으로 최종 트레이스 (총구 앞 벽 먼저 맞게)
+    // 2차: Muzzle -> AimPoint 방향 Trace (총구 앞 장애물 우선)
     FVector MuzzleDir = (OutAimPoint - MuzzleLoc).GetSafeNormal();
     if (MuzzleDir.IsNearlyZero())
     {
@@ -279,7 +289,7 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
     FHitResult MuzzleHit;
     const bool bMuzzleBlocking = TraceSingle(MuzzleLoc, MuzzleEnd, Hitscan, MuzzleHit);
 
-    // 디버그
+    // Debug
     if (bDebugTrace)
     {
         AActor* Avatar = GetAvatarActorFromActorInfo();
@@ -350,19 +360,10 @@ bool UWeaponRangedAttackAbilityBase::ApplyRangedOnHitEffects(AActor* TargetActor
 
     bool bAnyApplied = false;
 
-    // ? [수정] 무기(SourceObject)에 주입된 DT 데미지를 우선 사용
-    // WeaponDamage가 0이면(구형 BP/테스트) 기존 CachedProfile.BaseDamage를 fallback으로 사용
-    const ARangedWeaponBase* Weapon = GetWeaponFromSourceObject<ARangedWeaponBase>();
-    const float WeaponDmg = Weapon ? Weapon->GetWeaponDamage() : 0.f;
+    // 주 데미지: WeaponDamage(DT) * DamageMultiplier
+    bAnyApplied |= ApplyWeaponDamageToTargetActor(TargetActor, CachedProfile.DamageMultiplier, 1.f, 1.f, 0.f);
 
-    const float FinalDamage = (WeaponDmg > 0.f) ? WeaponDmg : CachedProfile.BaseDamage;
-    if (FinalDamage > 0.f)
-    {
-        bAnyApplied |= ApplyBaseDamageToTargetActor(TargetActor, FinalDamage, 1.f, 1.f);
-    }
-
-    // ? [수정] OnHitTargetEffects는 부가효과 전용으로 사용 권장
-    // (Data.EnemyDamage가 들어있으면 중복 데미지/SetByCaller 미세팅 에러가 날 수 있어 제거)
+    // 부가효과: Data.EnemyDamage 중복 방지
     const FGameplayTag DamageTag = GetDataDamageTag();
 
     for (const FRangedOnHitGameplayEffectSpec& Spec : CachedProfile.OnHitTargetEffects)
@@ -412,5 +413,6 @@ void UWeaponRangedAttackAbilityBase::OnMontageInterrupted()
 
 void UWeaponRangedAttackAbilityBase::OnMontageBlendOut()
 {
-    // 필요 시 연사/후처리 확장
+    // ? 스턱 방지: BlendOut에서도 종료 처리(메밀리와 동일 정책)
+    EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, false, false);
 }

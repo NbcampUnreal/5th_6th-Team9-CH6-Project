@@ -17,11 +17,19 @@ class STILLBOUND_API UBuildComponent : public UActorComponent
 public:	
 	UBuildComponent();
 
+	virtual void BeginPlay() override;
+
+	UPROPERTY()
 	TObjectPtr<UCameraComponent> Camera;
 
+	UPROPERTY()
 	TObjectPtr<APlayerCharacter_SB> Player;
 
+	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> BuildGhost;
+
+	UPROPERTY()
+	FTransform BuildTransform;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
 	TObjectPtr<UDataTable> BuildingDataTable;
@@ -29,9 +37,24 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
 	FName CurrentBuildingID = NAME_None;
 
-	FTransform BuildTransform;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	bool bIsBuildModeOn = false;
 
-	FTimerHandle  CycleHandle;
+	FTimerHandle BuildPreviewTimerHandle;
+
+	UPROPERTY(VisibleAnyWhere, BlueprintReadOnly, Category="Build")
+	bool bCanPlace = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Build|Preview")
+	TObjectPtr<UMaterialInterface> ValidPreviewMaterial;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Build|Preview")
+	TObjectPtr<UMaterialInterface> InvalidPreviewMaterial;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	FHitResult LastPreviewHit;
+
+
 
 	UFUNCTION(BlueprintCallable)
 	void BeginBuildMode(FName InBuildingID);
@@ -39,18 +62,28 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void CancelBuildMode();
 
+	UFUNCTION(BlueprintCallable)
+	bool ConfirmBuild();
+
+	UFUNCTION(BlueprintCallable)
+	void HandleBuildCancel();
+
+	bool ConsumeBuildCost(const FBuildingDataRow& Row);
+
 	bool GetBuildingData(FName InBuildingID, FBuildingDataRow& OutRow) const;
 
-	bool IsBuildModeOn;
-	bool DoOnce = true;
-
-	//void ToggleBuildMode();
-	void BuildCycle();
 	void SpawnBuildGhost();
 
 	void UpdateBuildPreview();
+	void UpdatePreviewTransform();
 
-protected:
-	virtual void BeginPlay() override;
+	bool CheckCanPlace(const FBuildingDataRow& Row);
+	bool CheckGroundOnlyPlacement(const FBuildingDataRow& Row);
+	bool CheckOverlapAtPreview(const FBuildingDataRow& Row) const;
+	void ApplyPreviewMaterial(bool bInCanPlace);
+
+	bool HasEnoughBuildCost(const FBuildingDataRow& Row) const;
+	
+
 
 };

@@ -58,6 +58,8 @@ protected:
 	void OnCraftClicked();
 
 	void RebuildRecipeList();
+
+	UFUNCTION()
 	void RefreshDetail();
 
 private:
