@@ -20,7 +20,7 @@ class STILLBOUND_API UUW_RoundProgressBar : public UUserWidget
 public:
 
     virtual void NativeConstruct() override;
-
+   
     UFUNCTION(BlueprintCallable)
     void SetPercent(float Percent);
 
@@ -35,9 +35,8 @@ protected:
     UPROPERTY(meta = (BindWidget))
     UTextBlock* TimeText;
 
-   
-
 private:
 
     UMaterialInstanceDynamic* ProgressMaterial;
+
 };

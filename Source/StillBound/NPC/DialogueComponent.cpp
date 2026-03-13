@@ -2,6 +2,7 @@
 
 
 #include "NPC/DialogueComponent.h"
+#include "NPC/NPCCharacter.h"
 #include "Engine/DataTable.h"
 
 // Sets default values for this component's properties
@@ -157,6 +158,19 @@ bool UDialogueComponent::SelectOption(int32 OptionIndex)
 		{
 			EndDialogue();
 			return true;
+		}
+		// 추가: Trade 처리
+		else if (SelectedOption.SwitchToMenu == EMenuType::Trade)
+		{
+			ANPCCharacter* NPC = Cast<ANPCCharacter>(GetOwner());
+			if (NPC)
+			{
+				// 대화창은 유지하거나 닫기 (선택)
+				EndDialogue(); 
+				NPC->OpenShop();
+
+				return true;
+			}  
 		}
 		else
 		{

@@ -8,7 +8,9 @@
 
 /**
  * 기본 근접 라이트 공격 GA
- * - AttackTag = Attack.Light 프로파일을 무기에서 가져와서 실행
+ * - 더 이상 AttackTag를 들고 있지 않음(중복 제거)
+ * - 어떤 프로파일을 쓸지는 "이 AbilitySpec에 심긴 InputTag.*"로 결정됨
+ *   (WeaponBase에서 GiveAbility 할 때 Spec.DynamicAbilityTags에 InputTag를 넣어둠)
  */
 UCLASS()
 class STILLBOUND_API UGA_MeleeLight : public UWeaponMeleeAttackAbilityBase

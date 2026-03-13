@@ -10,6 +10,8 @@
 
 #include "Weapons/GameEffect/GE_WeaponDamage_Instant.h"
 
+// 현재 무기의 HitBox 모양 그대로 디버그 박스를 그린다.
+
 UWeaponGameplayAbility::UWeaponGameplayAbility()
 {
     // 싱글플레이 기준: LocalOnly
@@ -35,13 +37,7 @@ FGameplayTag UWeaponGameplayAbility::GetDataDamageTag()
 
 AWeaponBase* UWeaponGameplayAbility::GetWeaponFromSourceObject() const
 {
-    UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-    if (!ASC)
-    {
-        return nullptr;
-    }
-
-    const FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromHandle(CurrentSpecHandle);
+    const FGameplayAbilitySpec* Spec = FindCurrentAbilitySpec();
     if (!Spec)
     {
         return nullptr;
@@ -210,4 +206,59 @@ bool UWeaponGameplayAbility::ApplyWeaponDamageToTargetActor(
     }
 
     return ApplyBaseDamageToTargetActor(TargetActor, FinalDamage, Level, Chance);
+}
+
+const FGameplayAbilitySpec* UWeaponGameplayAbility::FindCurrentAbilitySpec() const
+{
+    UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+    if (!ASC)
+    {
+        return nullptr;
+    }
+
+    return ASC->FindAbilitySpecFromHandle(CurrentSpecHandle);
+}
+
+bool UWeaponGameplayAbility::TryGetInputTagFromCurrentSpec(FGameplayTag& OutInputTag) const
+{
+    OutInputTag = FGameplayTag();
+
+    const FGameplayAbilitySpec* Spec = FindCurrentAbilitySpec();
+    if (!Spec)
+    {
+        return false;
+    }
+
+    // 1) 정석: InputTag 루트 기반 매칭
+    const FGameplayTag InputRoot = FGameplayTag::RequestGameplayTag(TEXT("InputTag"), /*ErrorIfNotFound*/ false);
+    if (InputRoot.IsValid())
+    {
+        for (const FGameplayTag& Tag : Spec->DynamicAbilityTags)
+        {
+            if (Tag.IsValid() && Tag.MatchesTag(InputRoot))
+            {
+                OutInputTag = Tag;
+                return true;
+            }
+        }
+    }
+
+    // 2) 안전장치: 루트 태그가 등록 안 된 경우 대비 prefix 매칭
+    for (const FGameplayTag& Tag : Spec->DynamicAbilityTags)
+    {
+        if (Tag.IsValid() && Tag.ToString().StartsWith(TEXT("InputTag.")))
+        {
+            OutInputTag = Tag;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+FGameplayTag UWeaponGameplayAbility::GetInputTagFromCurrentSpec() const
+{
+    FGameplayTag Tag;
+    TryGetInputTagFromCurrentSpec(Tag);
+    return Tag;
 }

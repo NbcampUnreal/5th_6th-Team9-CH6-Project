@@ -2,9 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
+#include "GameplayTagContainer.h" // FGameplayTag
 #include "ItemData.generated.h"
 
 
+class UGameplayEffect;
 class AWeaponBase;
 
 UENUM(BlueprintType)
@@ -35,25 +37,41 @@ enum class EWeaponKind : uint8
 	Ranged UMETA(DisplayName = "Ranged")
 };
 
+//채집 도구 추가
+UENUM(BlueprintType)
+enum class EToolKind : uint8
+{
+	None     UMETA(DisplayName = "None"),
+	Axe      UMETA(DisplayName = "Axe"), 
+	Pickaxe  UMETA(DisplayName = "Pickaxe")   
+};
+
 USTRUCT(BlueprintType)
 struct FItemStatistics
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere)
-	float ArmorRating;
+	float ArmorRating = 0.f;
 
 	UPROPERTY(EditAnywhere)
-	float DamageValue;
+	float DamageValue = 0.f;
 
 	UPROPERTY(EditAnywhere)
-	float RestorationAmount;
+	float RestorationAmount = 0.f;
 
 	UPROPERTY(EditAnywhere)
-	float SellValue;
+	float SellValue = 0.f;
 
 	UPROPERTY(EditAnywhere)
 	float BuyValue;
+
+	//채집도구 티어 관련 추가
+	UPROPERTY(EditAnywhere)
+	float ObjectTier;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EToolKind ToolKind = EToolKind::None;
 };
 
 USTRUCT(BlueprintType)
@@ -80,13 +98,13 @@ struct FItemNumericData
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere)
-	float Weight;
+	float Weight = 0.f;
 
 	UPROPERTY(EditAnywhere)
-	int32 MaxStackSize;
+	int32 MaxStackSize = 1;
 
 	UPROPERTY(EditAnywhere)
-	bool bIsStackable;
+	bool bIsStackable = false;
 };
 
 USTRUCT()
@@ -95,10 +113,10 @@ struct FItemAssetData
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere)
-	UTexture2D* Icon;
+	UTexture2D* Icon = nullptr;
 
 	UPROPERTY(EditAnywhere)
-	UStaticMesh* Mesh;
+	UStaticMesh* Mesh = nullptr;
 };
 
 
@@ -113,10 +131,10 @@ struct FItemDataRow : public FTableRowBase
 	FName ID;
 
 	UPROPERTY(EditAnywhere, Category = "Item")
-	EItemType ItemType;
+	EItemType ItemType ;
 
 	UPROPERTY(EditAnywhere, Category = "Item")
-	EItemQuality ItemQuality;
+	EItemQuality ItemQuality = EItemQuality::Common;
 
 	UPROPERTY(EditAnywhere, Category = "Item")
 	FItemStatistics ItemStatistics;
@@ -135,6 +153,14 @@ struct FItemDataRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, Category = "Item|Equip")
 	TSoftClassPtr<AWeaponBase> EquipWeaponClass;
+
+	/** Consumable이면 적용할 GE 클래스 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Consumable")
+	TSoftClassPtr<UGameplayEffect> ConsumableEffectClass; //수정
+
+	/** 위 GE가 SetByCaller로 기대하는 Tag (예: Data.RestoreHealth) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Consumable")
+	FGameplayTag ConsumableSetByCallerTag; //수정
 };
 
 #pragma endregion

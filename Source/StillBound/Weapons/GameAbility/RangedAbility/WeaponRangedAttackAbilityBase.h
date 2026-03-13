@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Weapons/GameAbility/WeaponGameplayAbility.h"
 #include "GameplayTagContainer.h"
-#include "Engine/EngineTypes.h"              // FHitResult
+#include "Engine/EngineTypes.h"                    // FHitResult
 #include "Weapons/RangedWeapon/RangedWeaponBase.h" // FRangedFireProfile, FRangedHitscanConfig
 #include "WeaponRangedAttackAbilityBase.generated.h"
 
@@ -15,9 +15,9 @@ class UAbilityTask_WaitGameplayEvent;
 
 /**
  * 히트스캔 기반 원거리 공격 GA 베이스
- * - GA가 캐릭터(ActorInfo)에서 카메라 ViewPoint를 직접 참조해서 AimPoint 계산
- * - 2-Trace: (1) 카메라 트레이스 -> AimPoint
- *            (2) 총구(Muzzle) -> AimPoint 방향 트레이스 -> 최종 Hit
+ * - ViewTrace(카메라/컨트롤러)로 AimPoint 계산
+ * - MuzzleTrace(총구)로 최종 Hit 계산(총구 앞 장애물 우선)
+ * - FireProfile 선택은 "현재 AbilitySpec의 InputTag.*" 로 결정
  */
 UCLASS(Abstract)
 class STILLBOUND_API UWeaponRangedAttackAbilityBase : public UWeaponGameplayAbility
@@ -28,13 +28,9 @@ public:
     UWeaponRangedAttackAbilityBase();
 
 protected:
-    /** 어떤 FireProfile을 사용할지 (예: Attack.Primary / Attack.Secondary) */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ranged")
-    FGameplayTag FireTag;
-
     /**
      * 몽타주 타이밍에 맞춰 발사 이벤트를 받을 태그
-     * - AnimNotify(또는 NotifyState)에서 SendGameplayEventToActor로 Event.Ranged.Fire 전송
+     * - AnimNotify/NotifyState에서 SendGameplayEventToActor로 Event.Ranged.Fire 전송
      */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ranged|FireTiming")
     FGameplayTag FireEventTag;
@@ -83,6 +79,7 @@ protected:
     ) override;
 
 protected:
+    // ? (3단계) GetInputTagFromCurrentSpec()는 이제 WeaponGameplayAbility 공용 헬퍼 사용 (중복 제거)
     bool CacheFireProfileFromWeapon(ARangedWeaponBase* Weapon);
 
     /** ActorInfo 기반 ViewPoint(카메라/컨트롤러 시점) 획득 */
@@ -99,7 +96,7 @@ protected:
         FHitResult& OutHit
     ) const;
 
-    /** 2-Trace로 최종 히트 계산 (ViewTrace + MuzzleTrace) */
+    /** 2-Trace로 최종 히트 계산(ViewTrace + MuzzleTrace) */
     bool ComputeFinalHitscanHit(
         ARangedWeaponBase* Weapon,
         const FRangedHitscanConfig& Hitscan,
@@ -110,7 +107,7 @@ protected:
     /** 한 번의 발사(NumShots만큼 반복) */
     void FireHitscanOnce(ARangedWeaponBase* Weapon);
 
-    /** 히트 대상에게 BaseDamage + OnHitTargetEffects 적용 */
+    /** 히트 대상에게 WeaponDamage(DT)*Multiplier + OnHitTargetEffects 적용 */
     bool ApplyRangedOnHitEffects(AActor* TargetActor) const;
 
 protected:

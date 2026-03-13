@@ -17,6 +17,7 @@
 #include "UI/UW_Minimap.h"
 #include "UI/Map/MapWorldManager.h"
 #include "UI/UW_FullMap.h"
+#include "UI/UW_GameClear.h"
 #include "Landscape.h"
 #include "EngineUtils.h"
 #include "Weapons/WeaponBase.h"
@@ -31,9 +32,10 @@ void APlayerController_SB::SetupInputComponent()
 	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
 	if (!IsValid(InputSubsystem)) return;
 
+	if (IMC_System) InputSubsystem->AddMappingContext(IMC_System, 10);
 	if (IMC_Movement) InputSubsystem->AddMappingContext(IMC_Movement, 0);
 	if (IMC_Abilities) InputSubsystem->AddMappingContext(IMC_Abilities, 0);
-	if (IMC_Hotbar)   InputSubsystem->AddMappingContext(IMC_Hotbar, 0);
+	if (IMC_Hotbar) InputSubsystem->AddMappingContext(IMC_Hotbar, 0);
 
 	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
 	if (!IsValid(EnhancedInputComponent)) return;
@@ -65,7 +67,12 @@ void APlayerController_SB::SetupInputComponent()
 
 	EnhancedInputComponent->BindAction(ToggleMenuAction, ETriggerEvent::Started, this, &ThisClass::ToggleMenu);
 	EnhancedInputComponent->BindAction(FullMapAction,ETriggerEvent::Started,this,&ThisClass::ToggleFullMap);
+
 	EnhancedInputComponent->BindAction(ToggleBuildAction, ETriggerEvent::Started, this, &ThisClass::ToggleBuild);
+	EnhancedInputComponent->BindAction(PlaceBuildAction, ETriggerEvent::Started, this, &ThisClass::OnBuildPlace);
+	EnhancedInputComponent->BindAction(CancelBuildAction, ETriggerEvent::Started, this, &ThisClass::OnBuildCancel);
+	EnhancedInputComponent->BindAction(ESCAction, ETriggerEvent::Started, this, &ThisClass::OnEscapePressed);
+	
 }
 
 #pragma region ========================= Input - Movement =========================
@@ -191,19 +198,27 @@ void APlayerController_SB::ToggleMenu()
 {
 	if (!UIManager) return;
 
-	if (bFullMapOpen)
+	APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn());
+
+	switch (OverlayState)
 	{
-		UIManager->ToggleFullMap();
-		bFullMapOpen = false;
+	case EOverlayInputState::Gameplay:
+		UIManager->OpenInventoryMenu();
+		SetOverlayInputState(EOverlayInputState::Inventory);
+		break;
 
-		//ApplyOverlayInputState();
-		return;
+	case EOverlayInputState::Inventory:
+		UIManager->CloseMenu();
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		break;
+
+	case EOverlayInputState::Crafting:
+	case EOverlayInputState::BuildMenu:
+	case EOverlayInputState::BuildPreview:
+	case EOverlayInputState::FullMap:
+	case EOverlayInputState::PauseMenu:
+		break;
 	}
-
-	UIManager->ToggleMenu();
-	bMenuOpen = !bMenuOpen;
-
-	//ApplyOverlayInputState();
 }
 
 #pragma endregion
@@ -306,7 +321,7 @@ bool APlayerController_SB::ActivateAbilityAttack(const FGameplayTag& InputTag) c
 void APlayerController_SB::Attack()
 {
 	if (IsGameplayInputBlocked()) return;
-
+	
 	ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
 
@@ -336,7 +351,59 @@ void APlayerController_SB::Skill()
 	if (IsGameplayInputBlocked()) return;
 }
 
+
 #pragma endregion
+
+void APlayerController_SB::OnEscapePressed()
+{
+	if (!UIManager) return;
+
+	APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn());
+
+	switch (OverlayState)
+	{
+	case EOverlayInputState::Gameplay:
+		/// 시스템 메뉴UI Visible 함수추가
+		SetOverlayInputState(EOverlayInputState::PauseMenu);
+		return;
+
+	case EOverlayInputState::Inventory:
+		UIManager->CloseMenu();
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+
+	case EOverlayInputState::Crafting:
+		UIManager->CloseMenu();
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+
+	case EOverlayInputState::BuildMenu:
+		if (Chr && Chr->GetBuildComponent())
+		{
+			UIManager->HideBuildMenu(Chr->GetBuildComponent());
+		}
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+
+	case EOverlayInputState::BuildPreview:
+		if (Chr && Chr->GetBuildComponent())
+		{
+			Chr->GetBuildComponent()->HandleBuildCancel();
+		}
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+
+	case EOverlayInputState::FullMap:
+		UIManager->ToggleFullMap();
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+
+	case EOverlayInputState::PauseMenu:
+		/// PauseMenu UI Close
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+	}
+}
 
 #pragma region ========================= Input - Hotbar =========================
 
@@ -434,12 +501,82 @@ void APlayerController_SB::OnUseHotbar(const FInputActionValue& Value)
 	Char->UseSelectedHotbarItem();
 }
 
+#pragma endregion
+
+#pragma region ========================= Build =========================
 void APlayerController_SB::ToggleBuild()
 {
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetPawn());
 	if (!Char || !UIManager || !Char->GetBuildComponent()) return;
 
-	UIManager->ToggleBuildMenu(Char->GetBuildComponent());
+	if (OverlayState == EOverlayInputState::Crafting
+		|| OverlayState == EOverlayInputState::Inventory
+		|| OverlayState == EOverlayInputState::FullMap
+		|| OverlayState == EOverlayInputState::PauseMenu)
+	{
+		return;
+	}
+
+	if (OverlayState == EOverlayInputState::BuildPreview)
+	{
+		ExitBuildPreview(true);
+
+		UIManager->ShowBuildMenu(Char->GetBuildComponent());
+		SetOverlayInputState(EOverlayInputState::BuildMenu);
+		return;
+	}
+
+	if (OverlayState == EOverlayInputState::Gameplay)
+	{
+
+		UIManager->ShowBuildMenu(Char->GetBuildComponent());
+		SetOverlayInputState(EOverlayInputState::BuildMenu);
+		return;
+	}
+
+	if (OverlayState == EOverlayInputState::BuildMenu)
+	{
+		UIManager->HideBuildMenu(Char->GetBuildComponent());
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+	}
+}
+
+void APlayerController_SB::OnBuildPlace()
+{
+	if (OverlayState == EOverlayInputState::BuildPreview)
+	{
+		if (APlayerCharacter_SB* PC = Cast<APlayerCharacter_SB>(GetPawn()))
+		{
+			if (PC->BuildComponent)
+			{
+				const bool bPlaced = PC->BuildComponent->ConfirmBuild();
+
+				if (!bPlaced)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[Build] Attack input -> ConfirmBuild failed"));
+				}
+			}
+		}
+		return;
+	}
+}
+
+void APlayerController_SB::OnBuildCancel()
+{
+	if (OverlayState == EOverlayInputState::BuildPreview)
+	{
+		if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn()))
+		{
+			if (Chr->BuildComponent)
+			{
+				Chr->BuildComponent->HandleBuildCancel();
+			}
+		}
+
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+	}
 }
 
 #pragma endregion
@@ -501,6 +638,9 @@ void APlayerController_SB::BeginPlay()
 		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] CurrentSlotId = %s"), *Sub->GetCurrentSlotId());
 		Sub->TouchCurrentWorldLastPlayed();
 	}
+
+	OverlayState = EOverlayInputState::Gameplay;
+	ApplyOverlayInputState();
 }
 
 void APlayerController_SB::OnPossess(APawn* InPawn)
@@ -536,34 +676,64 @@ void APlayerController_SB::ApplyOverlayInputState()
 	auto* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
 	if (!Subsystem) return;
 
-	const bool bOverlayOpen = bMenuOpen || bFullMapOpen;
+	if (IMC_Movement) Subsystem->RemoveMappingContext(IMC_Movement);
+	if (IMC_Abilities) Subsystem->RemoveMappingContext(IMC_Abilities);
+	if (IMC_Hotbar) Subsystem->RemoveMappingContext(IMC_Hotbar);
+	if (IMC_BuildPreviewMode) Subsystem->RemoveMappingContext(IMC_BuildPreviewMode);
 
-	if (bOverlayOpen)
+	if (IMC_System)
 	{
-		if (IMC_Movement) Subsystem->RemoveMappingContext(IMC_Movement);
-		if (IMC_Abilities) Subsystem->RemoveMappingContext(IMC_Abilities);
+		Subsystem->AddMappingContext(IMC_System, 10);
+	}
 
+	switch (OverlayState)
+	{
+	case EOverlayInputState::Gameplay:
+		if (IMC_Movement) Subsystem->AddMappingContext(IMC_Movement, 0);
+		if (IMC_Abilities) Subsystem->AddMappingContext(IMC_Abilities, 0);
+		if (IMC_Hotbar) Subsystem->AddMappingContext(IMC_Hotbar, 0);
+
+		ResetIgnoreMoveInput();
+		ResetIgnoreLookInput();
+
+		{
+			FInputModeGameOnly Mode;
+			SetInputMode(Mode);
+		}
+		bShowMouseCursor = false;
+		break;
+
+	case EOverlayInputState::Inventory:
+	case EOverlayInputState::Crafting:
+	case EOverlayInputState::BuildMenu:
+	case EOverlayInputState::PauseMenu:
+	case EOverlayInputState::FullMap:
 		SetIgnoreMoveInput(true);
 		SetIgnoreLookInput(true);
 
-		FInputModeGameAndUI Mode;
-		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		SetInputMode(Mode);
-
+		{
+			FInputModeGameAndUI Mode;
+			Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			SetInputMode(Mode);
+		}
 		bShowMouseCursor = true;
-	}
-	else
-	{
+		break;
+
+	case EOverlayInputState::BuildPreview:
 		if (IMC_Movement) Subsystem->AddMappingContext(IMC_Movement, 0);
-		if (IMC_Abilities) Subsystem->AddMappingContext(IMC_Abilities, 0);
+		if (IMC_BuildPreviewMode) Subsystem->AddMappingContext(IMC_BuildPreviewMode, 1);
 
-		SetIgnoreMoveInput(false);
-		SetIgnoreLookInput(false);
+		ResetIgnoreMoveInput();
+		ResetIgnoreLookInput();
 
-		FInputModeGameOnly Mode;
-		SetInputMode(Mode);
-
+		{
+			FInputModeGameOnly Mode;
+			SetInputMode(Mode);
+		}
 		bShowMouseCursor = false;
+
+		// 추후 좌/우클릭 IMC_Abilities 분기 예정
+		break;
 	}
 }
 
@@ -743,7 +913,7 @@ void APlayerController_SB::StartGatherProgress(float Duration)
 		GatherUpdateTimer,
 		this,
 		&APlayerController_SB::UpdateGatherUI,
-		0.01f,
+		0.016f,
 		true
 	);
 }
@@ -758,6 +928,27 @@ void APlayerController_SB::EndGatherProgress()
 	{
 		UIManager->HideGatherProgress();
 	}
+}
+
+void APlayerController_SB::ShowGameClearUI(bool bBossKilled)
+{
+	if (!GameClearWidgetClass) return;
+
+	UUW_GameClear* Widget = CreateWidget<UUW_GameClear>(this, GameClearWidgetClass);
+
+	if (!Widget) return;
+
+	Widget->AddToViewport();
+	Widget->SetGameClear(bBossKilled);
+
+	FInputModeUIOnly InputMode;
+	SetInputMode(InputMode);
+	bShowMouseCursor = true;
+}
+
+void APlayerController_SB::GoToTitleMenu()
+{
+	// 타이틀 이동은 여기서 나중에 연결
 }
 
 #pragma endregion 
@@ -804,5 +995,59 @@ void APlayerController_SB::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 bool APlayerController_SB::IsGameplayInputBlocked() const
 {
-	return UIManager && UIManager->IsMenuBlockingGameplay();
+	return OverlayState == EOverlayInputState::Inventory
+		|| OverlayState == EOverlayInputState::Crafting
+		|| OverlayState == EOverlayInputState::BuildMenu
+		|| OverlayState == EOverlayInputState::FullMap
+		|| OverlayState == EOverlayInputState::PauseMenu;
+}
+
+
+void APlayerController_SB::SetOverlayInputState(EOverlayInputState NewState)
+{
+	if (OverlayState == NewState) return;
+
+	OverlayState = NewState;
+	ApplyOverlayInputState();
+
+	//UE_LOG(LogTemp, Warning, TEXT("[InputState] OverlayState -> %d"), (int32)OverlayState);
+}
+
+void APlayerController_SB::EnterBuildPreview(FName BuildingID)
+{
+	APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn());
+	if (!Chr || !Chr->BuildComponent || !UIManager) return;
+
+	UIManager->HideBuildMenu(Chr->GetBuildComponent());
+
+	Chr->BuildComponent->BeginBuildMode(BuildingID);
+
+	SetOverlayInputState(EOverlayInputState::BuildPreview);
+}
+
+void APlayerController_SB::ExitBuildPreview(bool bCancel)
+{
+	APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn());
+	if (!Chr || !Chr->BuildComponent) return;
+
+	if (bCancel)
+	{
+		Chr->BuildComponent->CancelBuildMode();
+	}
+
+	SetOverlayInputState(EOverlayInputState::Gameplay);
+}
+
+bool APlayerController_SB::IsMenuLikeState() const
+{
+	return OverlayState == EOverlayInputState::Inventory
+		|| OverlayState == EOverlayInputState::Crafting
+		|| OverlayState == EOverlayInputState::BuildMenu
+		|| OverlayState == EOverlayInputState::FullMap
+		|| OverlayState == EOverlayInputState::PauseMenu;
+}
+
+bool APlayerController_SB::IsBuildPreviewState() const
+{
+	return OverlayState == EOverlayInputState::BuildPreview;
 }

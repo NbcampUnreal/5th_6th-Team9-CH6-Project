@@ -6,7 +6,7 @@
 #include "Data/CraftingRecipeRow.h"
 #include "InventoryComponent.generated.h"
 
-DECLARE_MULTICAST_DELEGATE(FOnInventoryUpdated);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInventoryUpdated);
 DECLARE_MULTICAST_DELEGATE(FOnHotbarUpdated);
 
 class UItemBase;
@@ -103,7 +103,10 @@ public:
     ///===============================================================================
     /// PROPERTIES & VARIABLES
     ///===============================================================================
+    
+    UPROPERTY(BlueprintAssignable, Category = "Inventory")
     FOnInventoryUpdated OnInventoryUpdated;
+
     FOnHotbarUpdated OnHotbarUpdated;
 
     ///===============================================================================
@@ -170,7 +173,6 @@ public:
 
     bool MoveSlotItem(ESlotContainer FromContainer, int32 FromIndex, ESlotContainer ToContainer, int32 ToIndex, bool bAllowSwap);
 
-
     /// setters
     UFUNCTION(Category = "Inventory")
     FORCEINLINE void SetSlotsCapacity(const int32 NewSlotsCapacity) { InventorySlotsCapacity = NewSlotsCapacity; };
@@ -218,12 +220,13 @@ private:
     ///===============================================================================
     /// FUNCTIONS
     ///===============================================================================
-
     int32 GetTotalCountByID(FName ItemID) const;
-    bool ConsumeByID(FName ItemID, int32 Count);
     bool AddByID(FName ItemID, int32 Count);
     UItemBase* CreateItemInstanceByID(FName ItemID, int32 Quantity) const;
     
+public:
+    bool ConsumeByID(FName ItemID, int32 Count);
+
 
     ///===============================================================================
     /// PROPERTIES & VARIABLES

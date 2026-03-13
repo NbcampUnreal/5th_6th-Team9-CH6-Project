@@ -17,7 +17,7 @@ void UCraftingPanel::Init(UInventoryComponent* InInv)
 
 	if (!bBoundInventoryEvent)
 	{
-		Inv->OnInventoryUpdated.AddUObject(this, &UCraftingPanel::RefreshDetail);
+		Inv->OnInventoryUpdated.AddUniqueDynamic(this, &UCraftingPanel::RefreshDetail);
 		bBoundInventoryEvent = true;
 	}
 
