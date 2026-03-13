@@ -6,7 +6,7 @@
 #include "Data/CraftingRecipeRow.h"
 #include "InventoryComponent.generated.h"
 
-DECLARE_MULTICAST_DELEGATE(FOnInventoryUpdated);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInventoryUpdated);
 DECLARE_MULTICAST_DELEGATE(FOnHotbarUpdated);
 
 class UItemBase;
@@ -103,7 +103,10 @@ public:
     ///===============================================================================
     /// PROPERTIES & VARIABLES
     ///===============================================================================
+    
+    UPROPERTY(BlueprintAssignable, Category = "Inventory")
     FOnInventoryUpdated OnInventoryUpdated;
+
     FOnHotbarUpdated OnHotbarUpdated;
 
     ///===============================================================================
@@ -169,7 +172,6 @@ public:
     FORCEINLINE const TArray<TObjectPtr<UItemBase>>& GetHotbarSlots() const { return HotbarContents; };
 
     bool MoveSlotItem(ESlotContainer FromContainer, int32 FromIndex, ESlotContainer ToContainer, int32 ToIndex, bool bAllowSwap);
-
 
     /// setters
     UFUNCTION(Category = "Inventory")

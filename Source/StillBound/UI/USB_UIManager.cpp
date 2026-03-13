@@ -114,7 +114,6 @@ void USB_UIManager::SetExp(float Current, float Required)
 	UIHUD->SetExp(Current, Required);
 }
 
-//경험치 임시비활성화
 //void USB_UIManager::SetLevel(int32 Level)
 //{
 //	if (!UIHUD) return;
