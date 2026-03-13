@@ -2,6 +2,7 @@
 #include "Items/ItemBase.h"
 #include "Character/PlayerCharacter_SB.h"
 #include "Inventory/InventoryComponent.h"
+#include "Components/SphereComponent.h"
 //#include "Public/Data/ItemData.h"
 
 APickup::APickup()
@@ -11,11 +12,23 @@ APickup::APickup()
 	PickupMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PickupMesh"));
 	PickupMesh->SetSimulatePhysics(true);
 	SetRootComponent(PickupMesh);
+
+	AutoPickupSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AutoPickupSphere"));
+	AutoPickupSphere->SetupAttachment(PickupMesh);
+	AutoPickupSphere->InitSphereRadius(150.f);
+	AutoPickupSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	AutoPickupSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
+	AutoPickupSphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 }
 
 void APickup::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (AutoPickupSphere)
+	{
+		AutoPickupSphere->OnComponentBeginOverlap.AddDynamic(this, &APickup::OnAutoPickupSphereBeginOverlap);
+	}
 
 	InitializePickup(UItemBase::StaticClass(), ItemQuantity);
 
@@ -40,6 +53,13 @@ void APickup::InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int
 		ItemReference->NumericData = ItemData->NumericData;
 		ItemReference->TextData = ItemData->TextData;
 		ItemReference->AssetData = ItemData->AssetData;
+
+		ItemReference->ItemStatistics = ItemData->ItemStatistics;
+		//ItemReference->PickupActorClass = ItemData->PickupActorClass;
+		ItemReference->EquipWeaponClass = ItemData->EquipWeaponClass;
+
+		ItemReference->ConsumableEffectClass = ItemData->ConsumableEffectClass;         //¼öÁ¤
+		ItemReference->ConsumableSetByCallerTag = ItemData->ConsumableSetByCallerTag;
 
 		ItemReference->NumericData.bIsStackable = ItemData->NumericData.MaxStackSize > 1;
 		InQuantity <= 0 ? ItemReference->SetQuantity(1) : ItemReference->SetQuantity(InQuantity);
@@ -149,4 +169,34 @@ void APickup::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent
 }
 #endif 
 
+bool APickup::IsAutoPickupGold() const
+{
+	if (!ItemReference)
+	{
+		return false;
+	}
 
+	return ItemReference->ID == FName(TEXT("700001"));
+}
+
+void APickup::OnAutoPickupSphereBeginOverlap(
+	UPrimitiveComponent* OverlappedComponent,
+	AActor* OtherActor,
+	UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex,
+	bool bFromSweep,
+	const FHitResult& SweepResult)
+{
+	if (!IsAutoPickupGold())
+	{
+		return;
+	}
+
+	APlayerCharacter_SB* PlayerCharacter = Cast<APlayerCharacter_SB>(OtherActor);
+	if (!PlayerCharacter)
+	{
+		return;
+	}
+
+	TakePickup(PlayerCharacter);
+}

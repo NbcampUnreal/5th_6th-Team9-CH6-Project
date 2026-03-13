@@ -1,18 +1,12 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "Weapons/WeaponBase.h"
 
 #include "AbilitySystemComponent.h"
-#include "GameplayAbilitySpec.h"
 #include "GameplayEffect.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "Items/ItemBase.h"
 
-// Sets default values
 AWeaponBase::AWeaponBase()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = false;
 
     Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
     SetRootComponent(Root);
@@ -21,26 +15,27 @@ AWeaponBase::AWeaponBase()
 void AWeaponBase::Equip(AActor* NewOwner, UAbilitySystemComponent* InASC)
 {
 
-    UE_LOG(LogTemp, Warning, TEXT("[DBG] AWeaponBase::Equip %s"), *GetName());
+    UE_LOG(LogTemp, Warning, TEXT("[Weapon][Equip] Weapon=%s ASC=%s GrantedAbilities=%d"),
+        *GetNameSafe(this),
+        *GetNameSafe(InASC),
+        GrantedAbilities.Num());
 
     if (bEquipped)
     {
         Unequip();
     }
 
-    EquippedOwner = NewOwner;
-    EquippedASC = InASC;
-
-    if (!EquippedOwner.IsValid() || !EquippedASC.IsValid())
+    if (!NewOwner || !InASC)
     {
-        EquippedOwner = nullptr;
-        EquippedASC = nullptr;
         return;
     }
 
-    SetOwner(EquippedOwner.Get());
+    EquippedOwner = NewOwner;
+    EquippedASC = InASC;
 
-    GrantToASC(EquippedASC.Get());
+    SetOwner(NewOwner);
+
+    GrantToASC(InASC);
     bEquipped = true;
 }
 
@@ -64,58 +59,92 @@ void AWeaponBase::Unequip()
 
 bool AWeaponBase::ActivateByInputTag(FGameplayTag InputTag)
 {
+    UE_LOG(LogTemp, Warning, TEXT("[Weapon][Activate] bEquipped=%d ASC=%s InputTag=%s"),
+        bEquipped ? 1 : 0,
+        *GetNameSafe(EquippedASC.Get()),
+        *InputTag.ToString());
     if (!bEquipped || !EquippedASC.IsValid() || !InputTag.IsValid())
     {
         return false;
     }
 
-    const FGameplayAbilitySpecHandle* Found = GrantedHandles.InputToAbilityHandle.Find(InputTag);
-    if (!Found || !Found->IsValid())
+    UAbilitySystemComponent* ASC = EquippedASC.Get();
+    if (!ASC)
     {
         return false;
     }
 
-    return EquippedASC->TryActivateAbility(*Found);
+    // 1) 이 무기가 Equip 때 직접 부여한 AbilityHandle들만 검사
+    for (const FGameplayAbilitySpecHandle& Handle : GrantedHandles.AbilityHandles)
+    {
+        if (!Handle.IsValid())
+        {
+            continue;
+        }
+
+        const FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromHandle(Handle);
+        if (!Spec)
+        {
+            continue;
+        }
+
+        const bool bTagMatched =
+            Spec->DynamicAbilityTags.HasTagExact(InputTag) ||
+            Spec->DynamicAbilityTags.HasTag(InputTag);
+
+        if (!bTagMatched)
+        {
+            continue;
+        }
+
+        if (ASC->TryActivateAbility(Handle))
+        {
+            return true;
+        }
+    }
+
+
+    return false;
+}
+
+void AWeaponBase::ApplyWeaponTypeTag(UAbilitySystemComponent* ASC, bool bAdd) const
+{
+    if (!ASC || !WeaponTypeTag.IsValid())
+    {
+        return;
+    }
+
+    if (bAdd)
+    {
+        ASC->AddLooseGameplayTag(WeaponTypeTag);
+    }
+    else
+    {
+        ASC->RemoveLooseGameplayTag(WeaponTypeTag);
+    }
 }
 
 void AWeaponBase::GrantToASC(UAbilitySystemComponent* ASC)
 {
     if (!ASC)
     {
-        UE_LOG(LogTemp, Error, TEXT("[DBG] GrantToASC ASC is NULL"));
         return;
     }
 
     GrantedHandles.Reset();
-    //상태태그 추가
-  // 무기 BP의 WeaponTypeTag를 ASC에 퍼블리시
-    if (WeaponTypeTag.IsValid())
-    {
-        ASC->AddLooseGameplayTag(WeaponTypeTag);
-    }
 
-   
+    ApplyWeaponTypeTag(ASC, true);
 
-    UE_LOG(LogTemp, Warning, TEXT("[DBG] GrantToASC: Weapon=%s AbilitiesToGrant=%d OwnerHasAuthority=%d"),
-        *GetName(), GrantedAbilities.Num(),
-        GetOwner() ? (int32)GetOwner()->HasAuthority() : -1);
     // Abilities
     for (const FWeaponAbilityGrant& Grant : GrantedAbilities)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[DBG] Grant Entry: Ability=%s InputTag=%s Valid=%d Level=%d"),
-            *GetNameSafe(Grant.Ability),
-            *Grant.InputTag.ToString(),
-            Grant.InputTag.IsValid(),
-            Grant.AbilityLevel);
-
         if (!Grant.Ability)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[DBG] -> Skip (Ability is null)"));
             continue;
         }
 
         FGameplayAbilitySpec Spec(Grant.Ability, Grant.AbilityLevel);
-        Spec.SourceObject = this; // GA에서 무기 데이터를 읽기 위해 필수
+        Spec.SourceObject = this; // GA에서 무기 접근용
 
         if (Grant.InputTag.IsValid())
         {
@@ -123,19 +152,13 @@ void AWeaponBase::GrantToASC(UAbilitySystemComponent* ASC)
         }
 
         const FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(Spec);
-
-        UE_LOG(LogTemp, Warning, TEXT("[DBG] GiveAbility: HandleValid=%d"),
-            Handle.IsValid());
-
-        GrantedHandles.AbilityHandles.Add(Handle);
-
-        if (Grant.InputTag.IsValid())
+        if (Handle.IsValid())
         {
-            GrantedHandles.InputToAbilityHandle.Add(Grant.InputTag, Handle);
+            GrantedHandles.AbilityHandles.Add(Handle);
         }
     }
 
-    // Effects (필요하면 사용, 몽둥이 예시는 없어도 됨)
+    // Effects (Self)
     for (const FWeaponEffectGrant& Grant : GrantedEffects)
     {
         if (!Grant.Effect)
@@ -147,11 +170,16 @@ void AWeaponBase::GrantToASC(UAbilitySystemComponent* ASC)
         Ctx.AddSourceObject(this);
 
         const FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(Grant.Effect, Grant.EffectLevel, Ctx);
-        if (SpecHandle.IsValid())
+        if (!SpecHandle.IsValid())
         {
-            const FActiveGameplayEffectHandle ActiveHandle =
-                ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+            continue;
+        }
 
+        const FActiveGameplayEffectHandle ActiveHandle =
+            ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+
+        if (ActiveHandle.IsValid())
+        {
             GrantedHandles.EffectHandles.Add(ActiveHandle);
         }
     }
@@ -165,12 +193,7 @@ void AWeaponBase::RevokeFromASC(UAbilitySystemComponent* ASC)
         return;
     }
 
-    //상태태그 추가
-  // Equip 때 올린 WeaponTypeTag 회수
-    if (WeaponTypeTag.IsValid())
-    {
-        ASC->RemoveLooseGameplayTag(WeaponTypeTag);
-    }
+    ApplyWeaponTypeTag(ASC, false);
 
     for (const FActiveGameplayEffectHandle& Handle : GrantedHandles.EffectHandles)
     {
@@ -191,21 +214,13 @@ void AWeaponBase::RevokeFromASC(UAbilitySystemComponent* ASC)
     GrantedHandles.Reset();
 }
 
+void AWeaponBase::InitFromItem(const UItemBase* Item)
+{
+    if (!Item)
+    {
+        return;
+    }
 
-
-
-
-
-// Called when the game starts or when spawned
-//void AWeaponBase::BeginPlay()
-//{
-//	Super::BeginPlay();
-//}
-//
-//// Called every frame
-//void AWeaponBase::Tick(float DeltaTime)
-//{
-//	Super::Tick(DeltaTime);
-//
-//}
-
+    // 네 ItemBase 구조에서 여기 경로만 맞추면 됨
+    WeaponDamage = Item->ItemStatistics.DamageValue;
+}

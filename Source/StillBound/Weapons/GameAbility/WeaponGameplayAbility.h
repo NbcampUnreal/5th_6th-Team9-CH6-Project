@@ -56,6 +56,33 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Weapon|GA|Debug")
     bool bDebugGE = true;
 
+    // ✅ (추가) SourceObject(Weapon)에서 데미지를 가져온다.
+    // WeaponDamage가 0이면 FallbackDamage(예: BaseDamage)를 사용.
+    UFUNCTION(BlueprintPure, Category = "Weapon|Damage")
+    float GetDamageFromWeaponOrFallback(float FallbackDamage = 0.f) const;
+
+    // ✅ (추가) "무기 데미지"를 기본 데미지 GE(Data.EnemyDamage)로 적용한다.
+    // DamageMultiplier로 공격 유형별 배율(예: Light=1.0, Heavy=1.6)도 지원.
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Damage")
+    bool ApplyWeaponDamageToTargetActor(
+        AActor* TargetActor,
+        float DamageMultiplier = 1.f,
+        float Level = 1.f,
+        float Chance = 1.f,
+        float FallbackDamage = 0.f
+    ) const;
+
+protected:
+    /** 현재 실행 중인 AbilitySpec을 찾는다 (CurrentSpecHandle 기반) */
+    const FGameplayAbilitySpec* FindCurrentAbilitySpec() const;
+
+    /** AbilitySpec.DynamicAbilityTags에서 InputTag.* (첫 번째) 반환. 없으면 Invalid */
+    UFUNCTION(BlueprintPure, Category = "Weapon|GA")
+    FGameplayTag GetInputTagFromCurrentSpec() const;
+
+    /** 위 함수의 bool 버전 */
+    bool TryGetInputTagFromCurrentSpec(FGameplayTag& OutInputTag) const;
+
 public:
     /** SetByCaller에 사용할 데미지 태그 */
     static FGameplayTag GetDataDamageTag();

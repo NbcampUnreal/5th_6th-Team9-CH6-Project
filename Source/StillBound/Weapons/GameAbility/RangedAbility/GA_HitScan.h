@@ -4,18 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "Weapons/GameAbility/RangedAbility/WeaponRangedAttackAbilityBase.h"
-#include "GA_Hitscan.generated.h"
+#include "GA_HitScan.generated.h"
 
 /**
- * 기본 히트스캔 공격 GA (RangedAttackAbilityBase 설정값만 고정)
- * - FireTag      : Attack.Primary
- * - FireEventTag : Event.Ranged.Fire
+ * Hitscan(Trace) 발사 GA
+ * - 프로파일 선택: AbilitySpec.DynamicAbilityTags의 InputTag.* 로 결정됨
+ * - 여기서는 FireEventTag/디버그 등 "프리셋"만 설정
  */
 UCLASS()
-class STILLBOUND_API UGA_Hitscan : public UWeaponRangedAttackAbilityBase
+class STILLBOUND_API UGA_HitScan : public UWeaponRangedAttackAbilityBase
 {
     GENERATED_BODY()
 
 public:
-    UGA_Hitscan();
+    UGA_HitScan();
 };

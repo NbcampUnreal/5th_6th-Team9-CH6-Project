@@ -50,3 +50,11 @@ void UUW_UIHUD::InitInventory(UInventoryComponent* InInv)
 		HotbarPanel->InitWithInventory(InInv);
 	}
 }
+
+void UUW_UIHUD::SetSelectedHotbarIndex(int32 Index)
+{
+	if (HotbarPanel)
+	{
+		HotbarPanel->SetSelectedIndex(Index);
+	}
+}

@@ -3,12 +3,36 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/InventoryTypes.h"
+#include "Data/CraftingRecipeRow.h"
 #include "InventoryComponent.generated.h"
 
-DECLARE_MULTICAST_DELEGATE(FOnInventoryUpdated);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInventoryUpdated);
 DECLARE_MULTICAST_DELEGATE(FOnHotbarUpdated);
 
 class UItemBase;
+
+#pragma region Crafting
+USTRUCT(BlueprintType)
+struct FCraftMissing
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly) FName ItemID = NAME_None;
+    UPROPERTY(BlueprintReadOnly) int32 Needed = 0;
+    UPROPERTY(BlueprintReadOnly) int32 Have = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FCraftResult
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly) bool bSuccess = false;
+    UPROPERTY(BlueprintReadOnly) FText Message;
+};
+
+#pragma endregion
+
 
 UENUM(BlueprintType)
 enum class EItemAddResult : uint8
@@ -79,7 +103,10 @@ public:
     ///===============================================================================
     /// PROPERTIES & VARIABLES
     ///===============================================================================
+    
+    UPROPERTY(BlueprintAssignable, Category = "Inventory")
     FOnInventoryUpdated OnInventoryUpdated;
+
     FOnHotbarUpdated OnHotbarUpdated;
 
     ///===============================================================================
@@ -122,7 +149,6 @@ public:
     UFUNCTION(Category = "Inventory")
     int32 GetOccupiedSlotCount() const;
 
-
     UItemBase* GetItemAtIndex(int32 Index) const;
     int32 RemoveAmountAtIndex(int32 Index, int32 Quantity);
 
@@ -146,7 +172,6 @@ public:
     FORCEINLINE const TArray<TObjectPtr<UItemBase>>& GetHotbarSlots() const { return HotbarContents; };
 
     bool MoveSlotItem(ESlotContainer FromContainer, int32 FromIndex, ESlotContainer ToContainer, int32 ToIndex, bool bAllowSwap);
-
 
     /// setters
     UFUNCTION(Category = "Inventory")
@@ -188,5 +213,46 @@ protected:
     int32 CalculateNumberForFullStack(UItemBase* StackableItem, int32 InitialRequestedAddAmount);
 
     void AddNewItem(UItemBase* Item, const int32 AmountToAdd);
+
+
+#pragma region Craft
+private:
+    ///===============================================================================
+    /// FUNCTIONS
+    ///===============================================================================
+    int32 GetTotalCountByID(FName ItemID) const;
+    bool AddByID(FName ItemID, int32 Count);
+    UItemBase* CreateItemInstanceByID(FName ItemID, int32 Quantity) const;
+    
+public:
+    bool ConsumeByID(FName ItemID, int32 Count);
+
+
+    ///===============================================================================
+    /// PROPERTIES & VARIABLES
+    ///===============================================================================
+
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crafting")
+    FName CurrentStationTag = NAME_None;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+    TObjectPtr<UDataTable> ItemDataTable;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crafting")
+    TObjectPtr<UDataTable> RecipeDataTable;
+
+    UFUNCTION(BlueprintCallable, Category = "Crafting")
+    bool CanCraft(FName RecipeID, int32 CraftCount, TArray<FCraftMissing>& OutMissing) const;
+
+    UFUNCTION(BlueprintCallable, Category = "Crafting")
+    FCraftResult Craft(FName RecipeID, int32 CraftCount);
+
+    UFUNCTION(BlueprintCallable, Category = "Crafting|UI")
+    bool GetRecipeRowForUI(FName RecipeID, FCraftingRecipeRow& OutRow) const;
+
+    UFUNCTION(BlueprintCallable, Category = "Crafting|UI")
+    int32 GetTotalCountByID_ForUI(FName ItemID) const;
+#pragma endregion
 
 };

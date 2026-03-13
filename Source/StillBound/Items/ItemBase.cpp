@@ -25,6 +25,11 @@ UItemBase* UItemBase::CreateItemCopy()
 	ItemCopy->AssetData = this->AssetData;
 	ItemCopy->bIsCopy = true;
 
+	ItemCopy->EquipWeaponClass = this->EquipWeaponClass; //weapon
+
+	ItemCopy->ConsumableEffectClass = this->ConsumableEffectClass;      //수정
+	ItemCopy->ConsumableSetByCallerTag = this->ConsumableSetByCallerTag; //수정
+
 	return ItemCopy;
 }
 
