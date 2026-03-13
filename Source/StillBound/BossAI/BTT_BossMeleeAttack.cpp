@@ -32,6 +32,8 @@ EBTNodeResult::Type UBTT_BossMeleeAttack::ExecuteTask(UBehaviorTreeComponent& Ow
 
 	FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(TEXT("Boss.Ability.MeleeAttack"));
 	const bool bActivated = ASC->TryActivateAbilitiesByTag(FGameplayTagContainer(AbilityTag));
+	UE_LOG(LogTemp, Warning, TEXT("[BossMeleeTask] TryActivate Boss.Ability.MeleeAttack"));
+	UE_LOG(LogTemp, Warning, TEXT("[BossMeleeTask] Activated=%d"), bActivated);
 
 	return bActivated ? EBTNodeResult::Succeeded : EBTNodeResult::Failed;
 }
