@@ -9,6 +9,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "AI/AIAttributeSet.h"
 #include "AIController.h"
+#include "Items/Pickup.h"
+#include "Items/ItemBase.h"
+#include "Data/ItemData.h"
 #include "UI/DamageNumberActor.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
@@ -22,6 +25,16 @@ AEnemyCharacter::AEnemyCharacter()
 	AttributeSetClassForInitStats = UAIAttributeSet::StaticClass();
 
 	AIControllerClass = AEnemyAIController::StaticClass();
+
+	// ===== Alert Anchor =====
+	AlertAnchor = CreateDefaultSubobject<USceneComponent>(TEXT("AlertAnchor"));
+	AlertAnchor->SetupAttachment(GetRootComponent());
+
+	// ===== Alert Widget =====
+	AlertWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("AlertWidget"));
+	AlertWidgetComponent->SetupAttachment(AlertAnchor);
+	AlertWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
+	AlertWidgetComponent->SetVisibility(false);
 }
 
 void AEnemyCharacter::BeginPlay()
@@ -30,6 +43,15 @@ void AEnemyCharacter::BeginPlay()
 
 
 	ApplyVisualFromDataTable();
+
+	if (AlertAnchor && GetMesh())
+	{
+		float HeadHeight = GetMesh()->Bounds.BoxExtent.Z;
+
+		AlertAnchor->SetRelativeLocation(
+			FVector(0.f, 0.f, HeadHeight + 20.f)
+		);
+	}
 
     AIController = Cast<AEnemyAIController>(GetController());
 
@@ -135,10 +157,94 @@ void AEnemyCharacter::ApplyVisualFromDataTable()
 	}
 }
 
+void AEnemyCharacter::SpawnDropItems()
+{
+
+
+	if (!ItemDataTable || !PickupClass)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	for (const FEnemyDropItem& Drop : DropItems)
+	{
+		if (Drop.ItemID.IsNone())
+		{
+			continue;
+		}
+
+		if (Drop.DropChance < 1.0f)
+		{
+			const float Roll = FMath::FRand();
+			if (Roll > Drop.DropChance)
+			{
+				continue;
+			}
+		}
+
+		const int32 Count = FMath::RandRange(Drop.MinCount, Drop.MaxCount);
+		if (Count <= 0)
+		{
+			continue;
+		}
+
+		FItemDataRow* ItemRow = ItemDataTable->FindRow<FItemDataRow>(Drop.ItemID, TEXT("EnemyDrop"));
+		if (!ItemRow)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[EnemyDrop] ItemRow not found. ItemID=%s"), *Drop.ItemID.ToString());
+			continue;
+		}
+
+		UItemBase* NewItem = NewObject<UItemBase>(this);
+		if (!NewItem)
+		{
+			continue;
+		}
+
+		NewItem->ID = ItemRow->ID;
+		NewItem->ItemType = ItemRow->ItemType;
+		NewItem->ItemQuality = ItemRow->ItemQuality;
+		NewItem->ItemStatistics = ItemRow->ItemStatistics;
+		NewItem->TextData = ItemRow->TextData;
+		NewItem->NumericData = ItemRow->NumericData;
+		NewItem->AssetData = ItemRow->AssetData;
+		NewItem->PickupActorClass = ItemRow->PickupActorClass;
+		NewItem->Quantity = Count;
+
+		const FVector SpawnOffset(
+			FMath::RandRange(-50.f, 50.f),
+			FMath::RandRange(-50.f, 50.f),
+			30.f
+		);
+
+		const FVector SpawnLocation = GetActorLocation() + SpawnOffset;
+		const FTransform SpawnTransform(FRotator::ZeroRotator, SpawnLocation);
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.SpawnCollisionHandlingOverride =
+			ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+		APickup* SpawnedPickup = World->SpawnActor<APickup>(PickupClass, SpawnTransform, SpawnParams);
+		if (SpawnedPickup)
+		{
+			SpawnedPickup->InitializeDrop(NewItem, Count);
+		}
+	}
+}
+
 void AEnemyCharacter::HandleDeath()
 {
 	if (bIsDead) return;
 	bIsDead = true;
+
+	SpawnDropItems();
 
 	if (AAIController* AIC = Cast<AAIController>(GetController()))
 	{
@@ -175,5 +281,31 @@ void AEnemyCharacter::SpawnDamageText(float Damage)
 	if (Actor)
 	{
 		Actor->InitDamage(Damage);
+	}
+}
+
+void AEnemyCharacter::ShowAlert()
+{
+	if (!AlertWidgetComponent)
+	{
+		return;
+	}
+
+	AlertWidgetComponent->SetVisibility(true);
+
+	GetWorldTimerManager().SetTimer(
+		AlertHideTimer,
+		this,
+		&AEnemyCharacter::HideAlert,
+		1.0f,
+		false
+	);
+}
+
+void AEnemyCharacter::HideAlert()
+{
+	if (AlertWidgetComponent)
+	{
+		AlertWidgetComponent->SetVisibility(false);
 	}
 }

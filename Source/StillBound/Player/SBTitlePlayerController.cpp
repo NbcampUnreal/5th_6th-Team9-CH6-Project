@@ -1,5 +1,6 @@
 #include "Player/SBTitlePlayerController.h"
 #include "Blueprint/UserWidget.h"
+#include "Settings/SBGameUserSettings.h"
 
 void ASBTitlePlayerController::BeginPlay()
 {
@@ -8,6 +9,15 @@ void ASBTitlePlayerController::BeginPlay()
 	bShowMouseCursor = true;
 	bEnableClickEvents = true;
 	bEnableMouseOverEvents = true;
+
+	if (IsLocalController())
+	{
+		if (USBGameUserSettings* Settings = USBGameUserSettings::Get())
+		{
+			Settings->LoadSettings(false);
+			Settings->ApplyAudioSettings(this);
+		}
+	}
 
 	if (IsLocalController() && TitleRootWidgetClass)
 	{
@@ -21,5 +31,9 @@ void ASBTitlePlayerController::BeginPlay()
 			Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 			SetInputMode(Mode);
 		}
+
+
 	}
+
+
 }
