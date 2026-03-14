@@ -23,11 +23,10 @@ class STILLBOUND_API UBuildComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
-public:	
-	UBuildComponent();
-
-	virtual void BeginPlay() override;
-
+///===============================================================================
+/// PROPERTIES & VARIABLES
+///===============================================================================
+public:
 	UPROPERTY()
 	TObjectPtr<UCameraComponent> Camera;
 
@@ -51,7 +50,7 @@ public:
 
 	FTimerHandle BuildPreviewTimerHandle;
 
-	UPROPERTY(VisibleAnyWhere, BlueprintReadOnly, Category="Build")
+	UPROPERTY(VisibleAnyWhere, BlueprintReadOnly, Category = "Build")
 	bool bCanPlace = false;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Build|Preview")
@@ -65,6 +64,32 @@ public:
 
 	UPROPERTY()
 	FText LastBuildPreviewStateMessage;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Build")
+	float CurrentBuildHeightOffset = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Build")
+	float MinBuildHeightOffset = -300.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Build")
+	float MaxBuildHeightOffset = 1000.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Build")
+	float HeightStep = 50.f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	bool bSnappedToFoundation = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	TObjectPtr<AActor> CurrentSnappedAcotr = nullptr;
+
+///===============================================================================
+/// FUNCTIONS
+///===============================================================================
+public:	
+	UBuildComponent();
+
+	virtual void BeginPlay() override;
 
 
 	UFUNCTION(BlueprintCallable)
@@ -95,6 +120,9 @@ public:
 
 	bool HasEnoughBuildCost(const FBuildingDataRow& Row) const;
 	
+	void AdjustBuildHeight(int32 Direction);
 
+	bool TrySnapToNearbyFoundation(FVector& InOutLocation);
 
+	TArray<USceneComponent*> GetSnapPointsFromActor(AActor* InActor) const;
 };

@@ -72,7 +72,10 @@ void APlayerController_SB::SetupInputComponent()
 	EnhancedInputComponent->BindAction(PlaceBuildAction, ETriggerEvent::Started, this, &ThisClass::OnBuildPlace);
 	EnhancedInputComponent->BindAction(CancelBuildAction, ETriggerEvent::Started, this, &ThisClass::OnBuildCancel);
 	EnhancedInputComponent->BindAction(ESCAction, ETriggerEvent::Started, this, &ThisClass::OnEscapePressed);
-	
+
+	EnhancedInputComponent->BindAction(RaiseBuildAction, ETriggerEvent::Started, this, &ThisClass::RaiseBuildHeight);
+	EnhancedInputComponent->BindAction(LowerBuildAction, ETriggerEvent::Started, this, &ThisClass::LowerBuildHeight);
+
 }
 
 #pragma region ========================= Input - Movement =========================
@@ -598,6 +601,32 @@ void APlayerController_SB::OnBuildCancel()
 
 		SetOverlayInputState(EOverlayInputState::Gameplay);
 		return;
+	}
+}
+
+void APlayerController_SB::RaiseBuildHeight()
+{
+	if (OverlayState != EOverlayInputState::BuildPreview) return;
+
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn()))
+	{
+		if (Chr->GetBuildComponent())
+		{
+			Chr->GetBuildComponent()->AdjustBuildHeight(+1);
+		}
+	}
+}
+
+void APlayerController_SB::LowerBuildHeight()
+{
+	if (OverlayState != EOverlayInputState::BuildPreview) return;
+
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn()))
+	{
+		if (Chr->GetBuildComponent())
+		{
+			Chr->GetBuildComponent()->AdjustBuildHeight(-1);
+		}
 	}
 }
 

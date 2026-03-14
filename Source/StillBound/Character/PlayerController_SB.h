@@ -142,6 +142,12 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
 	TObjectPtr<UInputAction> CancelBuildAction;
 
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> RaiseBuildAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> LowerBuildAction;
+
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|System")
 	TObjectPtr<UInputAction> ESCAction;
 
@@ -202,6 +208,9 @@ private:
 	void ToggleBuild();
 	void OnBuildPlace();
 	void OnBuildCancel();
+
+	void RaiseBuildHeight();
+	void LowerBuildHeight();
 
 ///------------------------Input Manager--------------------
 public:
