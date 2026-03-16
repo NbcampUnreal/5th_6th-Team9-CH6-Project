@@ -25,6 +25,16 @@ AEnemyCharacter::AEnemyCharacter()
 	AttributeSetClassForInitStats = UAIAttributeSet::StaticClass();
 
 	AIControllerClass = AEnemyAIController::StaticClass();
+
+	// ===== Alert Anchor =====
+	AlertAnchor = CreateDefaultSubobject<USceneComponent>(TEXT("AlertAnchor"));
+	AlertAnchor->SetupAttachment(GetRootComponent());
+
+	// ===== Alert Widget =====
+	AlertWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("AlertWidget"));
+	AlertWidgetComponent->SetupAttachment(AlertAnchor);
+	AlertWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
+	AlertWidgetComponent->SetVisibility(false);
 }
 
 void AEnemyCharacter::BeginPlay()
@@ -33,6 +43,15 @@ void AEnemyCharacter::BeginPlay()
 
 
 	ApplyVisualFromDataTable();
+
+	if (AlertAnchor && GetMesh())
+	{
+		float HeadHeight = GetMesh()->Bounds.BoxExtent.Z;
+
+		AlertAnchor->SetRelativeLocation(
+			FVector(0.f, 0.f, HeadHeight + 20.f)
+		);
+	}
 
     AIController = Cast<AEnemyAIController>(GetController());
 
@@ -262,5 +281,31 @@ void AEnemyCharacter::SpawnDamageText(float Damage)
 	if (Actor)
 	{
 		Actor->InitDamage(Damage);
+	}
+}
+
+void AEnemyCharacter::ShowAlert()
+{
+	if (!AlertWidgetComponent)
+	{
+		return;
+	}
+
+	AlertWidgetComponent->SetVisibility(true);
+
+	GetWorldTimerManager().SetTimer(
+		AlertHideTimer,
+		this,
+		&AEnemyCharacter::HideAlert,
+		1.0f,
+		false
+	);
+}
+
+void AEnemyCharacter::HideAlert()
+{
+	if (AlertWidgetComponent)
+	{
+		AlertWidgetComponent->SetVisibility(false);
 	}
 }

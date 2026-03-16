@@ -3,6 +3,7 @@
 #include "AI/EnemyAIController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/TargetPoint.h"
+#include "AI/EnemyCharacter.h"
 #include "Character/PlayerCharacter_SB.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Sight.h"
@@ -110,6 +111,12 @@ void AEnemyAIController::OnTargetPerceptionUpdated(AActor* Actor, FAIStimulus St
 	}
 
 	BlackboardComponent->SetValueAsObject(TargetActorKey, Player);
+
+	AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(GetPawn());
+	if (Enemy)
+	{
+		Enemy->ShowAlert();
+	}
 }
 
 void AEnemyAIController::CheckChaseRange()

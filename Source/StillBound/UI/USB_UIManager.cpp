@@ -7,6 +7,7 @@
 #include "Character/PlayerAttributeSet.h"
 #include "UI/MainMenu.h"
 #include "UI/UW_FullMap.h"
+#include "UI/UW_DamageOverlay.h"
 #include "UI/UW_RoundProgressBar.h"
 #include "UI/Interaction/InteractionWidget.h"
 #include "UI/Inventory/HotbarPanel.h"
@@ -43,6 +44,17 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 	if (FullMapClass)
 	{
 		FullMapWidget = CreateWidget<UUW_FullMap>(OwnerPC, FullMapClass);
+	}
+
+	if (DamageOverlayClass)
+	{
+		DamageOverlayWidget = CreateWidget<UUW_DamageOverlay>(OwnerPC, DamageOverlayClass);
+
+		if (DamageOverlayWidget)
+		{
+			DamageOverlayWidget->AddToViewport();
+			DamageOverlayWidget->SetVisibility(ESlateVisibility::Hidden);
+		}
 	}
 
 	if (GatherProgressClass)
@@ -159,6 +171,31 @@ void USB_UIManager::ToggleFullMap()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Adding FullMap"));
 		FullMapWidget->AddToViewport(50);
+	}
+}
+
+void USB_UIManager::ShowDamageOverlay()
+{
+	if (DamageOverlayWidget)
+	{
+		DamageOverlayWidget->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+
+void USB_UIManager::HideDamageOverlay()
+{
+	if (DamageOverlayWidget)
+	{
+		DamageOverlayWidget->SetVisibility(ESlateVisibility::Hidden);
+	}
+}
+
+void USB_UIManager::UpdateDamageOverlay(float HealthPercent)
+{
+	if (DamageOverlayWidget)
+	{
+		DamageOverlayWidget->UpdateDamageEffect(HealthPercent);
 	}
 }
 
@@ -280,5 +317,46 @@ void USB_UIManager::UpdateInteractionWidget(const FInteractableData& Interactabl
 		}
 
 		InteractionWidget->UpdateWidget(InteractableData);
+	}
+}
+
+void USB_UIManager::ShowBuildPreviewPanel()
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void USB_UIManager::HideBuildPreviewPanel()
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->SetVisibility(ESlateVisibility::Collapsed);
+		Panel->HidePlacementStateMessage();
+	}
+}
+
+void USB_UIManager::UpdateBuildPreviewPanel(const TArray<FBuildPreviewCostUIData>& InCosts)
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->UpdateIngredientList(InCosts);
+	}
+}
+
+void USB_UIManager::ShowBuildPreviewStateMessage(const FText& InMessage, float Duration)
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->ShowPlacementStateMessage(InMessage, Duration);
 	}
 }

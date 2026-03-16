@@ -10,6 +10,7 @@ class UUW_ExpBar;
 class UUW_Minimap;
 class UHotbarPanel;
 class UInventoryComponent;
+class UBuildPreview_IngredientPanel;
 
 /**
  * 
@@ -41,6 +42,8 @@ public:
 
 	void SetSelectedHotbarIndex(int32 Index);
 
+	UBuildPreview_IngredientPanel* GetBuildPreview_IngredientPanel() const { return BuildPreview_IngredientPanel; }
+
 protected:
 
 	UPROPERTY(meta = (BindWidget))
@@ -58,5 +61,7 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UHotbarPanel> HotbarPanel;
 	
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UBuildPreview_IngredientPanel> BuildPreview_IngredientPanel;
 
 };

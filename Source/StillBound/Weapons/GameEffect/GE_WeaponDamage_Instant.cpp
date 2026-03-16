@@ -11,18 +11,19 @@
 
 UGE_WeaponDamage_Instant::UGE_WeaponDamage_Instant()
 {
-    // 즉발(Instant)
+    // 占쏙옙占?Instant)
     DurationPolicy = EGameplayEffectDurationType::Instant;
 
     // SetByCaller(Data.EnemyDamage)
     FSetByCallerFloat SBC;
-    SBC.DataTag = FGameplayTag::RequestGameplayTag(TEXT("Data.EnemyDamage"), /*ErrorIfNotFound*/ false);
+    SBC.DataTag = FGameplayTag::RequestGameplayTag(TEXT("Data.EnemyDamage"), /* ErrorIfNotFound */ false);
 
     ensureMsgf(SBC.DataTag.IsValid(),
         TEXT("[GAS] GameplayTag 'Data.EnemyDamage' is not registered. Add it in Project Settings > GameplayTags"));
 
-    // =========================
+
     // 일반 몬스터용 Damage
+
     // =========================
     {
         FGameplayModifierInfo Mod;
@@ -32,9 +33,7 @@ UGE_WeaponDamage_Instant::UGE_WeaponDamage_Instant()
         Modifiers.Add(Mod);
     }
 
-    // =========================
-    // 보스용 Damage
-    // =========================
+
     {
         FGameplayModifierInfo Mod; // //수정
         Mod.Attribute = UBosAIAttributeSet::GetDamageAttribute(); // //수정
