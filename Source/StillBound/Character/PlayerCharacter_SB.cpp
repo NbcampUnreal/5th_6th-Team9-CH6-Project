@@ -659,6 +659,27 @@ void APlayerCharacter_SB::Die()
 	}
 }
 
+//부활 관련 코드 추가
+void APlayerCharacter_SB::Revive()
+{
+	if (!bIsDead) return;
+
+	bIsDead = false;
+
+	if (UCharacterMovementComponent* Move = GetCharacterMovement())
+	{
+		Move->SetMovementMode(MOVE_Walking);
+	}
+
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+
+	if (AbilitySystemComponent)
+	{
+		float MaxHealth = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
+		AbilitySystemComponent->SetNumericAttributeBase(UPlayerAttributeSet::GetHealthAttribute(), MaxHealth);
+	}
+}
+
 bool APlayerCharacter_SB::ModifyGold(int32 Amount)
 {
 	// 골드 차감 시 부족 체크

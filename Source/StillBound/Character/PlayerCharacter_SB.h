@@ -113,6 +113,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void Die();
 
+	// 부활 관련 함수
+	UFUNCTION(BlueprintCallable)
+	void Revive();
+
 	// ===== 기본 무기 설정 (BP에서 설정) =====
 	// 게임 시작 시 생성할 무기 클래스
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SB|Weapon")
