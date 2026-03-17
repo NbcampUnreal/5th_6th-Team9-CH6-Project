@@ -7,6 +7,8 @@
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
 
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
@@ -54,7 +56,6 @@ void UWeaponRangedAttackAbilityBase::ActivateAbility(
         return;
     }
 
-    // 발사 이벤트 대기(몽타주 타이밍)
     if (FireEventTag.IsValid())
     {
         FireEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
@@ -67,7 +68,6 @@ void UWeaponRangedAttackAbilityBase::ActivateAbility(
         }
     }
 
-    // 몽타주가 있으면 재생, 없으면 즉시 발사 후 종료
     if (CachedProfile.Montage)
     {
         MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
@@ -86,10 +86,9 @@ void UWeaponRangedAttackAbilityBase::ActivateAbility(
 
         MontageTask->ReadyForActivation();
 
-        // 몽타주가 있는데 이벤트 태그가 유효하지 않으면 즉시 1회 발사 옵션
         if (bFireImmediatelyIfNoMontageOrEvent && !FireEventTag.IsValid())
         {
-            FireHitscanOnce(Weapon);
+            FireCurrentProfile(Weapon);
         }
 
         return;
@@ -97,7 +96,7 @@ void UWeaponRangedAttackAbilityBase::ActivateAbility(
 
     if (bFireImmediatelyIfNoMontageOrEvent)
     {
-        FireHitscanOnce(Weapon);
+        FireCurrentProfile(Weapon);
     }
 
     EndAbility(Handle, ActorInfo, ActivationInfo, false, false);
@@ -126,7 +125,6 @@ bool UWeaponRangedAttackAbilityBase::CacheFireProfileFromWeapon(ARangedWeaponBas
         return false;
     }
 
-    // ? (3단계) 공용 헬퍼(WeaponGameplayAbility) 사용
     const FGameplayTag InputTag = GetInputTagFromCurrentSpec();
     if (!InputTag.IsValid())
     {
@@ -151,7 +149,10 @@ bool UWeaponRangedAttackAbilityBase::CacheFireProfileFromWeapon(ARangedWeaponBas
 bool UWeaponRangedAttackAbilityBase::GetViewPoint(FVector& OutLoc, FRotator& OutRot) const
 {
     const FGameplayAbilityActorInfo* Info = CurrentActorInfo;
-    if (!Info) return false;
+    if (!Info)
+    {
+        return false;
+    }
 
     APawn* Pawn = Cast<APawn>(Info->AvatarActor.Get());
     AController* Controller = Info->PlayerController.Get();
@@ -161,14 +162,12 @@ bool UWeaponRangedAttackAbilityBase::GetViewPoint(FVector& OutLoc, FRotator& Out
         Controller = Pawn->GetController();
     }
 
-    // 플레이어: PlayerViewPoint
     if (APlayerController* PC = Cast<APlayerController>(Controller))
     {
         PC->GetPlayerViewPoint(OutLoc, OutRot);
         return true;
     }
 
-    // AI/기타: PawnViewLocation + ControlRotation
     if (Pawn && Controller)
     {
         OutLoc = Pawn->GetPawnViewLocation();
@@ -176,7 +175,6 @@ bool UWeaponRangedAttackAbilityBase::GetViewPoint(FVector& OutLoc, FRotator& Out
         return true;
     }
 
-    // fallback
     if (AActor* Avatar = Info->AvatarActor.Get())
     {
         OutLoc = Avatar->GetActorLocation();
@@ -211,7 +209,10 @@ bool UWeaponRangedAttackAbilityBase::TraceSingle(
 {
     AActor* Avatar = GetAvatarActorFromActorInfo();
     UWorld* World = Avatar ? Avatar->GetWorld() : nullptr;
-    if (!World) return false;
+    if (!World)
+    {
+        return false;
+    }
 
     FCollisionQueryParams Params(SCENE_QUERY_STAT(WeaponRangedTrace), Hitscan.bTraceComplex);
     BuildTraceParams(Params, Hitscan.bTraceComplex);
@@ -236,14 +237,19 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
     OutFinalHit = FHitResult();
     OutAimPoint = FVector::ZeroVector;
 
-    if (!Weapon) return false;
+    if (!Weapon)
+    {
+        return false;
+    }
 
-    // 1) 총구 트랜스폼
     FTransform MuzzleTf;
-    Weapon->GetWeaponSocketTransform(Hitscan.MuzzleSocket, MuzzleTf);
+    if (!Weapon->GetWeaponSocketTransform(Hitscan.MuzzleSocket, MuzzleTf))
+    {
+        return false;
+    }
+
     const FVector MuzzleLoc = MuzzleTf.GetLocation();
 
-    // 2) ViewPoint(카메라/컨트롤러) 또는 총구 기준
     FVector ViewLoc;
     FRotator ViewRot;
 
@@ -261,7 +267,6 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
         ViewRot = MuzzleTf.Rotator();
     }
 
-    // 3) 스프레드 적용
     FVector ViewDir = ViewRot.Vector();
     if (Hitscan.SpreadHalfAngleDeg > 0.f)
     {
@@ -271,13 +276,11 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
 
     const FVector ViewEnd = ViewLoc + ViewDir * Hitscan.MaxDistance;
 
-    // 1차: ViewTrace -> AimPoint
     FHitResult ViewHit;
     const bool bViewBlocking = TraceSingle(ViewLoc, ViewEnd, Hitscan, ViewHit);
 
     OutAimPoint = bViewBlocking ? ViewHit.ImpactPoint : ViewEnd;
 
-    // 2차: Muzzle -> AimPoint 방향 Trace (총구 앞 장애물 우선)
     FVector MuzzleDir = (OutAimPoint - MuzzleLoc).GetSafeNormal();
     if (MuzzleDir.IsNearlyZero())
     {
@@ -289,7 +292,6 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
     FHitResult MuzzleHit;
     const bool bMuzzleBlocking = TraceSingle(MuzzleLoc, MuzzleEnd, Hitscan, MuzzleHit);
 
-    // Debug
     if (bDebugTrace)
     {
         AActor* Avatar = GetAvatarActorFromActorInfo();
@@ -326,6 +328,105 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
     return false;
 }
 
+void UWeaponRangedAttackAbilityBase::HandleHitscanImpact(ARangedWeaponBase* Weapon, const FHitResult& FinalHit)
+{
+    if (!Weapon)
+    {
+        return;
+    }
+
+    if (!FinalHit.bBlockingHit &&
+        FinalHit.ImpactPoint.IsNearlyZero() &&
+        FinalHit.Location.IsNearlyZero())
+    {
+        return;
+    }
+
+    AActor* Avatar = GetAvatarActorFromActorInfo();
+    AActor* HitActor = FinalHit.GetActor();
+
+    if (HitActor == Avatar || HitActor == Weapon)
+    {
+        return;
+    }
+
+    if (!HitActor)
+    {
+        return;
+    }
+
+    UAbilitySystemComponent* TargetASC =
+        UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(HitActor);
+
+    if (!TargetASC)
+    {
+        return;
+    }
+
+    ApplyRangedOnHitEffects(HitActor);
+}
+
+void UWeaponRangedAttackAbilityBase::FireCurrentProfile(ARangedWeaponBase* Weapon)
+{
+    if (!Weapon || !bHasCachedProfile)
+    {
+        return;
+    }
+
+    FireHitscanOnce(Weapon);
+}
+
+bool UWeaponRangedAttackAbilityBase::TryGetProjectileSpawnTransform(
+    ARangedWeaponBase* Weapon,
+    FTransform& OutSpawnTransform,
+    FVector& OutShotDirection
+) const
+{
+    OutSpawnTransform = FTransform::Identity;
+    OutShotDirection = FVector::ForwardVector;
+
+    if (!Weapon || !bHasCachedProfile)
+    {
+        return false;
+    }
+
+    const FRangedProjectileConfig& Projectile = CachedProfile.Projectile;
+    if (!Projectile.ProjectileClass)
+    {
+        return false;
+    }
+
+    FTransform MuzzleTf;
+    if (!Weapon->GetWeaponSocketTransform(Projectile.MuzzleSocket, MuzzleTf))
+    {
+        return false;
+    }
+
+    const FVector SpawnLoc = MuzzleTf.TransformPosition(Projectile.SpawnOffset);
+
+    FRotator SpawnRot = MuzzleTf.Rotator();
+
+    if (Projectile.bUseControllerViewRotation)
+    {
+        FVector ViewLoc;
+        FRotator ViewRot;
+        if (GetViewPoint(ViewLoc, ViewRot))
+        {
+            SpawnRot = ViewRot;
+        }
+    }
+
+    OutShotDirection = SpawnRot.Vector().GetSafeNormal();
+    if (OutShotDirection.IsNearlyZero())
+    {
+        OutShotDirection = MuzzleTf.GetRotation().GetForwardVector().GetSafeNormal();
+        SpawnRot = OutShotDirection.Rotation();
+    }
+
+    OutSpawnTransform = FTransform(SpawnRot, SpawnLoc, FVector::OneVector);
+    return true;
+}
+
 void UWeaponRangedAttackAbilityBase::FireHitscanOnce(ARangedWeaponBase* Weapon)
 {
     if (!Weapon || !bHasCachedProfile)
@@ -342,33 +443,34 @@ void UWeaponRangedAttackAbilityBase::FireHitscanOnce(ARangedWeaponBase* Weapon)
         FVector AimPoint;
 
         const bool bHit = ComputeFinalHitscanHit(Weapon, Hitscan, FinalHit, AimPoint);
-        if (!bHit) continue;
+        if (!bHit)
+        {
+            continue;
+        }
 
-        AActor* HitActor = FinalHit.GetActor();
-        if (!HitActor) continue;
-
-        AActor* Avatar = GetAvatarActorFromActorInfo();
-        if (HitActor == Avatar || HitActor == Weapon) continue;
-
-        ApplyRangedOnHitEffects(HitActor);
+        HandleHitscanImpact(Weapon, FinalHit);
     }
 }
 
 bool UWeaponRangedAttackAbilityBase::ApplyRangedOnHitEffects(AActor* TargetActor) const
 {
-    if (!TargetActor || !bHasCachedProfile) return false;
+    if (!TargetActor || !bHasCachedProfile)
+    {
+        return false;
+    }
 
     bool bAnyApplied = false;
 
-    // 주 데미지: WeaponDamage(DT) * DamageMultiplier
     bAnyApplied |= ApplyWeaponDamageToTargetActor(TargetActor, CachedProfile.DamageMultiplier, 1.f, 1.f, 0.f);
 
-    // 부가효과: Data.EnemyDamage 중복 방지
     const FGameplayTag DamageTag = GetDataDamageTag();
 
     for (const FRangedOnHitGameplayEffectSpec& Spec : CachedProfile.OnHitTargetEffects)
     {
-        if (!Spec.Effect) continue;
+        if (!Spec.Effect)
+        {
+            continue;
+        }
 
         TMap<FGameplayTag, float> Mags = Spec.SetByCallerMagnitudes;
         if (DamageTag.IsValid())
@@ -391,9 +493,12 @@ bool UWeaponRangedAttackAbilityBase::ApplyRangedOnHitEffects(AActor* TargetActor
 void UWeaponRangedAttackAbilityBase::OnFireEventReceived(FGameplayEventData Payload)
 {
     ARangedWeaponBase* Weapon = GetWeaponFromSourceObject<ARangedWeaponBase>();
-    if (!Weapon || !bHasCachedProfile) return;
+    if (!Weapon || !bHasCachedProfile)
+    {
+        return;
+    }
 
-    FireHitscanOnce(Weapon);
+    FireCurrentProfile(Weapon);
 }
 
 void UWeaponRangedAttackAbilityBase::OnMontageCompleted()
@@ -413,6 +518,5 @@ void UWeaponRangedAttackAbilityBase::OnMontageInterrupted()
 
 void UWeaponRangedAttackAbilityBase::OnMontageBlendOut()
 {
-    // ? 스턱 방지: BlendOut에서도 종료 처리(메밀리와 동일 정책)
     EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, false, false);
 }
