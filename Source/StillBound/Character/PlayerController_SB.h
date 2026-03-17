@@ -151,6 +151,11 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|System")
 	TObjectPtr<UInputAction> ESCAction;
 
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> BuildRotateAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> BuildDestroyAction;
 	/// =========================
 	/// UI Map
 	/// =========================
@@ -212,6 +217,9 @@ private:
 	void RaiseBuildHeight();
 	void LowerBuildHeight();
 
+	void HandleBuildRotate(const FInputActionValue& Value);
+	void HandleDestroyBuild();
+
 ///------------------------Input Manager--------------------
 public:
 	void SetOverlayInputState(EOverlayInputState NewState);
@@ -220,6 +228,8 @@ public:
 
 	bool IsMenuLikeState() const;
 	bool IsBuildPreviewState() const;
+
+	bool DoLineTrace(FHitResult& OutHit);
 
 private:
 	void ApplyOverlayInputState();
