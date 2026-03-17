@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Interface/InteractionInterface.h"   // ±âÁ¸ ÀÎÅÍÆäÀÌ½º
+#include "Interface/InteractionInterface.h"   // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì½ï¿½
 #include "Data/ItemData.h"
 #include "GatherableObject.generated.h"
 
@@ -28,7 +28,7 @@ struct FGatherDropItem
     int32 MaxCount = 1;
 };
 
-//¾ÆÀÌÅÛ µå·Ó ¼Ó¼º Àü¹æ ¼±¾ð
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ó¼ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 class APickup;
 
 UCLASS()
@@ -42,33 +42,36 @@ public:
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
+    virtual float GetInteractionDistance_Implementation() override;
 public:
-    // ====================FÅ° ´­·¶À» ¶§ IInteractionInterface ±¸Çö, ±âÁ¸ ½Ã½ºÅÛ ¿¬°á
+    // ====================FÅ° ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ IInteractionInterface ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ ï¿½Ã½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
-    // ÇÃ·¹ÀÌ¾î°¡ ¹Ù¶óº¼ ¶§
+    // ï¿½Ã·ï¿½ï¿½Ì¾î°¡ ï¿½Ù¶ï¿½ ï¿½ï¿½
     virtual void BeginFocus_Implementation() override;
     virtual void EndFocus_Implementation() override;
 
-    // FÅ° ´­·¶À» ¶§ ,BeginInteract¿¡¼­ È£Ãâ
+    // FÅ° ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ,BeginInteractï¿½ï¿½ï¿½ï¿½ È£ï¿½ï¿½
     virtual void BeginInteract_Implementation() override;
     virtual void EndInteract_Implementation() override;
 
-    // InteractionDuration ÈÄ ½ÇÁ¦ Ã¤Áý ¿Ï·á ,Interact¿¡¼­ È£Ãâ
+    // InteractionDuration ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Ã¤ï¿½ï¿½ ï¿½Ï·ï¿½ ,Interactï¿½ï¿½ï¿½ï¿½ È£ï¿½ï¿½
     virtual void Interact_Implementation(APlayerCharacter_SB* PlayerCharacter) override;
 
-    // ÀÎÅÍ·¢¼Ç À§Á¬¿¡ Ç¥½ÃÇÒ µ¥ÀÌÅÍ ¹ÝÈ¯
+    // ï¿½ï¿½ï¿½Í·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯
     virtual FInteractableData GetInteractableData_Implementation() override;
 
-    // ================Ã¤Áý °ü·Ã
+    // ================Ã¤ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     UFUNCTION()
     void OnRespawn();
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Gather")
     bool IsActive() const { return bIsActive; }
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gather")
+    class USphereComponent* InteractionCollision;
+
 protected:
-    // ============¿¡µðÅÍ ¼³Á¤°ª
+    // ============ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Setup")
     EGatherType GatherType = EGatherType::Wood;
 
@@ -78,7 +81,7 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Setup")
     int32 MaxGatherCount = 5;
 
-    // ±âº» Ã¤Áý ½Ã°£ ¸Ç¼Õ/1Æ¼¾î ±âÁØ , InteractionDurationÀ¸·Î ³Ñ°ÜÁÙ °ª
+    // ï¿½âº» Ã¤ï¿½ï¿½ ï¿½Ã°ï¿½ ï¿½Ç¼ï¿½/1Æ¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ , InteractionDurationï¿½ï¿½ï¿½ï¿½ ï¿½Ñ°ï¿½ï¿½ï¿½ ï¿½ï¿½
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Setup")
     float BaseGatherTime = 3.0f;
 
@@ -91,20 +94,20 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Setup")
     UDataTable* ItemDataTable;
 
-    // ToolStatTable µµ±¸ Æ¼¾î Á¶È¸¿ë, ÀÌÁ¦ ¾È¾¸
+    // ToolStatTable ï¿½ï¿½ï¿½ï¿½ Æ¼ï¿½ï¿½ ï¿½ï¿½È¸ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ ï¿½È¾ï¿½
     //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Setup")
     //UDataTable* ToolStatDataTable;
 
-    //pickup ¾×ÅÍ Å¬·¡½º
+    //pickup ï¿½ï¿½ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Setup")
     TSubclassOf<APickup> PickupClass;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UStaticMeshComponent* MeshComponent;
 
-    // =======·±Å¸ÀÓ »óÅÂ
+    // =======ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
-    //InteractableData¸¦ ¸â¹ö·Î Á÷Á¢ ¼±¾ð
+    //InteractableDataï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     UPROPERTY(EditAnywhere, Category = "Interaction")
     FInteractableData InteractableData;
 
@@ -116,27 +119,27 @@ protected:
 
     FTimerHandle RespawnTimerHandle;
 
-    //======== ³»ºÎ ÇÔ¼ö
+    //======== ï¿½ï¿½ï¿½ï¿½ ï¿½Ô¼ï¿½
 
-    // Ä³¸¯ÅÍ ÀåÂø µµ±¸ÀÇ Æ¼¾î ¹ÝÈ¯ ,0=¸Ç¼Õ
+    // Ä³ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Æ¼ï¿½ï¿½ ï¿½ï¿½È¯ ,0=ï¿½Ç¼ï¿½
     int32 GetCharacterToolTier(APlayerCharacter_SB* Character) const;
 
-    // µµ±¸ Æ¼¾î¿¡ µû¸¥ Ã¤Áý ½Ã°£ °è»ê
+    // ï¿½ï¿½ï¿½ï¿½ Æ¼ï¿½î¿¡ ï¿½ï¿½ï¿½ï¿½ Ã¤ï¿½ï¿½ ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½
     float CalculateGatherTime(int32 ToolTier) const;
 
-    // Ã¤Áý °¡´É ¿©ºÎ ,Æ¼¾î Ã¼Å©
+    // Ã¤ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ,Æ¼ï¿½ï¿½ Ã¼Å©
     bool CanGather(APlayerCharacter_SB* Character) const;
 
-    // ¾ÆÀÌÅÛ ÀÎº¥Åä¸®¿¡ Áö±Þ
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îºï¿½ï¿½ä¸®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     //void GiveItemsToCharacter(APlayerCharacter_SB* Character);
 
-    //µå·Ó ¾ÆÀÌÅÛ
+    //ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     void SpawnDropItems(APlayerCharacter_SB* Character);
 
     void DeactivateObject();
     void ActivateObject();
 
-    //============ ºí·çÇÁ¸°Æ® ÀÌº¥Æ® (ºñÁÖ¾ó/»ç¿îµå¿ë)
+    //============ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½Ìºï¿½Æ® (ï¿½ï¿½ï¿½Ö¾ï¿½/ï¿½ï¿½ï¿½ï¿½ï¿½)
     UFUNCTION(BlueprintImplementableEvent, Category = "Gather")
     void BP_OnGatherComplete();
 
@@ -152,14 +155,14 @@ protected:
     UFUNCTION(BlueprintImplementableEvent, Category = "Gather")
     void BP_OnEndFocus();
 
-    //¾²·¯Áö´Â µô·¹ÀÌ¿ë
+    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ì¿ï¿½
     FTimerHandle FallTimerHandle;
 
-    //¾²·¯Áø ÈÄ ½ÇÁ¦¼û±è Ã³¸®
+    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½
     UFUNCTION()
     void OnFallComplete();
 
-    //BP¿¡¼­ ¾²·¯Áö´Â ¿¬Ãâ ½ÃÀÛ°ú FallDurationÀÌÈÄ ¸Þ½Ã ¼û±è.
+    //BPï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û°ï¿½ FallDurationï¿½ï¿½ï¿½ï¿½ ï¿½Þ½ï¿½ ï¿½ï¿½ï¿½ï¿½.
     UFUNCTION(BlueprintImplementableEvent, Category = "Gather")
     void BP_OnStartFalling(float FallDuration);
 };

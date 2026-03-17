@@ -73,7 +73,12 @@ void APlayerController_SB::SetupInputComponent()
 	EnhancedInputComponent->BindAction(PlaceBuildAction, ETriggerEvent::Started, this, &ThisClass::OnBuildPlace);
 	EnhancedInputComponent->BindAction(CancelBuildAction, ETriggerEvent::Started, this, &ThisClass::OnBuildCancel);
 	EnhancedInputComponent->BindAction(ESCAction, ETriggerEvent::Started, this, &ThisClass::OnEscapePressed);
-	
+
+	EnhancedInputComponent->BindAction(RaiseBuildAction, ETriggerEvent::Started, this, &ThisClass::RaiseBuildHeight);
+	EnhancedInputComponent->BindAction(LowerBuildAction, ETriggerEvent::Started, this, &ThisClass::LowerBuildHeight);
+
+	EnhancedInputComponent->BindAction(BuildRotateAction, ETriggerEvent::Triggered, this, &ThisClass::HandleBuildRotate);
+	EnhancedInputComponent->BindAction(BuildDestroyAction, ETriggerEvent::Started, this, &ThisClass::HandleDestroyBuild);
 }
 
 #pragma region ========================= Input - Movement =========================
@@ -363,11 +368,6 @@ void APlayerController_SB::OnEscapePressed()
 
 	switch (OverlayState)
 	{
-	case EOverlayInputState::Gameplay:
-		/// 시스템 메뉴UI Visible 함수추가
-		SetOverlayInputState(EOverlayInputState::PauseMenu);
-		return;
-
 	case EOverlayInputState::Inventory:
 		UIManager->CloseMenu();
 		SetOverlayInputState(EOverlayInputState::Gameplay);
@@ -391,6 +391,9 @@ void APlayerController_SB::OnEscapePressed()
 		{
 			Chr->GetBuildComponent()->HandleBuildCancel();
 		}
+
+		UIManager->HideBuildPreviewPanel();
+
 		SetOverlayInputState(EOverlayInputState::Gameplay);
 		return;
 
@@ -399,10 +402,17 @@ void APlayerController_SB::OnEscapePressed()
 		SetOverlayInputState(EOverlayInputState::Gameplay);
 		return;
 
+	case EOverlayInputState::Gameplay:
+		UIManager->OpenPauseMenu();
+		SetOverlayInputState(EOverlayInputState::PauseMenu);
+		return;
+
 	case EOverlayInputState::PauseMenu:
-		/// PauseMenu UI Close
+		UIManager->ClosePauseMenu();
 		SetOverlayInputState(EOverlayInputState::Gameplay);
 		return;
+
+
 	}
 }
 
@@ -551,11 +561,28 @@ void APlayerController_SB::OnBuildPlace()
 		{
 			if (PC->BuildComponent)
 			{
-				const bool bPlaced = PC->BuildComponent->ConfirmBuild();
+				EBuildFailReason FailReason = EBuildFailReason::None;
+				const bool bPlaced = PC->BuildComponent->ConfirmBuild(FailReason);
 
-				if (!bPlaced)
+				if (!bPlaced && UIManager)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[Build] Attack input -> ConfirmBuild failed"));
+					switch (FailReason)
+					{
+					case EBuildFailReason::NotEnoughCost:
+						UIManager->ShowBuildPreviewStateMessage(FText::FromString(TEXT("재료 부족")), 1.f);
+						break;
+
+					case EBuildFailReason::InvalidPlacement:
+						UIManager->ShowBuildPreviewStateMessage(FText::FromString(TEXT("설치 불가")), 1.f);
+						break;
+
+					case EBuildFailReason::SpawnFailed:
+						UIManager->ShowBuildPreviewStateMessage(FText::FromString(TEXT("설치 실패")), 1.f);
+						break;
+
+					default:
+						break;
+					}
 				}
 			}
 		}
@@ -575,8 +602,69 @@ void APlayerController_SB::OnBuildCancel()
 			}
 		}
 
+		UIManager->HideBuildPreviewPanel();
+
 		SetOverlayInputState(EOverlayInputState::Gameplay);
 		return;
+	}
+}
+
+void APlayerController_SB::RaiseBuildHeight()
+{
+	if (OverlayState != EOverlayInputState::BuildPreview) return;
+
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn()))
+	{
+		if (Chr->GetBuildComponent())
+		{
+			Chr->GetBuildComponent()->AdjustBuildHeight(+1);
+		}
+	}
+}
+
+void APlayerController_SB::LowerBuildHeight()
+{
+	if (OverlayState != EOverlayInputState::BuildPreview) return;
+
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn()))
+	{
+		if (Chr->GetBuildComponent())
+		{
+			Chr->GetBuildComponent()->AdjustBuildHeight(-1);
+		}
+	}
+}
+
+void APlayerController_SB::HandleBuildRotate(const FInputActionValue& Value)
+{
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn()))
+	{
+		if (!Chr->GetBuildComponent() || !Chr->GetBuildComponent()->bIsBuildModeOn) return;
+
+		const float AxisValue = Value.Get<float>();
+
+		if (FMath::Abs(AxisValue) > 0.1f)
+		{
+			Chr->GetBuildComponent()->AddBuildRotation(AxisValue * 15.f);
+		}
+	}
+}
+
+void APlayerController_SB::HandleDestroyBuild()
+{
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn()))
+	{
+		FHitResult Hit;
+
+		if (DoLineTrace(Hit))
+		{
+			AActor* HitActor = Hit.GetActor();
+
+			if (HitActor && HitActor->ActorHasTag("Destroyable"))
+			{
+				HitActor->Destroy();
+			}
+		}
 	}
 }
 
@@ -736,6 +824,30 @@ void APlayerController_SB::ApplyOverlayInputState()
 		// 추후 좌/우클릭 IMC_Abilities 분기 예정
 		break;
 	}
+}
+// =================Pause=================
+void APlayerController_SB::BP_ResumeFromPause()
+{
+	if (UIManager)
+	{
+		UIManager->ClosePauseMenu();
+	}
+	SetOverlayInputState(EOverlayInputState::Gameplay);
+}
+
+void APlayerController_SB::ReturnToPauseFromOptions(UUserWidget* OptionsWidget)
+{
+	if (OptionsWidget)
+	{
+		OptionsWidget->RemoveFromParent();
+	}
+
+	if (UIManager)
+	{
+		UIManager->OpenPauseMenu();
+	}
+
+	SetOverlayInputState(EOverlayInputState::PauseMenu);
 }
 
 void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
@@ -1056,6 +1168,8 @@ void APlayerController_SB::EnterBuildPreview(FName BuildingID)
 
 	Chr->BuildComponent->BeginBuildMode(BuildingID);
 
+	UIManager->ShowBuildPreviewPanel();
+
 	SetOverlayInputState(EOverlayInputState::BuildPreview);
 }
 
@@ -1067,6 +1181,11 @@ void APlayerController_SB::ExitBuildPreview(bool bCancel)
 	if (bCancel)
 	{
 		Chr->BuildComponent->CancelBuildMode();
+	}
+
+	if (UIManager)
+	{
+		UIManager->HideBuildPreviewPanel();
 	}
 
 	SetOverlayInputState(EOverlayInputState::Gameplay);
@@ -1084,4 +1203,23 @@ bool APlayerController_SB::IsMenuLikeState() const
 bool APlayerController_SB::IsBuildPreviewState() const
 {
 	return OverlayState == EOverlayInputState::BuildPreview;
+}
+
+bool APlayerController_SB::DoLineTrace(FHitResult& OutHit)
+{
+	APawn* MyPawn = GetPawn();
+	if (!MyPawn) return false;
+
+	FVector Start = PlayerCameraManager->GetCameraLocation();
+	FVector End = Start + PlayerCameraManager->GetActorForwardVector() * 1000.f;
+
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(MyPawn);
+
+	return GetWorld()->LineTraceSingleByChannel(
+		OutHit,
+		Start,
+		End,
+		ECC_Visibility,
+		Params);
 }

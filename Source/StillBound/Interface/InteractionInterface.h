@@ -16,7 +16,7 @@ enum class EInteractableType : uint8
 	Device UMETA(DisplayName = "Device"),
 	Toggle UMETA(DisplayName = "Toggle"),
 	Container UMETA(DisplayName = "Container"),
-	Gatherable UMETA(DisplayName = "Gatherable")	// 상호작용 채집 추가
+	Gatherable UMETA(DisplayName = "Gatherable")
 };
 
 USTRUCT(BlueprintType)

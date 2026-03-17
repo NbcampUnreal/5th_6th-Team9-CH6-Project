@@ -7,6 +7,7 @@
 class UTextBlock;
 class UImage;
 class UTexture2D;
+class USizeBox;
 
 UCLASS()
 class STILLBOUND_API UIngredientRowWidget : public UUserWidget
@@ -18,6 +19,9 @@ public:
 	void InitRow(const FText& InDisplayName, int32 Have, int32 Need, UTexture2D* IconTexture);
 
 protected:
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<USizeBox> IconSizeBox;
+
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UImage> ItemIconImage;
 
