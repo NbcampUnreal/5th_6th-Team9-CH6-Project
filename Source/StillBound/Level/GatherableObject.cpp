@@ -6,6 +6,7 @@
 #include "Items/Pickup.h"
 #include "Items/ItemBase.h"
 #include "TimerManager.h"   
+#include "Components/SphereComponent.h"
 #include "Engine/World.h"
 #include "Engine/DataTable.h"
 
@@ -15,6 +16,18 @@ AGatherableObject::AGatherableObject()
 
     MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
     RootComponent = MeshComponent;
+
+    // 오브젝트 크기에 상관없이 표면 근처에서 상호작용 가능
+    InteractionCollision = CreateDefaultSubobject<USphereComponent>(TEXT("InteractionCollision"));
+    InteractionCollision->SetupAttachment(RootComponent);
+    InteractionCollision->SetSphereRadius(150.f);        // BP에서 오브젝트 크기에 맞게 조절
+    InteractionCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    InteractionCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
+    InteractionCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap); // 캐릭터만 감지
+
+    //Block 응답 추가. PerformInteractionCheck의 LineTrace(ECC_Visibility)가 이 SphereComponent에 먼저 닿음
+    InteractionCollision->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+    InteractionCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 }
 
 void AGatherableObject::BeginPlay()
@@ -34,6 +47,8 @@ void AGatherableObject::EndPlay(const EEndPlayReason::Type EndPlayReason)
     }
     Super::EndPlay(EndPlayReason);
 }
+
+
 
 //======== IInteractionInterface 구현부
 
@@ -153,9 +168,26 @@ FInteractableData AGatherableObject::GetInteractableData_Implementation()
             FString::Printf(TEXT("Rock (remaining foraging %d)"), CurrentGatherCount));
     }
 
-    InteractableData.Action = FText::FromString(TEXT("gathering"));
-    // Duration은 BeginInteract_Implementation에서 갱신됨, 여기엔 기본값 세팅
-    InteractableData.InteractionDuration = BaseGatherTime;
+    //플레이어를 찾아서 현재 도구 티어 반영
+    APlayerCharacter_SB* Player = nullptr;
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        if (APlayerController* PC = It->Get())
+        {
+            Player = Cast<APlayerCharacter_SB>(PC->GetPawn());
+            if (Player) { break; }
+        }
+    }
+
+    if (Player)
+    {
+        int32 ToolTier = GetCharacterToolTier(Player);
+        InteractableData.InteractionDuration = CalculateGatherTime(ToolTier);
+    }
+    else
+    {
+        InteractableData.InteractionDuration = BaseGatherTime;
+    }
 
     return InteractableData;
 }
@@ -241,6 +273,9 @@ void AGatherableObject::SpawnDropItems(APlayerCharacter_SB* Character)
     UWorld* World = GetWorld();
     if (!World) { return; }
 
+    //캐릭터 기준 드랍 스폰
+    FVector CharacterLocation = Character->GetActorLocation();
+
     for (const FGatherDropItem& Drop : DropItems)
     {
         int32 Count = FMath::RandRange(Drop.MinCount, Drop.MaxCount);
@@ -273,7 +308,30 @@ void AGatherableObject::SpawnDropItems(APlayerCharacter_SB* Character)
             50.f
         );
 
-        FVector SpawnLocation = GetActorLocation() + SpawnOffset;
+        FVector WorldOffset = Character->GetActorRotation().RotateVector(SpawnOffset);
+
+        // 라인트레이스로 지면 높이 감지
+        FVector TraceStart = CharacterLocation + WorldOffset + FVector(0.f, 0.f, 100.f);
+        FVector TraceEnd = CharacterLocation + WorldOffset - FVector(0.f, 0.f, 300.f);
+
+        FHitResult HitResult;
+        FCollisionQueryParams QueryParams;
+        QueryParams.AddIgnoredActor(Character);
+        QueryParams.AddIgnoredActor(this);
+
+        FVector SpawnLocation;
+        if (World->LineTraceSingleByChannel(
+            HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams))
+        {
+            SpawnLocation = HitResult.ImpactPoint + FVector(0.f, 0.f, 10.f); // 지면 위 10cm
+        }
+        else
+        {
+            // 지면 감지 실패 시 캐릭터 발 위치로 fallback
+            SpawnLocation = CharacterLocation + WorldOffset;
+            SpawnLocation.Z = CharacterLocation.Z;
+        }
+
         FTransform SpawnTransform(FRotator::ZeroRotator, SpawnLocation);
 
         FActorSpawnParameters SpawnParams;
@@ -281,7 +339,8 @@ void AGatherableObject::SpawnDropItems(APlayerCharacter_SB* Character)
         SpawnParams.SpawnCollisionHandlingOverride =
             ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-        APickup* SpawnedPickup = World->SpawnActor<APickup>(PickupClass, SpawnTransform, SpawnParams);
+        APickup* SpawnedPickup = World->SpawnActor<APickup>(
+            PickupClass, SpawnTransform, SpawnParams);
         if (SpawnedPickup)
         {
             SpawnedPickup->InitializeDrop(NewItem, Count);
@@ -351,4 +410,12 @@ void AGatherableObject::OnFallComplete()
         RespawnDelegate.BindUObject(this, &AGatherableObject::OnRespawn);
         World->GetTimerManager().SetTimer(RespawnTimerHandle, RespawnDelegate, RespawnTime, false);
     }
+}
+
+float AGatherableObject::GetInteractionDistance_Implementation()
+{
+    if (!InteractionCollision) { return 225.f; }
+
+    // SphereRadius + 여유 50cm 반환
+    return InteractionCollision->GetScaledSphereRadius() + 150.f;
 }
