@@ -12,6 +12,15 @@ class AActor;
 class UStaticMeshComponent;
 class USkeletalMeshComponent;
 class USceneComponent;
+class AProjectileBase;
+
+//프로파일이 어떤 발사 방식을 쓰는지 명시
+UENUM(BlueprintType)
+enum class ERangedFireMode : uint8
+{
+    Hitscan    UMETA(DisplayName = "Hitscan"),
+    Projectile UMETA(DisplayName = "Projectile")
+};
 
 /** Hitscan(Trace) 설정: Hitscan GA가 사용 */
 USTRUCT(BlueprintType)
@@ -42,6 +51,13 @@ struct FRangedHitscanConfig
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Hitscan")
     bool bUseControllerViewRotation = true;
+
+    // //추가: Hitscan 기본 유효성 체크
+    bool IsConfigured() const
+    {
+        return MaxDistance > 0.f && NumShots > 0;
+    }
+
 };
 
 /** Projectile 설정: Projectile GA가 사용 */
@@ -51,7 +67,7 @@ struct FRangedProjectileConfig
     GENERATED_BODY()
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Projectile")
-    TSubclassOf<AActor> ProjectileClass = nullptr;
+    TSubclassOf<AWeaponProjectileBase> ProjectileClass = nullptr;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Projectile")
     FName MuzzleSocket = TEXT("Muzzle");
@@ -61,6 +77,54 @@ struct FRangedProjectileConfig
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Projectile")
     bool bUseControllerViewRotation = true;
+
+    // //추가: 속도 방식
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Projectile|Launch")
+    bool bUseInitialSpeed = true;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Projectile|Launch", meta = (ClampMin = "0.0"))
+    float InitialSpeed = 3000.f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Projectile|Launch", meta = (ClampMin = "0.0"))
+    float MaxSpeed = 3000.f;
+
+    // //추가: 임펄스 방식
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Projectile|Launch")
+    bool bUseImpulse = false;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Projectile|Launch", meta = (ClampMin = "0.0"))
+    float LaunchImpulse = 0.f;
+
+    // //추가: 공통 이동 설정
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Projectile|Launch")
+    float GravityScale = 0.f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Projectile|Launch", meta = (ClampMin = "0.0"))
+    float LifeSeconds = 5.f;
+
+    // //추가: Speed 유효성
+    bool HasValidSpeedMode() const
+    {
+        return bUseInitialSpeed && InitialSpeed > 0.f && MaxSpeed > 0.f;
+    }
+
+    // //추가: Impulse 유효성
+    bool HasValidImpulseMode() const
+    {
+        return bUseImpulse && LaunchImpulse > 0.f;
+    }
+
+    // //추가: 둘 중 하나는 최소 있어야 함
+    bool HasAnyValidLaunchMode() const
+    {
+        return HasValidSpeedMode() || HasValidImpulseMode();
+    }
+
+    // //추가: Projectile 전체 유효성
+    bool IsConfigured() const
+    {
+        return ProjectileClass != nullptr && HasAnyValidLaunchMode();
+    }
 };
 
 /** OnHit 부가효과: GA가 적용 */
@@ -129,11 +193,33 @@ struct FRangedFireProfile
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Fire")
     TArray<FRangedOnHitGameplayEffectSpec> OnHitTargetEffects;
 
+    //추가: 이 프로파일이 어떤 발사 방식을 쓰는지
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Fire")
+    ERangedFireMode FireMode = ERangedFireMode::Hitscan;
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Fire")
     FRangedHitscanConfig Hitscan;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Fire")
     FRangedProjectileConfig Projectile;
+
+    // //추가
+    bool IsHitscanMode() const
+    {
+        return FireMode == ERangedFireMode::Hitscan;
+    }
+
+    // //추가
+    bool IsProjectileMode() const
+    {
+        return FireMode == ERangedFireMode::Projectile;
+    }
+
+    // //추가: 현재 선택된 FireMode 기준으로만 검증
+    bool IsConfigured() const
+    {
+        return IsHitscanMode() ? Hitscan.IsConfigured() : Projectile.IsConfigured();
+    }
 };
 
 UCLASS(Abstract, Blueprintable)
@@ -175,5 +261,9 @@ protected:
 
 protected:
     void RefreshMeshMode();
+
+    //추가: 현재 FireProfiles 세팅 검증
+    void ValidateFireProfiles() const;
+
     virtual void OnConstruction(const FTransform& Transform) override;
 };

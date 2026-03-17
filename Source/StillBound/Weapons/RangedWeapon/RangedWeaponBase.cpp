@@ -31,6 +31,9 @@ void ARangedWeaponBase::OnConstruction(const FTransform& Transform)
 {
     Super::OnConstruction(Transform);
     RefreshMeshMode();
+
+    //추가: BP에서 잘못 세팅한 FireProfile 경고
+    ValidateFireProfiles();
 }
 
 void ARangedWeaponBase::RefreshMeshMode()
@@ -75,6 +78,17 @@ bool ARangedWeaponBase::GetFireProfile(FGameplayTag InputTag, FRangedFireProfile
         return false;
     }
 
+    //추가: 현재 FireMode 기준으로 유효한 프로파일인지 검사
+    if (!Found->IsConfigured())
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("[RangedWeapon] Invalid FireProfile. Weapon=%s InputTag=%s FireMode=%s"),
+            *GetNameSafe(this),
+            *InputTag.ToString(),
+            Found->IsHitscanMode() ? TEXT("Hitscan") : TEXT("Projectile"));
+        return false;
+    }
+
     OutProfile = *Found;
     return true;
 }
@@ -95,4 +109,52 @@ bool ARangedWeaponBase::GetWeaponSocketTransform(FName SocketName, FTransform& O
 
     OutTransform = ActiveMesh->GetComponentTransform();
     return true;
+}
+
+void ARangedWeaponBase::ValidateFireProfiles() const
+{
+    for (const TPair<FGameplayTag, FRangedFireProfile>& Pair : FireProfiles)
+    {
+        const FGameplayTag& InputTag = Pair.Key;
+        const FRangedFireProfile& Profile = Pair.Value;
+
+        if (Profile.IsHitscanMode())
+        {
+            if (!Profile.Hitscan.IsConfigured())
+            {
+                UE_LOG(LogTemp, Warning,
+                    TEXT("[RangedWeapon] Invalid Hitscan profile. Weapon=%s InputTag=%s MaxDistance=%.2f NumShots=%d"),
+                    *GetNameSafe(this),
+                    *InputTag.ToString(),
+                    Profile.Hitscan.MaxDistance,
+                    Profile.Hitscan.NumShots);
+            }
+
+            continue;
+        }
+
+        if (Profile.IsProjectileMode())
+        {
+            if (!Profile.Projectile.ProjectileClass)
+            {
+                UE_LOG(LogTemp, Warning,
+                    TEXT("[RangedWeapon] ProjectileClass is null. Weapon=%s InputTag=%s"),
+                    *GetNameSafe(this),
+                    *InputTag.ToString());
+            }
+
+            if (!Profile.Projectile.HasAnyValidLaunchMode())
+            {
+                UE_LOG(LogTemp, Warning,
+                    TEXT("[RangedWeapon] Projectile launch mode invalid. Weapon=%s InputTag=%s bUseInitialSpeed=%d InitialSpeed=%.2f MaxSpeed=%.2f bUseImpulse=%d LaunchImpulse=%.2f"),
+                    *GetNameSafe(this),
+                    *InputTag.ToString(),
+                    Profile.Projectile.bUseInitialSpeed ? 1 : 0,
+                    Profile.Projectile.InitialSpeed,
+                    Profile.Projectile.MaxSpeed,
+                    Profile.Projectile.bUseImpulse ? 1 : 0,
+                    Profile.Projectile.LaunchImpulse);
+            }
+        }
+    }
 }

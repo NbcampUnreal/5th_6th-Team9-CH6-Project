@@ -1,9 +1,9 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "Weapons/GameAbility/RangedAbility/WeaponRangedAttackAbilityBase.h"
 
 #include "Weapons/RangedWeapon/RangedWeaponBase.h"
 #include "Weapons/WeaponBase.h"
+
+#include "Weapons/RangedWeapon/ProjectileBase.h"
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
@@ -17,7 +17,9 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/ProjectileMovementComponent.h"
 
+#include "Components/PrimitiveComponent.h"
 #include "DrawDebugHelpers.h"
 
 UWeaponRangedAttackAbilityBase::UWeaponRangedAttackAbilityBase()
@@ -83,7 +85,6 @@ void UWeaponRangedAttackAbilityBase::ActivateAbility(
         MontageTask->OnCancelled.AddDynamic(this, &ThisClass::OnMontageCancelled);
         MontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnMontageInterrupted);
         MontageTask->OnBlendOut.AddDynamic(this, &ThisClass::OnMontageBlendOut);
-
         MontageTask->ReadyForActivation();
 
         if (bFireImmediatelyIfNoMontageOrEvent && !FireEventTag.IsValid())
@@ -227,6 +228,126 @@ bool UWeaponRangedAttackAbilityBase::TraceSingle(
     return World->SweepSingleByChannel(OutHit, Start, End, FQuat::Identity, Hitscan.TraceChannel, Shape, Params);
 }
 
+// //추가: ViewLoc / ViewDir 공통 계산
+bool UWeaponRangedAttackAbilityBase::ResolveViewData(
+    const FVector& FallbackLoc,
+    const FRotator& FallbackRot,
+    bool bUseControllerViewRotation,
+    float SpreadHalfAngleDeg,
+    FVector& OutViewLoc,
+    FVector& OutViewDir
+) const
+{
+    OutViewLoc = FallbackLoc;
+    OutViewDir = FallbackRot.Vector().GetSafeNormal();
+
+    if (bUseControllerViewRotation)
+    {
+        FVector ViewLoc;
+        FRotator ViewRot;
+        if (GetViewPoint(ViewLoc, ViewRot))
+        {
+            OutViewLoc = ViewLoc;
+            OutViewDir = ViewRot.Vector().GetSafeNormal();
+        }
+    }
+
+    if (OutViewDir.IsNearlyZero())
+    {
+        OutViewDir = FallbackRot.Vector().GetSafeNormal();
+    }
+
+    if (SpreadHalfAngleDeg > 0.f)
+    {
+        const float HalfAngleRad = FMath::DegreesToRadians(SpreadHalfAngleDeg);
+        OutViewDir = FMath::VRandCone(OutViewDir, HalfAngleRad).GetSafeNormal();
+    }
+
+    return !OutViewDir.IsNearlyZero();
+}
+
+// //추가: 카메라 기준 AimPoint 계산 공통화
+bool UWeaponRangedAttackAbilityBase::ComputeAimPointFromView(
+    const FVector& ViewLoc,
+    const FVector& ViewDir,
+    float TraceDistance,
+    ECollisionChannel TraceChannel,
+    bool bTraceComplex,
+    float TraceRadius,
+    FVector& OutAimPoint,
+    FHitResult* OutViewHit
+) const
+{
+    OutAimPoint = FVector::ZeroVector;
+
+    AActor* Avatar = GetAvatarActorFromActorInfo();
+    UWorld* World = Avatar ? Avatar->GetWorld() : nullptr;
+    if (!World)
+    {
+        return false;
+    }
+
+    const float FinalDistance = FMath::Max(TraceDistance, 1.f);
+    const FVector TraceEnd = ViewLoc + ViewDir * FinalDistance;
+
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(WeaponRangedAimTrace), bTraceComplex);
+    BuildTraceParams(Params, bTraceComplex);
+
+    FHitResult LocalHit;
+    bool bBlockingHit = false;
+
+    if (TraceRadius > KINDA_SMALL_NUMBER)
+    {
+        const FCollisionShape Shape = FCollisionShape::MakeSphere(TraceRadius);
+        bBlockingHit = World->SweepSingleByChannel(
+            LocalHit,
+            ViewLoc,
+            TraceEnd,
+            FQuat::Identity,
+            TraceChannel,
+            Shape,
+            Params
+        );
+    }
+    else
+    {
+        bBlockingHit = World->LineTraceSingleByChannel(
+            LocalHit,
+            ViewLoc,
+            TraceEnd,
+            TraceChannel,
+            Params
+        );
+    }
+
+    OutAimPoint = bBlockingHit ? LocalHit.ImpactPoint : TraceEnd;
+
+    if (OutViewHit)
+    {
+        *OutViewHit = LocalHit;
+    }
+
+    return true;
+}
+
+// //추가: 총구 -> AimPoint 방향 계산 공통화
+bool UWeaponRangedAttackAbilityBase::ComputeShotDirectionFromAimPoint(
+    const FVector& MuzzleLoc,
+    const FVector& AimPoint,
+    const FVector& FallbackDir,
+    FVector& OutShotDirection
+) const
+{
+    OutShotDirection = (AimPoint - MuzzleLoc).GetSafeNormal();
+
+    if (OutShotDirection.IsNearlyZero())
+    {
+        OutShotDirection = FallbackDir.GetSafeNormal();
+    }
+
+    return !OutShotDirection.IsNearlyZero();
+}
+
 bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
     ARangedWeaponBase* Weapon,
     const FRangedHitscanConfig& Hitscan,
@@ -251,40 +372,36 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
     const FVector MuzzleLoc = MuzzleTf.GetLocation();
 
     FVector ViewLoc;
-    FRotator ViewRot;
-
-    if (Hitscan.bUseControllerViewRotation)
+    FVector ViewDir;
+    if (!ResolveViewData(
+        MuzzleLoc,
+        MuzzleTf.Rotator(),
+        Hitscan.bUseControllerViewRotation,
+        Hitscan.SpreadHalfAngleDeg,
+        ViewLoc,
+        ViewDir))
     {
-        if (!GetViewPoint(ViewLoc, ViewRot))
-        {
-            ViewLoc = MuzzleLoc;
-            ViewRot = MuzzleTf.Rotator();
-        }
+        return false;
     }
-    else
-    {
-        ViewLoc = MuzzleLoc;
-        ViewRot = MuzzleTf.Rotator();
-    }
-
-    FVector ViewDir = ViewRot.Vector();
-    if (Hitscan.SpreadHalfAngleDeg > 0.f)
-    {
-        const float HalfAngleRad = FMath::DegreesToRadians(Hitscan.SpreadHalfAngleDeg);
-        ViewDir = FMath::VRandCone(ViewDir, HalfAngleRad);
-    }
-
-    const FVector ViewEnd = ViewLoc + ViewDir * Hitscan.MaxDistance;
 
     FHitResult ViewHit;
-    const bool bViewBlocking = TraceSingle(ViewLoc, ViewEnd, Hitscan, ViewHit);
-
-    OutAimPoint = bViewBlocking ? ViewHit.ImpactPoint : ViewEnd;
-
-    FVector MuzzleDir = (OutAimPoint - MuzzleLoc).GetSafeNormal();
-    if (MuzzleDir.IsNearlyZero())
+    if (!ComputeAimPointFromView(
+        ViewLoc,
+        ViewDir,
+        Hitscan.MaxDistance,
+        Hitscan.TraceChannel,
+        Hitscan.bTraceComplex,
+        Hitscan.Radius,
+        OutAimPoint,
+        &ViewHit))
     {
-        MuzzleDir = ViewDir;
+        return false;
+    }
+
+    FVector MuzzleDir;
+    if (!ComputeShotDirectionFromAimPoint(MuzzleLoc, OutAimPoint, ViewDir, MuzzleDir))
+    {
+        return false;
     }
 
     const FVector MuzzleEnd = MuzzleLoc + MuzzleDir * Hitscan.MaxDistance;
@@ -299,12 +416,15 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
         if (World)
         {
             const float Life = DebugLifeTime;
+            const bool bViewBlocking = ViewHit.bBlockingHit;
 
-            DrawDebugLine(World, ViewLoc, ViewEnd,
+            DrawDebugLine(
+                World, ViewLoc, ViewLoc + ViewDir * Hitscan.MaxDistance,
                 bViewBlocking ? FColor::Cyan : FColor::Silver,
                 false, Life, 0, DebugLineThickness);
 
-            DrawDebugLine(World, MuzzleLoc, MuzzleEnd,
+            DrawDebugLine(
+                World, MuzzleLoc, MuzzleEnd,
                 bMuzzleBlocking ? FColor::Yellow : FColor::Silver,
                 false, Life, 0, DebugLineThickness);
 
@@ -312,6 +432,7 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
             {
                 DrawDebugSphere(World, ViewHit.ImpactPoint, 6.f, 12, FColor::Cyan, false, Life);
             }
+
             if (bMuzzleBlocking)
             {
                 DrawDebugSphere(World, MuzzleHit.ImpactPoint, 7.f, 12, FColor::Red, false, Life);
@@ -319,13 +440,13 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
         }
     }
 
-    if (bMuzzleBlocking)
+    if (!bMuzzleBlocking)
     {
-        OutFinalHit = MuzzleHit;
-        return true;
+        return false;
     }
 
-    return false;
+    OutFinalHit = MuzzleHit;
+    return true;
 }
 
 void UWeaponRangedAttackAbilityBase::HandleHitscanImpact(ARangedWeaponBase* Weapon, const FHitResult& FinalHit)
@@ -350,6 +471,9 @@ void UWeaponRangedAttackAbilityBase::HandleHitscanImpact(ARangedWeaponBase* Weap
         return;
     }
 
+    // //추가: actor 유무와 상관없이 FX 먼저
+    SpawnWeaponHitImpactFXFromHitResult(FinalHit);
+
     if (!HitActor)
     {
         return;
@@ -370,6 +494,13 @@ void UWeaponRangedAttackAbilityBase::FireCurrentProfile(ARangedWeaponBase* Weapo
 {
     if (!Weapon || !bHasCachedProfile)
     {
+        return;
+    }
+
+    // //수정: 발사 모드 분기
+    if (CachedProfile.IsProjectileMode())
+    {
+        FireProjectileOnce(Weapon);
         return;
     }
 
@@ -403,28 +534,247 @@ bool UWeaponRangedAttackAbilityBase::TryGetProjectileSpawnTransform(
     }
 
     const FVector SpawnLoc = MuzzleTf.TransformPosition(Projectile.SpawnOffset);
+    const FVector MuzzleForward = MuzzleTf.GetRotation().GetForwardVector().GetSafeNormal();
 
-    FRotator SpawnRot = MuzzleTf.Rotator();
-
-    if (Projectile.bUseControllerViewRotation)
+    // //공통화: projectile도 같은 View / AimPoint 계산 사용
+    FVector ViewLoc;
+    FVector ViewDir;
+    if (!ResolveViewData(
+        SpawnLoc,
+        MuzzleTf.Rotator(),
+        Projectile.bUseControllerViewRotation,
+        0.f,
+        ViewLoc,
+        ViewDir))
     {
-        FVector ViewLoc;
-        FRotator ViewRot;
-        if (GetViewPoint(ViewLoc, ViewRot))
+        return false;
+    }
+
+    // projectile 전용 새 거리값을 두지 않고, 공통 조준 계산에 hitscan 거리 재사용
+    const float AimDistance =
+        (CachedProfile.Hitscan.MaxDistance > 0.f) ? CachedProfile.Hitscan.MaxDistance : 10000.f;
+
+    const ECollisionChannel AimChannel = CachedProfile.Hitscan.TraceChannel;
+    const bool bAimTraceComplex = CachedProfile.Hitscan.bTraceComplex;
+
+    FHitResult ViewHit;
+    FVector AimPoint;
+    if (!ComputeAimPointFromView(
+        ViewLoc,
+        ViewDir,
+        AimDistance,
+        AimChannel,
+        bAimTraceComplex,
+        0.f,              // //수정: projectile 조준점은 line trace로 고정
+        AimPoint,
+        &ViewHit))
+    {
+        return false;
+    }
+
+    if (!ComputeShotDirectionFromAimPoint(SpawnLoc, AimPoint, MuzzleForward, OutShotDirection))
+    {
+        return false;
+    }
+
+    OutSpawnTransform = FTransform(OutShotDirection.Rotation(), SpawnLoc, FVector::OneVector);
+
+    if (bDebugTrace)
+    {
+        UWorld* World = Weapon->GetWorld();
+        if (World)
         {
-            SpawnRot = ViewRot;
+            const float Life = DebugLifeTime;
+
+            DrawDebugLine(
+                World,
+                ViewLoc,
+                ViewLoc + ViewDir * AimDistance,
+                ViewHit.bBlockingHit ? FColor::Green : FColor::Silver,
+                false,
+                Life,
+                0,
+                DebugLineThickness
+            );
+
+            DrawDebugLine(
+                World,
+                SpawnLoc,
+                SpawnLoc + OutShotDirection * 300.f,
+                FColor::Orange,
+                false,
+                Life,
+                0,
+                DebugLineThickness
+            );
+
+            DrawDebugSphere(World, SpawnLoc, 4.f, 8, FColor::Orange, false, Life);
+
+            if (ViewHit.bBlockingHit)
+            {
+                DrawDebugSphere(World, ViewHit.ImpactPoint, 6.f, 12, FColor::Green, false, Life);
+            }
         }
     }
 
-    OutShotDirection = SpawnRot.Vector().GetSafeNormal();
-    if (OutShotDirection.IsNearlyZero())
+    return true;
+}
+
+void UWeaponRangedAttackAbilityBase::FireProjectileOnce(ARangedWeaponBase* Weapon)
+{
+    if (!Weapon || !bHasCachedProfile)
     {
-        OutShotDirection = MuzzleTf.GetRotation().GetForwardVector().GetSafeNormal();
-        SpawnRot = OutShotDirection.Rotation();
+        return;
     }
 
-    OutSpawnTransform = FTransform(SpawnRot, SpawnLoc, FVector::OneVector);
-    return true;
+    const FRangedProjectileConfig& Projectile = CachedProfile.Projectile;
+    if (!Projectile.IsConfigured())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[RangedGA] Invalid projectile config. Weapon=%s Ability=%s"),
+            *GetNameSafe(Weapon), *GetNameSafe(this));
+        return;
+    }
+
+    UWorld* World = Weapon->GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    FTransform SpawnTransform;
+    FVector ShotDirection;
+    if (!TryGetProjectileSpawnTransform(Weapon, SpawnTransform, ShotDirection))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[RangedGA] TryGetProjectileSpawnTransform failed. Weapon=%s"),
+            *GetNameSafe(Weapon));
+        return;
+    }
+
+    FActorSpawnParameters Params;
+    Params.Owner = GetAvatarActorFromActorInfo();
+    Params.Instigator = Cast<APawn>(GetAvatarActorFromActorInfo());
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    AActor* SpawnedProjectile = World->SpawnActor<AActor>(
+        Projectile.ProjectileClass,
+        SpawnTransform,
+        Params
+    );
+
+
+    if (!SpawnedProjectile)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[RangedGA] Projectile spawn failed. Class=%s Weapon=%s"),
+            *GetNameSafe(Projectile.ProjectileClass), *GetNameSafe(Weapon));
+        return;
+    }
+
+    if (AWeaponProjectileBase* WeaponProjectile = Cast<AWeaponProjectileBase>(SpawnedProjectile))
+    {
+        WeaponProjectile->InitProjectileData(
+            GetAvatarActorFromActorInfo(),
+            Weapon,
+            BaseDamageEffectClass,
+            CachedProfile.DamageMultiplier,
+            CachedProfile.OnHitTargetEffects
+        );
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("[RangedGA] Spawned projectile is not AWeaponProjectileBase. Damage/FX init skipped. Projectile=%s"),
+            *GetNameSafe(SpawnedProjectile));
+    }
+
+    if (!ApplyProjectileLaunchSettings(SpawnedProjectile, ShotDirection))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[RangedGA] Projectile launch setup failed. Projectile=%s Weapon=%s"),
+            *GetNameSafe(SpawnedProjectile), *GetNameSafe(Weapon));
+    }
+}
+
+bool UWeaponRangedAttackAbilityBase::ApplyProjectileLaunchSettings(
+    AActor* SpawnedProjectile,
+    const FVector& ShotDirection
+) const
+{
+    if (!SpawnedProjectile || !bHasCachedProfile)
+    {
+        return false;
+    }
+
+    const FRangedProjectileConfig& Projectile = CachedProfile.Projectile;
+
+    const bool bHasSpeedMode = Projectile.HasValidSpeedMode();
+    const bool bHasImpulseMode = Projectile.HasValidImpulseMode();
+
+    if (!bHasSpeedMode && !bHasImpulseMode)
+    {
+        return false;
+    }
+
+    if (bHasSpeedMode && bHasImpulseMode)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("[RangedGA] Both Speed and Impulse are valid. Speed will be preferred. Projectile=%s"),
+            *GetNameSafe(SpawnedProjectile));
+    }
+
+    if (Projectile.LifeSeconds > 0.f)
+    {
+        SpawnedProjectile->SetLifeSpan(Projectile.LifeSeconds);
+    }
+
+    // Speed 우선
+    if (bHasSpeedMode)
+    {
+        if (UProjectileMovementComponent* MoveComp =
+            SpawnedProjectile->FindComponentByClass<UProjectileMovementComponent>())
+        {
+            MoveComp->InitialSpeed = Projectile.InitialSpeed;
+            MoveComp->MaxSpeed = Projectile.MaxSpeed;
+            MoveComp->ProjectileGravityScale = Projectile.GravityScale;
+            MoveComp->Velocity = ShotDirection.GetSafeNormal() * Projectile.InitialSpeed;
+            MoveComp->Activate(true);
+            return true;
+        }
+
+        UE_LOG(LogTemp, Warning,
+            TEXT("[RangedGA] Speed mode requested but ProjectileMovementComponent missing. Projectile=%s"),
+            *GetNameSafe(SpawnedProjectile));
+        return false;
+    }
+
+    // Impulse
+    if (bHasImpulseMode)
+    {
+        UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(SpawnedProjectile->GetRootComponent());
+        if (!Prim)
+        {
+            Prim = SpawnedProjectile->FindComponentByClass<UPrimitiveComponent>();
+        }
+
+        if (!Prim)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("[RangedGA] Impulse mode requested but no PrimitiveComponent found. Projectile=%s"),
+                *GetNameSafe(SpawnedProjectile));
+            return false;
+        }
+
+        if (!Prim->IsSimulatingPhysics())
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("[RangedGA] Impulse mode requested but component is not simulating physics. Projectile=%s Component=%s"),
+                *GetNameSafe(SpawnedProjectile), *GetNameSafe(Prim));
+            return false;
+        }
+
+        Prim->AddImpulse(ShotDirection.GetSafeNormal() * Projectile.LaunchImpulse, NAME_None, true);
+        return true;
+    }
+
+    return false;
 }
 
 void UWeaponRangedAttackAbilityBase::FireHitscanOnce(ARangedWeaponBase* Weapon)

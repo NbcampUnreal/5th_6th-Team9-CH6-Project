@@ -12,6 +12,8 @@
 class ARangedWeaponBase;
 class UAbilityTask_PlayMontageAndWait;
 class UAbilityTask_WaitGameplayEvent;
+class UProjectileMovementComponent; 
+class UPrimitiveComponent;
 
 UCLASS(Abstract)
 class STILLBOUND_API UWeaponRangedAttackAbilityBase : public UWeaponGameplayAbility
@@ -53,6 +55,15 @@ protected:
     // 현재 캐시된 프로파일을 실제 발사로 실행하는 공용 진입점
     virtual void FireCurrentProfile(class ARangedWeaponBase* Weapon);
 
+    // //추가: Projectile 발사
+    virtual void FireProjectileOnce(class ARangedWeaponBase* Weapon);
+
+    // //추가: Spawn된 Projectile에 Speed / Impulse 적용
+    virtual bool ApplyProjectileLaunchSettings(
+        AActor* SpawnedProjectile,
+        const FVector& ShotDirection
+    ) const;
+
     // 다음 단계 Projectile GA에서 사용할 공용 헬퍼
     virtual bool TryGetProjectileSpawnTransform(
         class ARangedWeaponBase* Weapon,
@@ -87,6 +98,36 @@ protected:
         const FVector& End,
         const FRangedHitscanConfig& Hitscan,
         FHitResult& OutHit
+    ) const;
+
+    // //추가: ViewLoc / ViewDir 계산 공통화
+    bool ResolveViewData(
+        const FVector& FallbackLoc,
+        const FRotator& FallbackRot,
+        bool bUseControllerViewRotation,
+        float SpreadHalfAngleDeg,
+        FVector& OutViewLoc,
+        FVector& OutViewDir
+    ) const;
+
+    // //추가: 카메라 기준 AimPoint 계산 공통화
+    bool ComputeAimPointFromView(
+        const FVector& ViewLoc,
+        const FVector& ViewDir,
+        float TraceDistance,
+        ECollisionChannel TraceChannel,
+        bool bTraceComplex,
+        float TraceRadius,
+        FVector& OutAimPoint,
+        FHitResult* OutViewHit = nullptr
+    ) const;
+
+    // //추가: 총구 -> AimPoint 방향 계산 공통화
+    bool ComputeShotDirectionFromAimPoint(
+        const FVector& MuzzleLoc,
+        const FVector& AimPoint,
+        const FVector& FallbackDir,
+        FVector& OutShotDirection
     ) const;
 
     bool ComputeFinalHitscanHit(
