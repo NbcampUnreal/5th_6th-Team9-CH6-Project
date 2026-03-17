@@ -142,6 +142,12 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
 	TObjectPtr<UInputAction> CancelBuildAction;
 
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> RaiseBuildAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> LowerBuildAction;
+
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|System")
 	TObjectPtr<UInputAction> ESCAction;
 
@@ -203,6 +209,9 @@ private:
 	void OnBuildPlace();
 	void OnBuildCancel();
 
+	void RaiseBuildHeight();
+	void LowerBuildHeight();
+
 ///------------------------Input Manager--------------------
 public:
 	void SetOverlayInputState(EOverlayInputState NewState);
@@ -233,6 +242,12 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<class USB_UIManager> UIManager;
+
+	UFUNCTION(BlueprintCallable, Category = "SB|UI")
+	void BP_ResumeFromPause();
+
+	UFUNCTION(BlueprintCallable, Category = "SB|UI")
+	void ReturnToPauseFromOptions(UUserWidget* OptionsWidget);
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Stamina|Cost")
 	float EvasionStaminaCost = 25.f;

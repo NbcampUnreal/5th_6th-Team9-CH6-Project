@@ -16,6 +16,7 @@ class UHotbarPanel;
 class UInventoryComponent;
 class UBuildMenuWidget;
 class UBuildComponent;
+class UUserWidget;
 /**
  * 
  */
@@ -53,6 +54,9 @@ public:
 	void HideDamageOverlay();
 	void UpdateDamageOverlay(float HealthPercent);
 	void UpdateHUD();
+	void OpenPauseMenu();
+	void ClosePauseMenu();
+	bool IsPauseMenuOpen() const;
 
 	UUW_FullMap* GetFullMapWidget() const { return FullMapWidget; }
 	UUW_UIHUD* GetHUD() const { return UIHUD; }
@@ -109,6 +113,12 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UBuildMenuWidget> BuildMenuWidget;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
+	TSubclassOf<UUserWidget>PauseMenuClass;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget>PauseMenuWidget;
 
 	///===============================================================================
 	/// FUNCTIONS

@@ -54,7 +54,7 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 
 	PlayerInventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("PlayerInventory"));
 	PlayerInventory->SetSlotsCapacity(48);
-	PlayerInventory->SetWeightCapacity(50.f);
+	PlayerInventory->SetWeightCapacity(300.f);
 
 	InteractionCheckFrequency = 0.1f;
 	InteractionCheckDistance = 225.f;

@@ -7,6 +7,9 @@
 #include "Inventory/InventoryComponent.h"
 #include "Public/Data/ItemData.h"
 #include "UI/Build/BuildPreview_IngredientPanel.h"
+#include "Landscape.h"
+
+#pragma region Helpers
 
 bool UBuildComponent::GetBuildingData(FName InBuildingID, FBuildingDataRow& OutRow) const
 {
@@ -25,6 +28,30 @@ bool UBuildComponent::GetBuildingData(FName InBuildingID, FBuildingDataRow& OutR
 	OutRow = *Found;
 	return true;
 }
+
+TArray<USceneComponent*> UBuildComponent::GetSnapPointsFromActor(AActor* InActor) const
+{
+	TArray<USceneComponent*> Result;
+	if (!InActor) return Result;
+
+	TArray<USceneComponent*> SceneComps;
+	InActor->GetComponents<USceneComponent>(SceneComps);
+
+	for (USceneComponent* Comp : SceneComps)
+	{
+		if (!Comp) continue;
+
+		const FString CompName = Comp->GetName();
+		if (CompName.StartsWith(TEXT("Snap_")))
+		{
+			Result.Add(Comp);
+		}
+	}
+
+	return Result;
+}
+
+#pragma endregion
 
 UBuildComponent::UBuildComponent()
 {
@@ -200,24 +227,54 @@ void UBuildComponent::UpdatePreviewTransform()
 {
 	if (!Player || !Camera) return;
 
-	const FVector StartLocation = Camera->GetComponentLocation();
-	const FVector EndLocation = StartLocation + Camera->GetForwardVector() * 1000.f;
+	// 1st : 카메라 전방으로 어디를 보고 있는지 찾기
+	const FVector ViewStart = Camera->GetComponentLocation();
+	const FVector ViewEnd = ViewStart + Camera->GetForwardVector() * 3000.f;
 
+	FHitResult ViewHit;
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(Player);
 
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(LastPreviewHit, StartLocation, EndLocation, ECC_Visibility, Params);
+	const bool bViewHit = GetWorld()->LineTraceSingleByChannel(
+		ViewHit, 
+		ViewStart, 
+		ViewEnd, 
+		ECC_Visibility, 
+		Params);
 
-	if (bHit)
+	FVector TargetXY = bViewHit ? ViewHit.ImpactPoint : ViewEnd;
+
+
+	// 2nd : 그 XY 기준으로 위에서 아래로 쏴서 실제 지면 찾기
+	const FVector GroundTraceStart(TargetXY.X, TargetXY.Y, TargetXY.Z + 5000.f);
+	const FVector GroundTraceEnd(TargetXY.X, TargetXY.Y, TargetXY.Z - 5000.f);
+
+	FHitResult GroundHit;
+	const bool bGroundHit = GetWorld()->LineTraceSingleByChannel(
+		GroundHit,
+		GroundTraceStart,
+		GroundTraceEnd,
+		ECC_Visibility,
+		Params);
+
+	FVector FinalLocation = TargetXY;
+
+	if (bGroundHit)
 	{
-		BuildTransform.SetLocation(LastPreviewHit.ImpactPoint);
+		LastPreviewHit = GroundHit;
+		FinalLocation = GroundHit.ImpactPoint;
 	}
 	else
 	{
-		BuildTransform.SetLocation(EndLocation);
 		LastPreviewHit = FHitResult();
+
 	}
 
+	FinalLocation.Z += CurrentBuildHeightOffset;
+
+	bSnappedToFoundation = TrySnapToNearbyFoundation(FinalLocation);
+
+	BuildTransform.SetLocation(FinalLocation);
 	BuildTransform.SetRotation(FQuat(FRotator::ZeroRotator));
 
 	/// LineTrace Debugging
@@ -251,6 +308,18 @@ bool UBuildComponent::CheckCanPlace(const FBuildingDataRow& Row)
 
 bool UBuildComponent::CheckGroundOnlyPlacement(const FBuildingDataRow& Row)
 {
+	//스냅되었으면 지면 검사 없이 허용
+	if (bSnappedToFoundation)
+	{
+		if (CheckOverlapAtPreview(Row))
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	// 스냅 안된 경우에만 지면 검사
 	if (!LastPreviewHit.bBlockingHit)
 	{
 		return false;
@@ -284,7 +353,13 @@ bool UBuildComponent::CheckOverlapAtPreview(const FBuildingDataRow& Row) const
 
 	TArray<FOverlapResult> Overlaps;
 
-	const bool bOverlapped = GetWorld()->OverlapMultiByChannel(Overlaps, BoxCenter, FQuat::Identity, ECC_WorldStatic, FCollisionShape::MakeBox(BoxExtent), Params);
+	const bool bOverlapped = GetWorld()->OverlapMultiByChannel(
+		Overlaps, 
+		BoxCenter, 
+		FQuat::Identity, 
+		ECC_WorldStatic, 
+		FCollisionShape::MakeBox(BoxExtent), 
+		Params);
 
 	if (!bOverlapped) return false;
 
@@ -294,6 +369,9 @@ bool UBuildComponent::CheckOverlapAtPreview(const FBuildingDataRow& Row) const
 		if (!OverlapActor) continue;
 
 		if (OverlapActor == BuildGhost->GetOwner()) continue;
+
+		// Landscape Ignore
+		if (OverlapActor->IsA<ALandscape>()) continue;
 
 		return true;
 	}
@@ -422,4 +500,69 @@ bool UBuildComponent::ConsumeBuildCost(const FBuildingDataRow& Row)
 		}
 	}
 	return true;
+}
+
+void UBuildComponent::AdjustBuildHeight(int32 Direction)
+{
+	CurrentBuildHeightOffset += Direction * HeightStep;
+	CurrentBuildHeightOffset = FMath::Clamp(CurrentBuildHeightOffset, MinBuildHeightOffset, MaxBuildHeightOffset);
+}
+
+bool UBuildComponent::TrySnapToNearbyFoundation(FVector& InOutLocation)
+{
+	const float SnapSearchRadius = 300.f;
+	const float SnapAcceptDistance = 200.f;
+
+	TArray<FOverlapResult> Overlaps;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(Player);
+
+	const bool bFound = GetWorld()->OverlapMultiByChannel(
+		Overlaps,
+		InOutLocation,
+		FQuat::Identity,
+		ECC_WorldDynamic,
+		FCollisionShape::MakeSphere(SnapSearchRadius),
+		Params
+	);
+
+	if (!bFound) return false;
+
+	float BestDistSq = TNumericLimits<float>::Max();
+	FVector BestSnapLocation = InOutLocation;
+	bool bHasSnap = false;
+
+	for (const FOverlapResult& Result : Overlaps)
+	{
+		AActor* OverlapActor = Result.GetActor();
+		if (!OverlapActor) continue;
+
+		// 태그로 토대 판별
+		if (!OverlapActor->ActorHasTag(TEXT("Build.Foundation"))) continue;
+
+		const TArray<USceneComponent*> SnapPoints = GetSnapPointsFromActor(OverlapActor);
+
+		for (USceneComponent* SnapPoint : SnapPoints)
+		{
+			if (!SnapPoint) continue;
+
+			const FVector SnapLoc = SnapPoint->GetComponentLocation();
+			const float DistSq = FVector::DistSquared(SnapLoc, InOutLocation);
+
+			if (DistSq < BestDistSq)
+			{
+				BestDistSq = DistSq;
+				BestSnapLocation = SnapLoc;
+				bHasSnap = true;
+			}
+		}
+	}
+
+	if (bHasSnap && BestDistSq <= FMath::Square(SnapAcceptDistance))
+	{
+		InOutLocation = BestSnapLocation;
+		return true;
+	}
+
+	return false;
 }
