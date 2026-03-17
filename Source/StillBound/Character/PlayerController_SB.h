@@ -12,6 +12,7 @@ class UInputMappingContext;
 class UInputAction;
 class USB_UIManager;
 class AMapWorldManager;
+class UCameraShakeBase;
 struct FInputActionValue;
 
 UENUM(BlueprintType)
@@ -233,6 +234,9 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<class USB_UIManager> UIManager;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Camera")
+	TSubclassOf<UCameraShakeBase> HitCameraShake;
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Stamina|Cost")
 	float EvasionStaminaCost = 25.f;

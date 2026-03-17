@@ -23,6 +23,7 @@
 #include "Weapons/WeaponBase.h"
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Inventory/InventoryComponent.h"
+#include "Camera/CameraShakeBase.h"
 #include "Build/BuildComponent.h"
 
 void APlayerController_SB::SetupInputComponent()
@@ -745,6 +746,14 @@ void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
 	}
 
 	UIManager->UpdateHUD();
+
+	if (NewValue < OldValue)
+	{
+		if (HitCameraShake)
+		{
+			ClientStartCameraShake(HitCameraShake);
+		}
+	}
 
 	APawn* P = GetPawn();
 	if (!P) return;
