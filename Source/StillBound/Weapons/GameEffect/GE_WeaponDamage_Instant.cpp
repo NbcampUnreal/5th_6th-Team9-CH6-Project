@@ -16,7 +16,7 @@ UGE_WeaponDamage_Instant::UGE_WeaponDamage_Instant()
 
     // SetByCaller(Data.EnemyDamage)
     FSetByCallerFloat SBC;
-    SBC.DataTag = FGameplayTag::RequestGameplayTag(TEXT("Data.EnemyDamage"), / ErrorIfNotFound / false);
+    SBC.DataTag = FGameplayTag::RequestGameplayTag(TEXT("Data.EnemyDamage"), false);
 
     ensureMsgf(SBC.DataTag.IsValid(),
         TEXT("[GAS] GameplayTag 'Data.EnemyDamage' is not registered. Add it in Project Settings > GameplayTags"));

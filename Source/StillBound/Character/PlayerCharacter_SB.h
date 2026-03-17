@@ -165,6 +165,11 @@ private:
 
 	bool bIsDead = false;
 
+	UFUNCTION()
+	void EnableRagdoll();
+
+	FTimerHandle RagdollTimerHandle;
+
 	// 골드 변수
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Gold",
 		meta = (ClampMin = "0", AllowPrivateAccess="true"))

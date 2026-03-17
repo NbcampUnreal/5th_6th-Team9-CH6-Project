@@ -637,8 +637,15 @@ void APlayerCharacter_SB::Die()
 	if (DeathMontage)
 	{
 		PlayAnimMontage(DeathMontage, 1.5f);
-		return;
 	}
+
+	GetWorldTimerManager().SetTimer(
+		RagdollTimerHandle,
+		this,
+		&APlayerCharacter_SB::EnableRagdoll,
+		2.0f,
+		false
+	);
 }
 
 bool APlayerCharacter_SB::ModifyGold(int32 Amount)
@@ -747,3 +754,14 @@ void APlayerCharacter_SB::DestroyActorComponent(UActorComponent* ComponentToDest
 	ComponentToDestroy->DestroyComponent();
 }
 
+void APlayerCharacter_SB::EnableRagdoll()
+{
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!MeshComp) return;
+
+	MeshComp->SetCollisionProfileName(TEXT("Ragdoll"));
+	MeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	MeshComp->SetAllBodiesSimulatePhysics(true);
+	MeshComp->WakeAllRigidBodies();
+	MeshComp->bPauseAnims = true;
+}
