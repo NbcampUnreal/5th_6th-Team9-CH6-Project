@@ -8,6 +8,9 @@
 UBTT_BossMeleeAttack::UBTT_BossMeleeAttack()
 {
 	NodeName = TEXT("Boss Melee Attack");
+
+	AbilityTag = FGameplayTag::RequestGameplayTag(TEXT("Boss.Ability.MeleeAttack"));
+	CooldownTag = FGameplayTag::RequestGameplayTag(TEXT("Boss.State.MeleeCooldown"));
 }
 
 EBTNodeResult::Type UBTT_BossMeleeAttack::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
@@ -30,9 +33,16 @@ EBTNodeResult::Type UBTT_BossMeleeAttack::ExecuteTask(UBehaviorTreeComponent& Ow
 		return EBTNodeResult::Failed;
 	}
 
-	FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(TEXT("Boss.Ability.MeleeAttack"));
+	// 쿨타임 중이면 아예 근접 공격 시도 안 함
+	if (CooldownTag.IsValid() && ASC->HasMatchingGameplayTag(CooldownTag))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BossMeleeTask] Cooldown active -> Failed"));
+		return EBTNodeResult::Failed;
+	}
+
 	const bool bActivated = ASC->TryActivateAbilitiesByTag(FGameplayTagContainer(AbilityTag));
-	UE_LOG(LogTemp, Warning, TEXT("[BossMeleeTask] TryActivate Boss.Ability.MeleeAttack"));
+
+	UE_LOG(LogTemp, Warning, TEXT("[BossMeleeTask] TryActivate %s"), *AbilityTag.ToString());
 	UE_LOG(LogTemp, Warning, TEXT("[BossMeleeTask] Activated=%d"), bActivated);
 
 	return bActivated ? EBTNodeResult::Succeeded : EBTNodeResult::Failed;

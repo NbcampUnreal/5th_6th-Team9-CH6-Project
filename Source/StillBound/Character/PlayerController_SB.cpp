@@ -23,6 +23,7 @@
 #include "Weapons/WeaponBase.h"
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Inventory/InventoryComponent.h"
+#include "Camera/CameraShakeBase.h"
 #include "Build/BuildComponent.h"
 
 void APlayerController_SB::SetupInputComponent()
@@ -76,6 +77,8 @@ void APlayerController_SB::SetupInputComponent()
 	EnhancedInputComponent->BindAction(RaiseBuildAction, ETriggerEvent::Started, this, &ThisClass::RaiseBuildHeight);
 	EnhancedInputComponent->BindAction(LowerBuildAction, ETriggerEvent::Started, this, &ThisClass::LowerBuildHeight);
 
+	EnhancedInputComponent->BindAction(BuildRotateAction, ETriggerEvent::Triggered, this, &ThisClass::HandleBuildRotate);
+	EnhancedInputComponent->BindAction(BuildDestroyAction, ETriggerEvent::Started, this, &ThisClass::HandleDestroyBuild);
 }
 
 #pragma region ========================= Input - Movement =========================
@@ -365,11 +368,6 @@ void APlayerController_SB::OnEscapePressed()
 
 	switch (OverlayState)
 	{
-	case EOverlayInputState::Gameplay:
-		/// 시스템 메뉴UI Visible 함수추가
-		SetOverlayInputState(EOverlayInputState::PauseMenu);
-		return;
-
 	case EOverlayInputState::Inventory:
 		UIManager->CloseMenu();
 		SetOverlayInputState(EOverlayInputState::Gameplay);
@@ -404,10 +402,17 @@ void APlayerController_SB::OnEscapePressed()
 		SetOverlayInputState(EOverlayInputState::Gameplay);
 		return;
 
+	case EOverlayInputState::Gameplay:
+		UIManager->OpenPauseMenu();
+		SetOverlayInputState(EOverlayInputState::PauseMenu);
+		return;
+
 	case EOverlayInputState::PauseMenu:
-		/// PauseMenu UI Close
+		UIManager->ClosePauseMenu();
 		SetOverlayInputState(EOverlayInputState::Gameplay);
 		return;
+
+
 	}
 }
 
@@ -630,6 +635,39 @@ void APlayerController_SB::LowerBuildHeight()
 	}
 }
 
+void APlayerController_SB::HandleBuildRotate(const FInputActionValue& Value)
+{
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn()))
+	{
+		if (!Chr->GetBuildComponent() || !Chr->GetBuildComponent()->bIsBuildModeOn) return;
+
+		const float AxisValue = Value.Get<float>();
+
+		if (FMath::Abs(AxisValue) > 0.1f)
+		{
+			Chr->GetBuildComponent()->AddBuildRotation(AxisValue * 15.f);
+		}
+	}
+}
+
+void APlayerController_SB::HandleDestroyBuild()
+{
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn()))
+	{
+		FHitResult Hit;
+
+		if (DoLineTrace(Hit))
+		{
+			AActor* HitActor = Hit.GetActor();
+
+			if (HitActor && HitActor->ActorHasTag("Destroyable"))
+			{
+				HitActor->Destroy();
+			}
+		}
+	}
+}
+
 #pragma endregion
 
 #pragma region ========================= UI =========================
@@ -787,6 +825,30 @@ void APlayerController_SB::ApplyOverlayInputState()
 		break;
 	}
 }
+// =================Pause=================
+void APlayerController_SB::BP_ResumeFromPause()
+{
+	if (UIManager)
+	{
+		UIManager->ClosePauseMenu();
+	}
+	SetOverlayInputState(EOverlayInputState::Gameplay);
+}
+
+void APlayerController_SB::ReturnToPauseFromOptions(UUserWidget* OptionsWidget)
+{
+	if (OptionsWidget)
+	{
+		OptionsWidget->RemoveFromParent();
+	}
+
+	if (UIManager)
+	{
+		UIManager->OpenPauseMenu();
+	}
+
+	SetOverlayInputState(EOverlayInputState::PauseMenu);
+}
 
 void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
 {
@@ -796,6 +858,14 @@ void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
 	}
 
 	UIManager->UpdateHUD();
+
+	if (NewValue < OldValue)
+	{
+		if (HitCameraShake)
+		{
+			ClientStartCameraShake(HitCameraShake);
+		}
+	}
 
 	APawn* P = GetPawn();
 	if (!P) return;
@@ -1133,4 +1203,23 @@ bool APlayerController_SB::IsMenuLikeState() const
 bool APlayerController_SB::IsBuildPreviewState() const
 {
 	return OverlayState == EOverlayInputState::BuildPreview;
+}
+
+bool APlayerController_SB::DoLineTrace(FHitResult& OutHit)
+{
+	APawn* MyPawn = GetPawn();
+	if (!MyPawn) return false;
+
+	FVector Start = PlayerCameraManager->GetCameraLocation();
+	FVector End = Start + PlayerCameraManager->GetActorForwardVector() * 1000.f;
+
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(MyPawn);
+
+	return GetWorld()->LineTraceSingleByChannel(
+		OutHit,
+		Start,
+		End,
+		ECC_Visibility,
+		Params);
 }

@@ -168,7 +168,7 @@ void UBuildComponent::UpdateBuildPreview()
 	UpdatePreviewTransform();
 
 	BuildGhost->SetWorldLocation(BuildTransform.GetLocation());
-	BuildGhost->SetWorldRotation(FRotator::ZeroRotator);
+	BuildGhost->SetWorldRotation(BuildTransform.GetRotation().Rotator());
 
 	FBuildingDataRow Row;
 	if (!GetBuildingData(CurrentBuildingID, Row))
@@ -258,6 +258,7 @@ void UBuildComponent::UpdatePreviewTransform()
 		Params);
 
 	FVector FinalLocation = TargetXY;
+	FRotator FinalRotation(0.f, CurrentBuildYaw, 0.f);
 
 	if (bGroundHit)
 	{
@@ -272,10 +273,32 @@ void UBuildComponent::UpdatePreviewTransform()
 
 	FinalLocation.Z += CurrentBuildHeightOffset;
 
-	bSnappedToFoundation = TrySnapToNearbyFoundation(FinalLocation);
+	CurrentSnapTargetActor = nullptr;
+	bSnappedToFoundation = false;
+
+	FBuildingDataRow Row;
+	if (GetBuildingData(CurrentBuildingID, Row))
+	{
+		if (Row.SnapRule == EBuildSnapRule::FoundationEdgeOnly)
+		{
+			if (TrySnapWall(Row, FinalLocation, FinalRotation))
+			{
+				bSnappedToFoundation = true;
+			}
+		}
+		else
+		{
+			if (TrySnapToNearbyFoundation(FinalLocation))
+			{
+				bSnappedToFoundation = true;
+			}
+
+			FinalRotation += Row.PreviewRotationOffset;
+		}
+	}
 
 	BuildTransform.SetLocation(FinalLocation);
-	BuildTransform.SetRotation(FQuat(FRotator::ZeroRotator));
+	BuildTransform.SetRotation(FQuat(FinalRotation));
 
 	/// LineTrace Debugging
 	// DrawDebugLine(GetWorld(), StartLocation, EndLocation, FColor::Yellow, false, 0.f, 0, 1.f);
@@ -294,8 +317,7 @@ bool UBuildComponent::CheckCanPlace(const FBuildingDataRow& Row)
 		return CheckGroundOnlyPlacement(Row);
 
 	case EBuildSnapRule::FoundationEdgeOnly:
-		// 추후 구현예정
-		return false;
+		return CheckFoundationEdgePlacement(Row);
 
 	case EBuildSnapRule::OnTopOfWall:
 		//추후 구현예정
@@ -345,8 +367,17 @@ bool UBuildComponent::CheckOverlapAtPreview(const FBuildingDataRow& Row) const
 
 	const FBoxSphereBounds Bounds = BuildGhost->CalcBounds(BuildGhost->GetComponentTransform());
 
-	const FVector BoxCenter = Bounds.Origin;
-	const FVector BoxExtent = Bounds.BoxExtent * 0.95f;
+	FVector BoxCenter = Bounds.Origin;
+	FVector BoxExtent;
+
+	BoxExtent *= 0.9f;
+
+	if (Row.SnapRule == EBuildSnapRule::FoundationEdgeOnly)
+	{
+		BoxExtent.X *= 0.55f;
+		BoxExtent.Y *= 0.55f;
+		BoxExtent.Z *= 0.9f;
+	}
 
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(Player);
@@ -372,6 +403,14 @@ bool UBuildComponent::CheckOverlapAtPreview(const FBuildingDataRow& Row) const
 
 		// Landscape Ignore
 		if (OverlapActor->IsA<ALandscape>()) continue;
+
+		if (Row.SnapRule == EBuildSnapRule::FoundationEdgeOnly && CurrentSnapTargetActor)
+		{
+			if (OverlapActor == CurrentSnappedAcotr)
+			{
+				continue;
+			}
+		}
 
 		return true;
 	}
@@ -508,7 +547,7 @@ void UBuildComponent::AdjustBuildHeight(int32 Direction)
 	CurrentBuildHeightOffset = FMath::Clamp(CurrentBuildHeightOffset, MinBuildHeightOffset, MaxBuildHeightOffset);
 }
 
-bool UBuildComponent::TrySnapToNearbyFoundation(FVector& InOutLocation)
+bool UBuildComponent::TrySnapToNearbyFoundation(FVector& InOutLocation) const
 {
 	const float SnapSearchRadius = 300.f;
 	const float SnapAcceptDistance = 200.f;
@@ -566,3 +605,123 @@ bool UBuildComponent::TrySnapToNearbyFoundation(FVector& InOutLocation)
 
 	return false;
 }
+
+bool UBuildComponent::CheckFoundationEdgePlacement(const FBuildingDataRow& Row)
+{
+	if (!bSnappedToFoundation) return false;
+
+	if (CheckOverlapAtPreview(Row)) return false;
+
+	return true;
+}
+
+bool UBuildComponent::TrySnapWall(const FBuildingDataRow& Row, FVector& InOutLocation, FRotator& OutRotation) 
+{
+	if (!Player) return false;
+
+	const float SnapSearchRadius = 350.f;
+	const float SnapAcceptDistance = 180.f;
+
+	TArray<FOverlapResult> Overlaps;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(Player);
+	
+	const bool bFound = GetWorld()->OverlapMultiByChannel(
+		Overlaps,
+		InOutLocation,
+		FQuat::Identity,
+		ECC_WorldDynamic,
+		FCollisionShape::MakeSphere(SnapSearchRadius),
+		Params);
+
+	if (!bFound) return false;
+
+	float BestDistSq = TNumericLimits<float>::Max();
+	FVector BestSnapLocation = InOutLocation;
+	FRotator BestSnapRotation = OutRotation;
+	AActor* BestSnapActor = nullptr;
+	bool bHasSnap = false;
+
+	for (const FOverlapResult& Result : Overlaps)
+	{
+		AActor* OverlapActor = Result.GetActor();
+		if (!OverlapActor) continue;
+
+		TArray<USceneComponent*> SnapPoints;
+
+		// 토대에 붙는벽
+		if (OverlapActor->ActorHasTag(TEXT("Build.Foundation")))
+		{
+			SnapPoints = GetSnapPointsByPrefix(OverlapActor, TEXT("Snap_Wall_"));
+		}
+		// 벽 위에 벽
+		else if (OverlapActor->ActorHasTag(TEXT("Build.Wall")))
+		{
+			SnapPoints = GetSnapPointsByPrefix(OverlapActor, TEXT("Snap_WallTop"));
+		}
+		else
+		{
+			continue;
+		}
+
+		for (USceneComponent* SnapPoint : SnapPoints)
+		{
+			if (!SnapPoint) continue;
+
+			const FVector SnapLoc = SnapPoint->GetComponentLocation();
+			const float DistSq = FVector::DistSquared(SnapLoc, InOutLocation);
+
+			if (DistSq < BestDistSq)
+			{
+				BestDistSq = DistSq;
+				BestSnapLocation = SnapLoc;
+
+				BestSnapRotation = SnapPoint->GetComponentRotation() + Row.PreviewRotationOffset;
+				BestSnapActor = OverlapActor;
+				bHasSnap = true;
+			}
+		}
+	}
+
+	if (bHasSnap && BestDistSq <= FMath::Square(SnapAcceptDistance))
+	{
+		InOutLocation = BestSnapLocation;
+		OutRotation = BestSnapRotation;
+		CurrentSnapTargetActor = BestSnapActor;
+		return true;
+	}
+
+	CurrentSnapTargetActor = nullptr;
+	return false;
+}
+
+TArray<USceneComponent*> UBuildComponent::GetSnapPointsByPrefix(AActor* InActor, const FString& Prefix) const
+{
+	TArray<USceneComponent*> Result;
+	if (!InActor) return Result;
+
+	TArray<USceneComponent*> SceneComponents;
+	InActor->GetComponents<USceneComponent>(SceneComponents);
+
+	for (USceneComponent* Comp : SceneComponents)
+	{
+		if (!Comp) continue;
+
+		const FString CompName = Comp->GetName();
+		if (CompName.StartsWith(Prefix))
+		{
+			Result.Add(Comp);
+		}
+	}
+
+	return Result;
+}
+
+void UBuildComponent::AddBuildRotation(float DeltaYaw)
+{
+	CurrentBuildYaw += DeltaYaw;
+
+	CurrentBuildYaw = FMath::Fmod(CurrentBuildYaw, 360.f);
+}
+
+

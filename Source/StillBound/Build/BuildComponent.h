@@ -83,6 +83,15 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
 	TObjectPtr<AActor> CurrentSnappedAcotr = nullptr;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Build")
+	int32 RotationStepIndex = 0;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	float CurrentBuildYaw = 0.f;
+
+	UPROPERTY()
+	TObjectPtr<AActor> CurrentSnapTargetActor = nullptr;
+
 ///===============================================================================
 /// FUNCTIONS
 ///===============================================================================
@@ -122,7 +131,13 @@ public:
 	
 	void AdjustBuildHeight(int32 Direction);
 
-	bool TrySnapToNearbyFoundation(FVector& InOutLocation);
+	bool TrySnapToNearbyFoundation(FVector& InOutLocation) const;
 
 	TArray<USceneComponent*> GetSnapPointsFromActor(AActor* InActor) const;
+
+	bool CheckFoundationEdgePlacement(const FBuildingDataRow& Row);
+	bool TrySnapWall(const FBuildingDataRow& Row, FVector& InOutLocation, FRotator& OutRotation);
+	TArray<USceneComponent*> GetSnapPointsByPrefix(AActor* InActor, const FString& Prefix) const;
+
+	void AddBuildRotation(float DeltaYaw);
 };
