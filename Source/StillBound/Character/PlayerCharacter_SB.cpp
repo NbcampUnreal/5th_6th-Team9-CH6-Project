@@ -25,6 +25,8 @@
 
 #include "Weapons/GameEffect/GE_RestoreHealth_Instant.h"
 #include "Weapons/GameEffect/GE_RestoreStamina_Instant.h"
+
+#include "Animation/AnimInstance.h"
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -732,6 +734,14 @@ void APlayerCharacter_SB::NotifyGatherStart(float Duration)
 	bIsGathering = true;
 	GatherStartLocation = GetActorLocation();
 
+	if (UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
+	{
+		if (GatherLoopMontage)
+		{
+			AnimInstance->Montage_Play(GatherLoopMontage);
+		}
+	}
+
 	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
 	{
 		PC->StartGatherProgress(Duration);
@@ -741,6 +751,14 @@ void APlayerCharacter_SB::NotifyGatherStart(float Duration)
 void APlayerCharacter_SB::NotifyGatherEnd()
 {
 	bIsGathering = false;
+
+	if (UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
+	{
+		if (GatherLoopMontage)
+		{
+			AnimInstance->Montage_Stop(0.2f, GatherLoopMontage);
+		}
+	}
 
 	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
 	{

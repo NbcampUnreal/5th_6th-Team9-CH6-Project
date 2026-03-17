@@ -42,6 +42,7 @@ class IInteractionInterface;
 class AWeaponBase;
 class APickup;
 class UBuildComponent;
+class UAnimMontage;
 
 UCLASS()
 class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB, public IInteractionInterface
@@ -198,4 +199,7 @@ public:
 	void NotifyGatherStart(float Duration);
 	void NotifyGatherEnd();
 
+protected:
+		UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gather")
+		TObjectPtr<UAnimMontage> GatherLoopMontage;
 };
