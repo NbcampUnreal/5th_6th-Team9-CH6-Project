@@ -114,6 +114,27 @@ void USB_UIManager::SetExp(float Current, float Required)
 	UIHUD->SetExp(Current, Required);
 }
 
+void USB_UIManager::ShowBossHP(const FText& BossName)
+{
+	if (!UIHUD) return;
+
+	UIHUD->SetBossName(BossName);
+}
+
+void USB_UIManager::UpdateBossHP(float Current, float Max)
+{
+	if (!UIHUD) return;
+
+	UIHUD->SetBossHP(Current, Max);
+}
+
+void USB_UIManager::HideBossHP()
+{
+	if (!UIHUD) return;
+
+	UIHUD->HideBossHP();
+}
+
 //void USB_UIManager::SetLevel(int32 Level)
 //{
 //	if (!UIHUD) return;

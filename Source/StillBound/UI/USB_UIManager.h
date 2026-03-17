@@ -41,6 +41,9 @@ public:
 	void SetStamina(float Current, float Max);
 	void SetExp(float Current, float Required);
 	void SetLevel(int32 Level);
+	void ShowBossHP(const FText& BossName);
+	void UpdateBossHP(float Current, float Max);
+	void HideBossHP();
 	void ShowGatherProgress();
 	void HideGatherProgress();
 	void UpdateGatherProgress(float Percent);
