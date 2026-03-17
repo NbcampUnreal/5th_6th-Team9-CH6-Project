@@ -243,6 +243,12 @@ public:
 	UPROPERTY()
 	TObjectPtr<class USB_UIManager> UIManager;
 
+	UFUNCTION(BlueprintCallable, Category = "SB|UI")
+	void BP_ResumeFromPause();
+
+	UFUNCTION(BlueprintCallable, Category = "SB|UI")
+	void ReturnToPauseFromOptions(UUserWidget* OptionsWidget);
+
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Stamina|Cost")
 	float EvasionStaminaCost = 25.f;
 

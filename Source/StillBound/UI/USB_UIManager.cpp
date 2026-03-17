@@ -78,6 +78,16 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 		}
 	}
 	
+	if (PauseMenuClass)
+	{
+		PauseMenuWidget = CreateWidget<UUserWidget>(OwnerPC, PauseMenuClass);
+		if (PauseMenuWidget)
+		{
+			PauseMenuWidget->AddToViewport(100);
+			PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
 	ABaseCharacter_SB* Char = Cast<ABaseCharacter_SB>(OwnerPC->GetPawn());
 	if (!Char) return;
 
@@ -307,6 +317,7 @@ void USB_UIManager::HideInteractionWidget()
 		InteractionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
+
 void USB_UIManager::UpdateInteractionWidget(const FInteractableData& InteractableData)
 {
 	if (InteractionWidget)
@@ -359,4 +370,21 @@ void USB_UIManager::ShowBuildPreviewStateMessage(const FText& InMessage, float D
 	{
 		Panel->ShowPlacementStateMessage(InMessage, Duration);
 	}
+}
+
+bool USB_UIManager::IsPauseMenuOpen() const
+{
+	return PauseMenuWidget && PauseMenuWidget->GetVisibility() != ESlateVisibility::Collapsed;
+}
+
+void USB_UIManager::OpenPauseMenu()
+{
+	if (!PauseMenuWidget) return;
+	PauseMenuWidget->SetVisibility(ESlateVisibility::Visible);
+}
+
+void USB_UIManager::ClosePauseMenu()
+{
+	if (!PauseMenuWidget) return;
+	PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
 }

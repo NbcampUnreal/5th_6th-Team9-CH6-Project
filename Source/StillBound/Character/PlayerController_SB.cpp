@@ -365,11 +365,6 @@ void APlayerController_SB::OnEscapePressed()
 
 	switch (OverlayState)
 	{
-	case EOverlayInputState::Gameplay:
-		/// 시스템 메뉴UI Visible 함수추가
-		SetOverlayInputState(EOverlayInputState::PauseMenu);
-		return;
-
 	case EOverlayInputState::Inventory:
 		UIManager->CloseMenu();
 		SetOverlayInputState(EOverlayInputState::Gameplay);
@@ -404,10 +399,17 @@ void APlayerController_SB::OnEscapePressed()
 		SetOverlayInputState(EOverlayInputState::Gameplay);
 		return;
 
+	case EOverlayInputState::Gameplay:
+		UIManager->OpenPauseMenu();
+		SetOverlayInputState(EOverlayInputState::PauseMenu);
+		return;
+
 	case EOverlayInputState::PauseMenu:
-		/// PauseMenu UI Close
+		UIManager->ClosePauseMenu();
 		SetOverlayInputState(EOverlayInputState::Gameplay);
 		return;
+
+
 	}
 }
 
@@ -786,6 +788,30 @@ void APlayerController_SB::ApplyOverlayInputState()
 		// 추후 좌/우클릭 IMC_Abilities 분기 예정
 		break;
 	}
+}
+// =================Pause=================
+void APlayerController_SB::BP_ResumeFromPause()
+{
+	if (UIManager)
+	{
+		UIManager->ClosePauseMenu();
+	}
+	SetOverlayInputState(EOverlayInputState::Gameplay);
+}
+
+void APlayerController_SB::ReturnToPauseFromOptions(UUserWidget* OptionsWidget)
+{
+	if (OptionsWidget)
+	{
+		OptionsWidget->RemoveFromParent();
+	}
+
+	if (UIManager)
+	{
+		UIManager->OpenPauseMenu();
+	}
+
+	SetOverlayInputState(EOverlayInputState::PauseMenu);
 }
 
 void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
