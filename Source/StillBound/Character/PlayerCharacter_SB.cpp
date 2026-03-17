@@ -57,7 +57,7 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	PlayerInventory->SetWeightCapacity(300.f);
 
 	InteractionCheckFrequency = 0.1f;
-	InteractionCheckDistance = 225.f;
+	InteractionCheckDistance = 250.f;
 
 	BuildComponent = CreateDefaultSubobject<UBuildComponent>(TEXT("BuildComponent"));
 }
@@ -197,11 +197,24 @@ void APlayerCharacter_SB::Tick(float DeltaSeconds)
 	}
 	if (InteractionData.bIsInteracting && InteractionData.CurrentInteractable)
 	{
-		float Dist = FVector::Dist(GetActorLocation(), InteractionData.CurrentInteractable->GetActorLocation());
+		//float Dist = FVector::Dist(GetActorLocation(), InteractionData.CurrentInteractable->GetActorLocation());
 
-		if (Dist > 300.0f)
+		//if (Dist > 300.0f)
+		//{
+		//	EndInteract(); 
+		//}
+		
+		// 고정 300.f 대신 오브젝트에서 거리 값 읽기
+		float AllowedDist = 300.f; // 기본값 유지
+		if (InteractionData.CurrentInteractable->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
 		{
-			EndInteract(); 
+			AllowedDist = IInteractionInterface::Execute_GetInteractionDistance(InteractionData.CurrentInteractable);
+		}
+
+		float Dist = FVector::Dist(GetActorLocation(), InteractionData.CurrentInteractable->GetActorLocation());
+		if (Dist > AllowedDist)
+		{
+			EndInteract();
 		}
 	}
 
