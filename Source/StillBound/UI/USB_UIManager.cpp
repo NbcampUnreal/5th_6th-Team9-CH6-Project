@@ -78,6 +78,16 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 		}
 	}
 	
+	if (PauseMenuClass)
+	{
+		PauseMenuWidget = CreateWidget<UUserWidget>(OwnerPC, PauseMenuClass);
+		if (PauseMenuWidget)
+		{
+			PauseMenuWidget->AddToViewport(100);
+			PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
 	ABaseCharacter_SB* Char = Cast<ABaseCharacter_SB>(OwnerPC->GetPawn());
 	if (!Char) return;
 
@@ -112,6 +122,27 @@ void USB_UIManager::SetExp(float Current, float Required)
 {
 	if (!UIHUD) return;
 	UIHUD->SetExp(Current, Required);
+}
+
+void USB_UIManager::ShowBossHP(const FText& BossName)
+{
+	if (!UIHUD) return;
+
+	UIHUD->SetBossName(BossName);
+}
+
+void USB_UIManager::UpdateBossHP(float Current, float Max)
+{
+	if (!UIHUD) return;
+
+	UIHUD->SetBossHP(Current, Max);
+}
+
+void USB_UIManager::HideBossHP()
+{
+	if (!UIHUD) return;
+
+	UIHUD->HideBossHP();
 }
 
 //void USB_UIManager::SetLevel(int32 Level)
@@ -307,6 +338,7 @@ void USB_UIManager::HideInteractionWidget()
 		InteractionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
+
 void USB_UIManager::UpdateInteractionWidget(const FInteractableData& InteractableData)
 {
 	if (InteractionWidget)
@@ -318,4 +350,62 @@ void USB_UIManager::UpdateInteractionWidget(const FInteractableData& Interactabl
 
 		InteractionWidget->UpdateWidget(InteractableData);
 	}
+}
+
+void USB_UIManager::ShowBuildPreviewPanel()
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void USB_UIManager::HideBuildPreviewPanel()
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->SetVisibility(ESlateVisibility::Collapsed);
+		Panel->HidePlacementStateMessage();
+	}
+}
+
+void USB_UIManager::UpdateBuildPreviewPanel(const TArray<FBuildPreviewCostUIData>& InCosts)
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->UpdateIngredientList(InCosts);
+	}
+}
+
+void USB_UIManager::ShowBuildPreviewStateMessage(const FText& InMessage, float Duration)
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->ShowPlacementStateMessage(InMessage, Duration);
+	}
+}
+
+bool USB_UIManager::IsPauseMenuOpen() const
+{
+	return PauseMenuWidget && PauseMenuWidget->GetVisibility() != ESlateVisibility::Collapsed;
+}
+
+void USB_UIManager::OpenPauseMenu()
+{
+	if (!PauseMenuWidget) return;
+	PauseMenuWidget->SetVisibility(ESlateVisibility::Visible);
+}
+
+void USB_UIManager::ClosePauseMenu()
+{
+	if (!PauseMenuWidget) return;
+	PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
 }

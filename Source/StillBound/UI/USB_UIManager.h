@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "UI/Build/BuildPreview_IngredientPanel.h"
 #include "USB_UIManager.generated.h"
 
 class APlayerController;
@@ -15,6 +16,7 @@ class UHotbarPanel;
 class UInventoryComponent;
 class UBuildMenuWidget;
 class UBuildComponent;
+class UUserWidget;
 /**
  * 
  */
@@ -40,6 +42,9 @@ public:
 	void SetStamina(float Current, float Max);
 	void SetExp(float Current, float Required);
 	void SetLevel(int32 Level);
+	void ShowBossHP(const FText& BossName);
+	void UpdateBossHP(float Current, float Max);
+	void HideBossHP();
 	void ShowGatherProgress();
 	void HideGatherProgress();
 	void UpdateGatherProgress(float Percent);
@@ -49,6 +54,9 @@ public:
 	void HideDamageOverlay();
 	void UpdateDamageOverlay(float HealthPercent);
 	void UpdateHUD();
+	void OpenPauseMenu();
+	void ClosePauseMenu();
+	bool IsPauseMenuOpen() const;
 
 	UUW_FullMap* GetFullMapWidget() const { return FullMapWidget; }
 	UUW_UIHUD* GetHUD() const { return UIHUD; }
@@ -106,6 +114,12 @@ public:
 	UPROPERTY()
 	TObjectPtr<UBuildMenuWidget> BuildMenuWidget;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
+	TSubclassOf<UUserWidget>PauseMenuClass;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget>PauseMenuWidget;
+
 	///===============================================================================
 	/// FUNCTIONS
 	///===============================================================================
@@ -123,6 +137,10 @@ public:
 	void HideInteractionWidget();
 	void UpdateInteractionWidget(const FInteractableData& InteractableData);
 
+	void ShowBuildPreviewPanel();
+	void HideBuildPreviewPanel();
+	void UpdateBuildPreviewPanel(const TArray<FBuildPreviewCostUIData>& InCosts);
+	void ShowBuildPreviewStateMessage(const FText& InMessage, float Duration = 2.f);
 
 	//getter
 	TObjectPtr<UMainMenu> GetMainMenuWidget() const { return MainMenuWidget; };

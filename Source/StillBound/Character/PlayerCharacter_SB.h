@@ -42,6 +42,7 @@ class IInteractionInterface;
 class AWeaponBase;
 class APickup;
 class UBuildComponent;
+class UAnimMontage;
 
 UCLASS()
 class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB, public IInteractionInterface
@@ -173,6 +174,11 @@ private:
 
 	bool bIsDead = false;
 
+	UFUNCTION()
+	void EnableRagdoll();
+
+	FTimerHandle RagdollTimerHandle;
+
 	// 골드 변수
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Gold",
 		meta = (ClampMin = "0", AllowPrivateAccess="true"))
@@ -201,4 +207,7 @@ public:
 	void NotifyGatherStart(float Duration);
 	void NotifyGatherEnd();
 
+protected:
+		UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gather")
+		TObjectPtr<UAnimMontage> GatherLoopMontage;
 };

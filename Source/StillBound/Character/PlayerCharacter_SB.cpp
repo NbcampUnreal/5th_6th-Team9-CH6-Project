@@ -1,4 +1,4 @@
-﻿#include "Character/PlayerCharacter_SB.h"
+#include "Character/PlayerCharacter_SB.h"
 #include "AbilitySystemComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -25,6 +25,8 @@
 
 #include "Weapons/GameEffect/GE_RestoreHealth_Instant.h"
 #include "Weapons/GameEffect/GE_RestoreStamina_Instant.h"
+
+#include "Animation/AnimInstance.h"
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -54,10 +56,10 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 
 	PlayerInventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("PlayerInventory"));
 	PlayerInventory->SetSlotsCapacity(48);
-	PlayerInventory->SetWeightCapacity(50.f);
+	PlayerInventory->SetWeightCapacity(300.f);
 
 	InteractionCheckFrequency = 0.1f;
-	InteractionCheckDistance = 225.f;
+	InteractionCheckDistance = 250.f;
 
 	BuildComponent = CreateDefaultSubobject<UBuildComponent>(TEXT("BuildComponent"));
 }
@@ -197,11 +199,24 @@ void APlayerCharacter_SB::Tick(float DeltaSeconds)
 	}
 	if (InteractionData.bIsInteracting && InteractionData.CurrentInteractable)
 	{
-		float Dist = FVector::Dist(GetActorLocation(), InteractionData.CurrentInteractable->GetActorLocation());
+		//float Dist = FVector::Dist(GetActorLocation(), InteractionData.CurrentInteractable->GetActorLocation());
 
-		if (Dist > 300.0f)
+		//if (Dist > 300.0f)
+		//{
+		//	EndInteract(); 
+		//}
+		
+		// 고정 300.f 대신 오브젝트에서 거리 값 읽기
+		float AllowedDist = 300.f; // 기본값 유지
+		if (InteractionData.CurrentInteractable->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
 		{
-			EndInteract(); 
+			AllowedDist = IInteractionInterface::Execute_GetInteractionDistance(InteractionData.CurrentInteractable);
+		}
+
+		float Dist = FVector::Dist(GetActorLocation(), InteractionData.CurrentInteractable->GetActorLocation());
+		if (Dist > AllowedDist)
+		{
+			EndInteract();
 		}
 	}
 
@@ -678,6 +693,14 @@ void APlayerCharacter_SB::Revive()
 		float MaxHealth = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 		AbilitySystemComponent->SetNumericAttributeBase(UPlayerAttributeSet::GetHealthAttribute(), MaxHealth);
 	}
+
+	GetWorldTimerManager().SetTimer(
+		RagdollTimerHandle,
+		this,
+		&APlayerCharacter_SB::EnableRagdoll,
+		2.0f,
+		false
+	);
 }
 
 bool APlayerCharacter_SB::ModifyGold(int32 Amount)
@@ -764,6 +787,14 @@ void APlayerCharacter_SB::NotifyGatherStart(float Duration)
 	bIsGathering = true;
 	GatherStartLocation = GetActorLocation();
 
+	if (UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
+	{
+		if (GatherLoopMontage)
+		{
+			AnimInstance->Montage_Play(GatherLoopMontage);
+		}
+	}
+
 	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
 	{
 		PC->StartGatherProgress(Duration);
@@ -773,6 +804,14 @@ void APlayerCharacter_SB::NotifyGatherStart(float Duration)
 void APlayerCharacter_SB::NotifyGatherEnd()
 {
 	bIsGathering = false;
+
+	if (UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
+	{
+		if (GatherLoopMontage)
+		{
+			AnimInstance->Montage_Stop(0.2f, GatherLoopMontage);
+		}
+	}
 
 	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
 	{
@@ -786,3 +825,14 @@ void APlayerCharacter_SB::DestroyActorComponent(UActorComponent* ComponentToDest
 	ComponentToDestroy->DestroyComponent();
 }
 
+void APlayerCharacter_SB::EnableRagdoll()
+{
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!MeshComp) return;
+
+	MeshComp->SetCollisionProfileName(TEXT("Ragdoll"));
+	MeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	MeshComp->SetAllBodiesSimulatePhysics(true);
+	MeshComp->WakeAllRigidBodies();
+	MeshComp->bPauseAnims = true;
+}

@@ -4,29 +4,43 @@
 #include "Weapons/GameEffect/GE_WeaponDamage_Instant.h"
 
 #include "AI/AIAttributeSet.h" 
+#include "BossAI/BosAIAttributeSet.h"
 
 #include "GameplayEffectTypes.h"        // FSetByCallerFloat
 #include "GameplayTagContainer.h"
 
 UGE_WeaponDamage_Instant::UGE_WeaponDamage_Instant()
 {
-    // Áï¹ß(Instant)
+    // ï¿½ï¿½ï¿½(Instant)
     DurationPolicy = EGameplayEffectDurationType::Instant;
 
-    // Modifier: TargetÀÇ Damage(¸ÞÅ¸) += SetByCaller(Data.Damage)
-    FGameplayModifierInfo Mod;
-    Mod.Attribute = UAIAttributeSet::GetDamageAttribute();
-    Mod.ModifierOp = EGameplayModOp::Additive;
-
-    // SetByCaller(Data.Damage) ¼³Á¤
+    // SetByCaller(Data.EnemyDamage)
     FSetByCallerFloat SBC;
-    SBC.DataTag = FGameplayTag::RequestGameplayTag(TEXT("Data.EnemyDamage"), /*ErrorIfNotFound*/ false);
+    SBC.DataTag = FGameplayTag::RequestGameplayTag(TEXT("Data.EnemyDamage"), false);
+
 
     ensureMsgf(SBC.DataTag.IsValid(),
         TEXT("[GAS] GameplayTag 'Data.EnemyDamage' is not registered. Add it in Project Settings > GameplayTags"));
 
-    // SetByCaller´Â ModifierMagnitude¿¡ FSetByCallerFloat¸¦ ³ÖÀ¸¸é µÈ´Ù.
-    Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(SBC);
+    // =========================
+    // ï¿½Ï¹ï¿½ ï¿½ï¿½ï¿½Í¿ï¿½ Damage
+    // =========================
+    {
+        FGameplayModifierInfo Mod;
+        Mod.Attribute = UAIAttributeSet::GetDamageAttribute();
+        Mod.ModifierOp = EGameplayModOp::Additive;
+        Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(SBC);
+        Modifiers.Add(Mod);
+    }
 
-    Modifiers.Add(Mod);
+    // =========================
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Damage
+    // =========================
+    {
+        FGameplayModifierInfo Mod; // //ï¿½ï¿½ï¿½ï¿½
+        Mod.Attribute = UBosAIAttributeSet::GetDamageAttribute(); // //ï¿½ï¿½ï¿½ï¿½
+        Mod.ModifierOp = EGameplayModOp::Additive;
+        Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(SBC);
+        Modifiers.Add(Mod);
+    }
 }

@@ -8,8 +8,10 @@ class UUW_HPBar;
 class UUW_StaminaBar;
 class UUW_ExpBar;
 class UUW_Minimap;
+class UBossHPbar;
 class UHotbarPanel;
 class UInventoryComponent;
+class UBuildPreview_IngredientPanel;
 
 /**
  * 
@@ -33,6 +35,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetLevel(int32 Level);
 
+	void SetBossName(const FText& Name);
+	void SetBossHP(float Current, float Max);
+	void HideBossHP();
+
 	UUW_Minimap* GetMiniMapWidget() const { return MiniMapWidget; }
 
 	void InitInventory(UInventoryComponent* InInv);
@@ -40,6 +46,8 @@ public:
 	TObjectPtr<UHotbarPanel> GetHotbarPanel() const { return HotbarPanel; };
 
 	void SetSelectedHotbarIndex(int32 Index);
+
+	UBuildPreview_IngredientPanel* GetBuildPreview_IngredientPanel() const { return BuildPreview_IngredientPanel; }
 
 protected:
 
@@ -56,7 +64,12 @@ protected:
 	TObjectPtr<UUW_Minimap> MiniMapWidget;
 
 	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UBossHPbar> BossHP;
+
+	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UHotbarPanel> HotbarPanel;
 	
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UBuildPreview_IngredientPanel> BuildPreview_IngredientPanel;
 
 };

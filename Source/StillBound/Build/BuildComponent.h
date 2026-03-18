@@ -9,16 +9,24 @@ class UCameraComponent;
 class UDataTable;
 struct FBuildingDataRow;
 
+UENUM(BlueprintType)
+enum class EBuildFailReason : uint8
+{
+	None,
+	NotEnoughCost,
+	InvalidPlacement,
+	SpawnFailed
+};
+
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class STILLBOUND_API UBuildComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
-public:	
-	UBuildComponent();
-
-	virtual void BeginPlay() override;
-
+///===============================================================================
+/// PROPERTIES & VARIABLES
+///===============================================================================
+public:
 	UPROPERTY()
 	TObjectPtr<UCameraComponent> Camera;
 
@@ -42,7 +50,7 @@ public:
 
 	FTimerHandle BuildPreviewTimerHandle;
 
-	UPROPERTY(VisibleAnyWhere, BlueprintReadOnly, Category="Build")
+	UPROPERTY(VisibleAnyWhere, BlueprintReadOnly, Category = "Build")
 	bool bCanPlace = false;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Build|Preview")
@@ -54,6 +62,43 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
 	FHitResult LastPreviewHit;
 
+	UPROPERTY()
+	FText LastBuildPreviewStateMessage;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Build")
+	float CurrentBuildHeightOffset = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Build")
+	float MinBuildHeightOffset = -300.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Build")
+	float MaxBuildHeightOffset = 1000.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Build")
+	float HeightStep = 50.f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	bool bSnappedToFoundation = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	TObjectPtr<AActor> CurrentSnappedAcotr = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Build")
+	int32 RotationStepIndex = 0;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	float CurrentBuildYaw = 0.f;
+
+	UPROPERTY()
+	TObjectPtr<AActor> CurrentSnapTargetActor = nullptr;
+
+///===============================================================================
+/// FUNCTIONS
+///===============================================================================
+public:	
+	UBuildComponent();
+
+	virtual void BeginPlay() override;
 
 
 	UFUNCTION(BlueprintCallable)
@@ -63,7 +108,7 @@ public:
 	void CancelBuildMode();
 
 	UFUNCTION(BlueprintCallable)
-	bool ConfirmBuild();
+	bool ConfirmBuild(EBuildFailReason& OutFailReason);
 
 	UFUNCTION(BlueprintCallable)
 	void HandleBuildCancel();
@@ -84,6 +129,15 @@ public:
 
 	bool HasEnoughBuildCost(const FBuildingDataRow& Row) const;
 	
+	void AdjustBuildHeight(int32 Direction);
 
+	bool TrySnapToNearbyFoundation(FVector& InOutLocation) const;
 
+	TArray<USceneComponent*> GetSnapPointsFromActor(AActor* InActor) const;
+
+	bool CheckFoundationEdgePlacement(const FBuildingDataRow& Row);
+	bool TrySnapWall(const FBuildingDataRow& Row, FVector& InOutLocation, FRotator& OutRotation);
+	TArray<USceneComponent*> GetSnapPointsByPrefix(AActor* InActor, const FString& Prefix) const;
+
+	void AddBuildRotation(float DeltaYaw);
 };

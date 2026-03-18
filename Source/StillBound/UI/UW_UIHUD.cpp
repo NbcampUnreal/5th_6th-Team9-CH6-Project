@@ -3,6 +3,7 @@
 #include "UI/UW_StaminaBar.h"
 #include "UI/UW_ExpBar.h"
 #include "UI/UW_Minimap.h"
+#include "UI/UW_BossHPbar.h"
 #include "UI/Inventory/HotbarPanel.h"
 #include "Inventory/InventoryComponent.h"
 
@@ -41,6 +42,28 @@ void UUW_UIHUD::SetLevel(int32 Level)
 	{
 		ExpBar->SetLevel(Level);
 	}
+}
+
+void UUW_UIHUD::SetBossName(const FText& Name)
+{
+	if (!BossHP) return;
+
+	BossHP->SetVisibility(ESlateVisibility::Visible);
+	BossHP->SetBossName(Name);
+}
+
+void UUW_UIHUD::SetBossHP(float Current, float Max)
+{
+	if (!BossHP) return;
+
+	BossHP->SetHPPercent(Current / Max);
+}
+
+void UUW_UIHUD::HideBossHP()
+{
+	if (!BossHP) return;
+
+	BossHP->SetVisibility(ESlateVisibility::Hidden);
 }
 
 void UUW_UIHUD::InitInventory(UInventoryComponent* InInv)
