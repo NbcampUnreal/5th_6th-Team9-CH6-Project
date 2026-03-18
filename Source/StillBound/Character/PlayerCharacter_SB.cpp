@@ -26,6 +26,8 @@
 #include "Weapons/GameEffect/GE_RestoreHealth_Instant.h"
 #include "Weapons/GameEffect/GE_RestoreStamina_Instant.h"
 
+#include "NPC/Quest/QuestComponent.h"
+
 #include "Animation/AnimInstance.h"
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
@@ -62,6 +64,8 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	InteractionCheckDistance = 250.f;
 
 	BuildComponent = CreateDefaultSubobject<UBuildComponent>(TEXT("BuildComponent"));
+
+	QuestComponent = CreateDefaultSubobject<UQuestComponent>(TEXT("QuestComponent"));
 }
 
 FInteractableData APlayerCharacter_SB::GetInteractableData_Implementation()

@@ -43,6 +43,7 @@ class AWeaponBase;
 class APickup;
 class UBuildComponent;
 class UAnimMontage;
+class UQuestComponent;
 
 UCLASS()
 class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB, public IInteractionInterface
@@ -202,4 +203,9 @@ public:
 protected:
 		UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gather")
 		TObjectPtr<UAnimMontage> GatherLoopMontage;
+
+// 퀘스트 NPC
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Quest")
+	UQuestComponent* QuestComponent;
 };

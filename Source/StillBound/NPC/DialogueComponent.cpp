@@ -2,7 +2,10 @@
 
 
 #include "NPC/DialogueComponent.h"
+#include "Quest/QuestComponent.h"
 #include "NPC/NPCCharacter.h"
+#include "NPC/NPCCharacter_Quest.h"
+#include "Character/PlayerCharacter_SB.h"
 #include "Engine/DataTable.h"
 
 // Sets default values for this component's properties
@@ -162,6 +165,12 @@ bool UDialogueComponent::SelectOption(int32 OptionIndex)
 		// 추가: Trade 처리
 		else if (SelectedOption.SwitchToMenu == EMenuType::Trade)
 		{
+			// 퀘스트 NPC면 거래 불가
+			if (Cast<ANPCCharacter_Quest>(GetOwner()))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Quest NPC cannot trade"));
+				return false;
+			}
 			ANPCCharacter* NPC = Cast<ANPCCharacter>(GetOwner());
 			if (NPC)
 			{
@@ -172,13 +181,53 @@ bool UDialogueComponent::SelectOption(int32 OptionIndex)
 				return true;
 			}  
 		}
+		else if (SelectedOption.SwitchToMenu == EMenuType::Quest)
+		{
+			// 거래 NPC면 퀘스트 불가
+			ANPCCharacter_Quest* QuestNPC = Cast<ANPCCharacter_Quest>(GetOwner());
+			if (!QuestNPC)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Merchant NPC cannot give quests"));
+				return false;
+			}
+			// 플레이어 가져오기
+			APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(CurrentInteractor);
+			if (!Player)
+			{
+				UE_LOG(LogTemp, Error, TEXT("CurrentInteractor is not a player"));
+				return false;
+			}
+
+			// 완료 가능한 퀘스트 먼저 체크
+			int32 CompletableID = QuestNPC->GetCompletableQuestID(Player);
+			if (CompletableID != 0)
+			{
+				// 완료 처리 후 퀘스트 메뉴로
+				QuestNPC->TryCompleteQuest(Player, CompletableID);
+				SwitchToMenu(EMenuType::Quest);
+				return true;
+			}
+
+			// 수락 가능한 퀘스트 체크
+			int32 AvailableID = QuestNPC->GetAvailableQuestID(Player);
+			if (AvailableID != 0)
+			{
+				QuestNPC->TryAcceptQuest(Player, AvailableID);
+				SwitchToMenu(EMenuType::Quest);
+				return true;
+			}
+
+			// 줄 수 있는 퀘스트 없음 → 그냥 퀘스트 메뉴로
+			SwitchToMenu(EMenuType::Quest);
+			return true;
+		}
 		else
 		{
 			SwitchToMenu(SelectedOption.SwitchToMenu);
 			return true;
 		}
-
 	}
+
 	//다음 대화로 이동 or 종료
 	if (SelectedOption.NextDialogueID == 0)
 	{
