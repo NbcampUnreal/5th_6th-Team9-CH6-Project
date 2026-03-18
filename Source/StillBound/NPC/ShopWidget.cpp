@@ -9,6 +9,8 @@
 #include "Items/ItemBase.h"
 #include "UI/Inventory/ItemDragDropOperation.h"
 #include "Components/WrapBox.h"
+#include "Components/ScrollBox.h"
+#include "Components/ScrollBoxSlot.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
@@ -507,21 +509,26 @@ void UShopWidget::CloseShop()
 
 void UShopWidget::RefreshSoldItems()
 {
-    UE_LOG(LogTemp, Warning, TEXT("[RefreshSoldItems] WB_SoldItems=%s, History=%d"),
-        WB_SoldItems ? TEXT("Valid") : TEXT("NULL"),
-        SoldItemHistory.Num());
-
-
-    if (!WB_SoldItems || !NPCCharacter) return;
-    WB_SoldItems->ClearChildren();
+    if (!SB_SoldItems || !NPCCharacter) return;
+    SB_SoldItems->ClearChildren();
 
     for (const FSoldItemRecord& Record : SoldItemHistory)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[RefreshSoldItems] Adding: %s"), *Record.ItemRowName.ToString());
+
         UShopItemSlot* ItemSlot = CreateWidget<UShopItemSlot>(this, ShopItemSlotClass);
-        if (!ItemSlot) continue;
+        if (!ItemSlot)
+        {
+            UE_LOG(LogTemp, Error, TEXT("[RefreshSoldItems] ItemSlot NULL!"));
+            continue;
+        }
 
         const FItemDataRow* ItemData = NPCCharacter->GetItemData(Record.ItemRowName);
-        if (!ItemData) continue;
+        if (!ItemData)
+        {
+            UE_LOG(LogTemp, Error, TEXT("[RefreshSoldItems] ItemData NULL for: %s"), *Record.ItemRowName.ToString());
+            continue;
+        }
 
         FShopItemData TempData;
         TempData.ItemRowName = Record.ItemRowName;
@@ -529,9 +536,14 @@ void UShopWidget::RefreshSoldItems()
         TempData.MaxStock = Record.Quantity;
 
         ItemSlot->SetShopItemData(TempData, this, NPCCharacter);
+        //ItemSlot->SetBuyButtonVisible(false);
 
-        ItemSlot->SetBuyButtonVisible(false);
-        WB_SoldItems->AddChildToWrapBox(ItemSlot);
+        UScrollBoxSlot* ScrollSlot = Cast<UScrollBoxSlot>(SB_SoldItems->AddChild(ItemSlot));
+
+        UE_LOG(LogTemp, Warning, TEXT("[RefreshSoldItems] Children count: %d, ScrollSlot valid: %s"),
+            SB_SoldItems->GetChildrenCount(),
+            ScrollSlot ? TEXT("YES") : TEXT("NO"));
+    
     }
 }
 

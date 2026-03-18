@@ -15,6 +15,7 @@ class UWrapBox;
 class UBorder;
 class UButton;
 class UTextBlock;
+class UScrollBox;
 class UDataTable;
 
 USTRUCT()
@@ -136,7 +137,7 @@ protected:
     TSubclassOf<UInventoryItemSlot> InventoryItemSlotClass;
 
     UPROPERTY(meta = (BindWidget))
-    UWrapBox* WB_SoldItems;
+    UScrollBox* SB_SoldItems;
 
 private:
     // === ÂüÁ¶ ===
