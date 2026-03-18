@@ -1,6 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "Weapons/RangedWeapon/ProjectileBase.h"
 
 #include "Weapons/WeaponBase.h"
@@ -64,14 +63,14 @@ void AProjectileBase::InitProjectileData(
     AActor* InSourceInstigator,
     AWeaponBase* InSourceWeapon,
     TSubclassOf<UGameplayEffect> InBaseDamageEffectClass,
-    float InDamageMultiplier,
-    const TArray<FRangedOnHitGameplayEffectSpec>& InOnHitTargetEffects
+    float InFinalDamage,
+    const TArray<FProjectileOnHitGameplayEffectSpec>& InOnHitTargetEffects
 )
 {
     SourceInstigatorActor = InSourceInstigator;
     SourceWeapon = InSourceWeapon;
     BaseDamageEffectClass = InBaseDamageEffectClass;
-    DamageMultiplier = InDamageMultiplier;
+    CachedFinalDamage = FMath::Max(0.f, InFinalDamage);
     OnHitTargetEffects = InOnHitTargetEffects;
 
     if (CollisionComp)
@@ -176,7 +175,7 @@ void AProjectileBase::HandleImpact(const FHitResult& HitResult, AActor* Explicit
 
     bHasImpactProcessed = true;
 
-    // 월드/벽 포함해서 FX는 먼저
+    // 수정: 월드/벽 포함해서 먼저 FX 처리
     SpawnWeaponHitImpactFXFromHitResult(HitResult);
 
     if (HitActor)
@@ -199,18 +198,18 @@ bool AProjectileBase::ApplyDamageAndEffectsToTarget(AActor* TargetActor) const
 
     bool bAnyApplied = false;
 
-    const AWeaponBase* Weapon = SourceWeapon.Get();
-    const float BaseDamage = Weapon ? Weapon->GetWeaponDamage() : 0.f;
-    const float FinalDamage = BaseDamage * FMath::Max(0.f, DamageMultiplier);
-
-    if (FinalDamage > 0.f)
+    // 수정: Projectile은 데미지를 다시 계산하지 않고
+    // 수정: GA가 넘겨준 최종 데미지 캐시만 사용
+    if (CachedFinalDamage > 0.f)
     {
-        bAnyApplied |= ApplyBaseDamageToTargetActor(TargetActor, FinalDamage, 1.0f, 1.0f);
+        bAnyApplied |= ApplyBaseDamageToTargetActor(TargetActor, CachedFinalDamage, 1.0f, 1.0f);
     }
 
     const FGameplayTag DamageTag = GetDataDamageTag();
 
-    for (const FRangedOnHitGameplayEffectSpec& Spec : OnHitTargetEffects)
+    // 수정: RangedWeaponBase의 FRangedOnHitGameplayEffectSpec 대신
+    // 수정: Projectile 전용 FProjectileOnHitGameplayEffectSpec 사용
+    for (const FProjectileOnHitGameplayEffectSpec& Spec : OnHitTargetEffects)
     {
         if (!Spec.Effect)
         {
@@ -218,6 +217,8 @@ bool AProjectileBase::ApplyDamageAndEffectsToTarget(AActor* TargetActor) const
         }
 
         TMap<FGameplayTag, float> Mags = Spec.SetByCallerMagnitudes;
+
+        // 수정: 기본 데미지는 BaseDamageEffectClass에서 이미 처리했으므로 중복 제거
         if (DamageTag.IsValid())
         {
             Mags.Remove(DamageTag);

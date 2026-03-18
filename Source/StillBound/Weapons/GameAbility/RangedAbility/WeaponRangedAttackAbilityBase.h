@@ -12,8 +12,7 @@
 class ARangedWeaponBase;
 class UAbilityTask_PlayMontageAndWait;
 class UAbilityTask_WaitGameplayEvent;
-class UProjectileMovementComponent; 
-class UPrimitiveComponent;
+
 
 UCLASS(Abstract)
 class STILLBOUND_API UWeaponRangedAttackAbilityBase : public UWeaponGameplayAbility
@@ -98,6 +97,12 @@ protected:
 
 protected:
     bool CacheFireProfileFromWeapon(ARangedWeaponBase* Weapon);
+
+    // //수정: 현재 캐시된 프로파일 기준 최종 데미지 계산
+    bool TryGetCachedFinalDamage(
+        ARangedWeaponBase* Weapon,
+        float& OutFinalDamage
+    ) const;
 
     bool GetViewPoint(FVector& OutLoc, FRotator& OutRot) const;
 

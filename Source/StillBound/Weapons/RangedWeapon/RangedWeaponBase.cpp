@@ -30,9 +30,8 @@ ARangedWeaponBase::ARangedWeaponBase()
 void ARangedWeaponBase::OnConstruction(const FTransform& Transform)
 {
     Super::OnConstruction(Transform);
-    RefreshMeshMode();
 
-    //추가: BP에서 잘못 세팅한 FireProfile 경고
+    RefreshMeshMode();
     ValidateFireProfiles();
 }
 
@@ -57,11 +56,13 @@ USceneComponent* ARangedWeaponBase::GetActiveWeaponMesh() const
 {
     if (bUseSkeletalMesh)
     {
-        return SkeletalWeaponMesh ? Cast<USceneComponent>(SkeletalWeaponMesh)
+        return SkeletalWeaponMesh
+            ? Cast<USceneComponent>(SkeletalWeaponMesh)
             : Cast<USceneComponent>(StaticWeaponMesh);
     }
 
-    return StaticWeaponMesh ? Cast<USceneComponent>(StaticWeaponMesh)
+    return StaticWeaponMesh
+        ? Cast<USceneComponent>(StaticWeaponMesh)
         : Cast<USceneComponent>(SkeletalWeaponMesh);
 }
 
@@ -78,7 +79,6 @@ bool ARangedWeaponBase::GetFireProfile(FGameplayTag InputTag, FRangedFireProfile
         return false;
     }
 
-    //추가: 현재 FireMode 기준으로 유효한 프로파일인지 검사
     if (!Found->IsConfigured())
     {
         UE_LOG(LogTemp, Warning,
@@ -90,6 +90,28 @@ bool ARangedWeaponBase::GetFireProfile(FGameplayTag InputTag, FRangedFireProfile
     }
 
     OutProfile = *Found;
+    return true;
+}
+
+float ARangedWeaponBase::CalculateFinalDamageFromProfile(const FRangedFireProfile& Profile) const
+{
+    const float BaseDamage = FMath::Max(0.f, GetWeaponDamage());
+    const float DamageMultiplier = FMath::Max(0.f, Profile.DamageMultiplier);
+
+    return BaseDamage * DamageMultiplier;
+}
+
+bool ARangedWeaponBase::GetFinalDamage(FGameplayTag InputTag, float& OutFinalDamage) const
+{
+    OutFinalDamage = 0.f;
+
+    FRangedFireProfile Profile;
+    if (!GetFireProfile(InputTag, Profile))
+    {
+        return false;
+    }
+
+    OutFinalDamage = CalculateFinalDamageFromProfile(Profile);
     return true;
 }
 

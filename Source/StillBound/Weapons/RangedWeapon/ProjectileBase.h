@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Weapons/RangedWeapon/RangedWeaponBase.h"
+#include "GameplayTagContainer.h"
 #include "ProjectileBase.generated.h"
 
 class USphereComponent;
@@ -14,6 +14,24 @@ class UPrimitiveComponent;
 class UGameplayEffect;
 class AWeaponBase;
 
+USTRUCT(BlueprintType)
+struct FProjectileOnHitGameplayEffectSpec
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon|Projectile|OnHit")
+    TSubclassOf<UGameplayEffect> Effect = nullptr;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon|Projectile|OnHit")
+    float Level = 1.f;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon|Projectile|OnHit")
+    TMap<FGameplayTag, float> SetByCallerMagnitudes;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon|Projectile|OnHit", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+    float Chance = 1.0f;
+};
+
 UCLASS(Abstract, Blueprintable)
 class STILLBOUND_API AProjectileBase : public AActor
 {
@@ -22,14 +40,13 @@ class STILLBOUND_API AProjectileBase : public AActor
 public:
     AProjectileBase();
 
-    // //추가: GA에서 스폰 직후 런타임 공격 데이터 주입
     UFUNCTION(BlueprintCallable, Category = "Weapon|Projectile")
     void InitProjectileData(
         AActor* InSourceInstigator,
         AWeaponBase* InSourceWeapon,
         TSubclassOf<UGameplayEffect> InBaseDamageEffectClass,
-        float InDamageMultiplier,
-        const TArray<FRangedOnHitGameplayEffectSpec>& InOnHitTargetEffects
+        float InFinalDamage,
+        const TArray<FProjectileOnHitGameplayEffectSpec>& InOnHitTargetEffects
     );
 
     UFUNCTION(BlueprintPure, Category = "Weapon|Projectile")
@@ -68,10 +85,10 @@ protected:
     TSubclassOf<UGameplayEffect> BaseDamageEffectClass;
 
     UPROPERTY()
-    float DamageMultiplier = 1.0f;
+    float CachedFinalDamage = 0.f;
 
     UPROPERTY()
-    TArray<FRangedOnHitGameplayEffectSpec> OnHitTargetEffects;
+    TArray<FProjectileOnHitGameplayEffectSpec> OnHitTargetEffects;
 
     UPROPERTY()
     bool bHasImpactProcessed = false;

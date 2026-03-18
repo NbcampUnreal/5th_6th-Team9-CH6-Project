@@ -1,9 +1,9 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
 #include "Weapons/GameAbility/RangedAbility/WeaponRangedAttackAbilityBase.h"
 
 #include "Weapons/RangedWeapon/RangedWeaponBase.h"
 #include "Weapons/WeaponBase.h"
-
-#include "Weapons/RangedWeapon/ProjectileBase.h"
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
@@ -22,8 +22,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "DrawDebugHelpers.h"
 
-#include "NiagaraFunctionLibrary.h" // 총구섬광 추가
-#include "NiagaraSystem.h"          // 총구섬광 추가
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 
 UWeaponRangedAttackAbilityBase::UWeaponRangedAttackAbilityBase()
 {
@@ -150,6 +150,22 @@ bool UWeaponRangedAttackAbilityBase::CacheFireProfileFromWeapon(ARangedWeaponBas
     return true;
 }
 
+bool UWeaponRangedAttackAbilityBase::TryGetCachedFinalDamage(
+    ARangedWeaponBase* Weapon,
+    float& OutFinalDamage
+) const
+{
+    OutFinalDamage = 0.f;
+
+    if (!Weapon || !bHasCachedProfile)
+    {
+        return false;
+    }
+
+    OutFinalDamage = Weapon->CalculateFinalDamageFromProfile(CachedProfile);
+    return true;
+}
+
 bool UWeaponRangedAttackAbilityBase::GetViewPoint(FVector& OutLoc, FRotator& OutRot) const
 {
     const FGameplayAbilityActorInfo* Info = CurrentActorInfo;
@@ -231,7 +247,6 @@ bool UWeaponRangedAttackAbilityBase::TraceSingle(
     return World->SweepSingleByChannel(OutHit, Start, End, FQuat::Identity, Hitscan.TraceChannel, Shape, Params);
 }
 
-// //추가: ViewLoc / ViewDir 공통 계산
 bool UWeaponRangedAttackAbilityBase::ResolveViewData(
     const FVector& FallbackLoc,
     const FRotator& FallbackRot,
@@ -269,7 +284,6 @@ bool UWeaponRangedAttackAbilityBase::ResolveViewData(
     return !OutViewDir.IsNearlyZero();
 }
 
-// //추가: 카메라 기준 AimPoint 계산 공통화
 bool UWeaponRangedAttackAbilityBase::ComputeAimPointFromView(
     const FVector& ViewLoc,
     const FVector& ViewDir,
@@ -333,7 +347,6 @@ bool UWeaponRangedAttackAbilityBase::ComputeAimPointFromView(
     return true;
 }
 
-// //추가: 총구 -> AimPoint 방향 계산 공통화
 bool UWeaponRangedAttackAbilityBase::ComputeShotDirectionFromAimPoint(
     const FVector& MuzzleLoc,
     const FVector& AimPoint,
@@ -474,7 +487,6 @@ void UWeaponRangedAttackAbilityBase::HandleHitscanImpact(ARangedWeaponBase* Weap
         return;
     }
 
-    // //추가: actor 유무와 상관없이 FX 먼저
     SpawnWeaponHitImpactFXFromHitResult(FinalHit);
 
     if (!HitActor)
@@ -505,13 +517,11 @@ bool UWeaponRangedAttackAbilityBase::TryGetMuzzleFlashTransform(
         return false;
     }
 
-    // 총구섬광 추가: FX 에셋이 없으면 스폰 안 함
     if (!CachedProfile.MuzzleFlash.NiagaraSystem)
     {
         return false;
     }
 
-    // 총구섬광 추가: 현재 발사 모드 기준으로 총구 소켓 선택
     const FName MuzzleSocket =
         CachedProfile.IsProjectileMode()
         ? CachedProfile.Projectile.MuzzleSocket
@@ -527,7 +537,6 @@ bool UWeaponRangedAttackAbilityBase::TryGetMuzzleFlashTransform(
         return false;
     }
 
-    // 총구섬광 추가: 소켓 기준 로컬 오프셋 적용
     const FVector SpawnLocation =
         SocketTransform.TransformPosition(CachedProfile.MuzzleFlash.LocationOffset);
 
@@ -588,10 +597,8 @@ void UWeaponRangedAttackAbilityBase::FireCurrentProfile(ARangedWeaponBase* Weapo
         return;
     }
 
-    // 총구섬광 추가: 발사 공통 지점에서 1회만 재생
     SpawnMuzzleFlash(Weapon);
 
-    // //수정: 발사 모드 분기
     if (CachedProfile.IsProjectileMode())
     {
         FireProjectileOnce(Weapon);
@@ -630,7 +637,6 @@ bool UWeaponRangedAttackAbilityBase::TryGetProjectileSpawnTransform(
     const FVector SpawnLoc = MuzzleTf.TransformPosition(Projectile.SpawnOffset);
     const FVector MuzzleForward = MuzzleTf.GetRotation().GetForwardVector().GetSafeNormal();
 
-    // //공통화: projectile도 같은 View / AimPoint 계산 사용
     FVector ViewLoc;
     FVector ViewDir;
     if (!ResolveViewData(
@@ -644,7 +650,6 @@ bool UWeaponRangedAttackAbilityBase::TryGetProjectileSpawnTransform(
         return false;
     }
 
-    // projectile 전용 새 거리값을 두지 않고, 공통 조준 계산에 hitscan 거리 재사용
     const float AimDistance =
         (CachedProfile.Hitscan.MaxDistance > 0.f) ? CachedProfile.Hitscan.MaxDistance : 10000.f;
 
@@ -659,7 +664,7 @@ bool UWeaponRangedAttackAbilityBase::TryGetProjectileSpawnTransform(
         AimDistance,
         AimChannel,
         bAimTraceComplex,
-        0.f,              // //수정: projectile 조준점은 line trace로 고정
+        0.f,
         AimPoint,
         &ViewHit))
     {
@@ -716,75 +721,10 @@ bool UWeaponRangedAttackAbilityBase::TryGetProjectileSpawnTransform(
 
 void UWeaponRangedAttackAbilityBase::FireProjectileOnce(ARangedWeaponBase* Weapon)
 {
-    if (!Weapon || !bHasCachedProfile)
-    {
-        return;
-    }
-
-    const FRangedProjectileConfig& Projectile = CachedProfile.Projectile;
-    if (!Projectile.IsConfigured())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[RangedGA] Invalid projectile config. Weapon=%s Ability=%s"),
-            *GetNameSafe(Weapon), *GetNameSafe(this));
-        return;
-    }
-
-    UWorld* World = Weapon->GetWorld();
-    if (!World)
-    {
-        return;
-    }
-
-    FTransform SpawnTransform;
-    FVector ShotDirection;
-    if (!TryGetProjectileSpawnTransform(Weapon, SpawnTransform, ShotDirection))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[RangedGA] TryGetProjectileSpawnTransform failed. Weapon=%s"),
-            *GetNameSafe(Weapon));
-        return;
-    }
-
-    FActorSpawnParameters Params;
-    Params.Owner = GetAvatarActorFromActorInfo();
-    Params.Instigator = Cast<APawn>(GetAvatarActorFromActorInfo());
-    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-    AActor* SpawnedProjectile = World->SpawnActor<AActor>(
-        Projectile.ProjectileClass,
-        SpawnTransform,
-        Params
-    );
-
-
-    if (!SpawnedProjectile)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[RangedGA] Projectile spawn failed. Class=%s Weapon=%s"),
-            *GetNameSafe(Projectile.ProjectileClass), *GetNameSafe(Weapon));
-        return;
-    }
-
-    if (AProjectileBase* WeaponProjectile = Cast<AProjectileBase>(SpawnedProjectile))
-    {
-        WeaponProjectile->InitProjectileData(
-            GetAvatarActorFromActorInfo(),
-            Weapon,
-            BaseDamageEffectClass,
-            CachedProfile.DamageMultiplier,
-            CachedProfile.OnHitTargetEffects
-        );
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning,
-            TEXT("[RangedGA] Spawned projectile is not AProjectileBase. Damage/FX init skipped. Projectile=%s"),
-            *GetNameSafe(SpawnedProjectile));
-    }
-
-    if (!ApplyProjectileLaunchSettings(SpawnedProjectile, ShotDirection))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[RangedGA] Projectile launch setup failed. Projectile=%s Weapon=%s"),
-            *GetNameSafe(SpawnedProjectile), *GetNameSafe(Weapon));
-    }
+    UE_LOG(LogTemp, Warning,
+        TEXT("[RangedGA] Base FireProjectileOnce should not be used directly. Weapon=%s Ability=%s"),
+        *GetNameSafe(Weapon),
+        *GetNameSafe(this));
 }
 
 bool UWeaponRangedAttackAbilityBase::ApplyProjectileLaunchSettings(
@@ -819,7 +759,6 @@ bool UWeaponRangedAttackAbilityBase::ApplyProjectileLaunchSettings(
         SpawnedProjectile->SetLifeSpan(Projectile.LifeSeconds);
     }
 
-    // Speed 우선
     if (bHasSpeedMode)
     {
         if (UProjectileMovementComponent* MoveComp =
@@ -839,7 +778,6 @@ bool UWeaponRangedAttackAbilityBase::ApplyProjectileLaunchSettings(
         return false;
     }
 
-    // Impulse
     if (bHasImpulseMode)
     {
         UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(SpawnedProjectile->GetRootComponent());
@@ -903,9 +841,19 @@ bool UWeaponRangedAttackAbilityBase::ApplyRangedOnHitEffects(AActor* TargetActor
         return false;
     }
 
+    ARangedWeaponBase* Weapon = GetWeaponFromSourceObject<ARangedWeaponBase>();
+    if (!Weapon)
+    {
+        return false;
+    }
+
     bool bAnyApplied = false;
 
-    bAnyApplied |= ApplyWeaponDamageToTargetActor(TargetActor, CachedProfile.DamageMultiplier, 1.f, 1.f, 0.f);
+    float FinalDamage = 0.f;
+    if (TryGetCachedFinalDamage(Weapon, FinalDamage) && FinalDamage > 0.f)
+    {
+        bAnyApplied |= ApplyBaseDamageToTargetActor(TargetActor, FinalDamage, 1.f, 1.f);
+    }
 
     const FGameplayTag DamageTag = GetDataDamageTag();
 

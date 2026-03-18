@@ -4,6 +4,7 @@
 #include "Weapons/WeaponBase.h"
 #include "Engine/EngineTypes.h"
 #include "GameplayTagContainer.h"
+#include "Weapons/RangedWeapon/ProjectileBase.h"
 #include "RangedWeaponBase.generated.h"
 
 class UAnimMontage;
@@ -12,7 +13,6 @@ class AActor;
 class UStaticMeshComponent;
 class USkeletalMeshComponent;
 class USceneComponent;
-class AProjectileBase;
 class UNiagaraSystem;
 
 //프로파일이 어떤 발사 방식을 쓰는지 명시
@@ -276,6 +276,14 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ranged")
     bool GetFireProfile(FGameplayTag InputTag, FRangedFireProfile& OutProfile) const;
+
+    // //수정: 현재 프로파일 기준 최종 데미지 계산
+    UFUNCTION(BlueprintPure, Category = "Weapon|Ranged|Damage")
+    float CalculateFinalDamageFromProfile(const FRangedFireProfile& Profile) const;
+
+    // //수정: InputTag로 프로파일을 찾아 최종 데미지 계산
+    UFUNCTION(BlueprintCallable, Category = "Weapon|Ranged|Damage")
+    bool GetFinalDamage(FGameplayTag InputTag, float& OutFinalDamage) const;
 
     UFUNCTION(BlueprintCallable, Category = "Weapon|Ranged|Mesh")
     USceneComponent* GetActiveWeaponMesh() const;
