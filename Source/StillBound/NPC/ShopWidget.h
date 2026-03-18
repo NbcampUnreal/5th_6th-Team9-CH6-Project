@@ -17,6 +17,16 @@ class UButton;
 class UTextBlock;
 class UDataTable;
 
+USTRUCT()
+struct FSoldItemRecord
+{
+    GENERATED_BODY()
+
+    FName ItemRowName;
+    int32 Quantity;
+    int32 GoldEarned;
+};
+
 UCLASS()
 class STILLBOUND_API UShopWidget : public UUserWidget
 {
@@ -38,6 +48,8 @@ public:
     // === 상점 닫기 ===
     UFUNCTION(BlueprintCallable, Category = "Shop")
     void CloseShop();
+
+    void RefreshSoldItems();
 
 protected:
     virtual void NativeConstruct() override;
@@ -123,6 +135,9 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Shop")
     TSubclassOf<UInventoryItemSlot> InventoryItemSlotClass;
 
+    UPROPERTY(meta = (BindWidget))
+    UWrapBox* WB_SoldItems;
+
 private:
     // === 참조 ===
 
@@ -131,6 +146,9 @@ private:
 
     UPROPERTY()
     UInventoryComponent* PlayerInventory;
+
+    UPROPERTY()
+    TArray<FSoldItemRecord> SoldItemHistory;
 
     // === 상태 ===
     bool bShowBuyTab;

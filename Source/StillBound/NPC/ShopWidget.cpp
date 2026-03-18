@@ -101,6 +101,8 @@ void UShopWidget::InitializeShop(ANPCCharacter* InNPCCharacter)
     PlayerInventory->OnInventoryUpdated.AddUniqueDynamic(this, &UShopWidget::OnInventoryUpdated);
     PlayerInventory->OnHotbarUpdated.AddUObject(this, &UShopWidget::OnInventoryUpdated);
 
+    UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] Inventory delegates bound"));
+
     // 상점 이름 설정
     if (TXT_ShopName)
     {
@@ -329,6 +331,10 @@ bool UShopWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 
     // Shift 키로 전체 판매 여부 확인
     int32 SellQuantity = InDragDropEvent.IsShiftDown() ? DraggedItem->Quantity : 1;
+
+    FName ItemRowName = DraggedItem->ID;
+    FText ItemName = DraggedItem->TextData.Name;
+
     APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
     if (!Player) return false;
 
@@ -342,7 +348,18 @@ bool UShopWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 
             // UI 업데이트
             UpdateGoldDisplay();
-            RefreshShop();
+
+            // 판매 기록 추가
+            FSoldItemRecord Record;
+            Record.ItemRowName = ItemRowName;
+            Record.Quantity = SellQuantity;
+            Record.GoldEarned = TotalGold;
+            SoldItemHistory.Add(Record);
+
+            // 판매 목록 갱신
+            RefreshSoldItems();
+
+            DisplayPlayerInventory();
 
             UE_LOG(LogTemp, Log, TEXT("[ShopWidget] Sold %dx %s for %dG"),
                 SellQuantity,
@@ -438,6 +455,8 @@ void UShopWidget::SwitchTab(bool bShowBuy)
 {
     bShowBuyTab = bShowBuy;
 
+    RefreshShop();
+
     if (Border_BuyPanel)
     {
         Border_BuyPanel->SetVisibility(bShowBuy ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
@@ -452,8 +471,6 @@ void UShopWidget::SwitchTab(bool bShowBuy)
     {
         Border_LeftPanel->SetVisibility(bShowBuy ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
     }
-
-    RefreshShop();
 }
 
 // ============================================
@@ -466,6 +483,8 @@ void UShopWidget::OnCloseButtonClicked()
 
 void UShopWidget::CloseShop()
 {
+    SoldItemHistory.Empty();
+
     // 입력 모드 복구
     if (APlayerController* PC = GetOwningPlayer())
     {
@@ -484,6 +503,36 @@ void UShopWidget::CloseShop()
     RemoveFromParent();
 
     UE_LOG(LogTemp, Log, TEXT("[ShopWidget] Shop closed"));
+}
+
+void UShopWidget::RefreshSoldItems()
+{
+    UE_LOG(LogTemp, Warning, TEXT("[RefreshSoldItems] WB_SoldItems=%s, History=%d"),
+        WB_SoldItems ? TEXT("Valid") : TEXT("NULL"),
+        SoldItemHistory.Num());
+
+
+    if (!WB_SoldItems || !NPCCharacter) return;
+    WB_SoldItems->ClearChildren();
+
+    for (const FSoldItemRecord& Record : SoldItemHistory)
+    {
+        UShopItemSlot* ItemSlot = CreateWidget<UShopItemSlot>(this, ShopItemSlotClass);
+        if (!ItemSlot) continue;
+
+        const FItemDataRow* ItemData = NPCCharacter->GetItemData(Record.ItemRowName);
+        if (!ItemData) continue;
+
+        FShopItemData TempData;
+        TempData.ItemRowName = Record.ItemRowName;
+        TempData.CurrentStock = Record.Quantity;
+        TempData.MaxStock = Record.Quantity;
+
+        ItemSlot->SetShopItemData(TempData, this, NPCCharacter);
+
+        ItemSlot->SetBuyButtonVisible(false);
+        WB_SoldItems->AddChildToWrapBox(ItemSlot);
+    }
 }
 
 // ============================================
