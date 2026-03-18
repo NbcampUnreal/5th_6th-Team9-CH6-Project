@@ -7,6 +7,7 @@
 #include "Character/PlayerAttributeSet.h"
 #include "UI/MainMenu.h"
 #include "UI/UW_FullMap.h"
+#include "UI/UW_DamageOverlay.h"
 #include "UI/UW_RoundProgressBar.h"
 #include "UI/Interaction/InteractionWidget.h"
 #include "UI/Inventory/HotbarPanel.h"
@@ -45,6 +46,17 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 		FullMapWidget = CreateWidget<UUW_FullMap>(OwnerPC, FullMapClass);
 	}
 
+	if (DamageOverlayClass)
+	{
+		DamageOverlayWidget = CreateWidget<UUW_DamageOverlay>(OwnerPC, DamageOverlayClass);
+
+		if (DamageOverlayWidget)
+		{
+			DamageOverlayWidget->AddToViewport();
+			DamageOverlayWidget->SetVisibility(ESlateVisibility::Hidden);
+		}
+	}
+
 	if (GatherProgressClass)
 	{
 		GatherProgressWidget = CreateWidget<UUW_RoundProgressBar>(OwnerPC, GatherProgressClass);
@@ -66,6 +78,16 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 		}
 	}
 	
+	if (PauseMenuClass)
+	{
+		PauseMenuWidget = CreateWidget<UUserWidget>(OwnerPC, PauseMenuClass);
+		if (PauseMenuWidget)
+		{
+			PauseMenuWidget->AddToViewport(100);
+			PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
 	ABaseCharacter_SB* Char = Cast<ABaseCharacter_SB>(OwnerPC->GetPawn());
 	if (!Char) return;
 
@@ -102,7 +124,27 @@ void USB_UIManager::SetExp(float Current, float Required)
 	UIHUD->SetExp(Current, Required);
 }
 
-//경험치 임시비활성화
+void USB_UIManager::ShowBossHP(const FText& BossName)
+{
+	if (!UIHUD) return;
+
+	UIHUD->SetBossName(BossName);
+}
+
+void USB_UIManager::UpdateBossHP(float Current, float Max)
+{
+	if (!UIHUD) return;
+
+	UIHUD->SetBossHP(Current, Max);
+}
+
+void USB_UIManager::HideBossHP()
+{
+	if (!UIHUD) return;
+
+	UIHUD->HideBossHP();
+}
+
 //void USB_UIManager::SetLevel(int32 Level)
 //{
 //	if (!UIHUD) return;
@@ -160,6 +202,31 @@ void USB_UIManager::ToggleFullMap()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Adding FullMap"));
 		FullMapWidget->AddToViewport(50);
+	}
+}
+
+void USB_UIManager::ShowDamageOverlay()
+{
+	if (DamageOverlayWidget)
+	{
+		DamageOverlayWidget->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+
+void USB_UIManager::HideDamageOverlay()
+{
+	if (DamageOverlayWidget)
+	{
+		DamageOverlayWidget->SetVisibility(ESlateVisibility::Hidden);
+	}
+}
+
+void USB_UIManager::UpdateDamageOverlay(float HealthPercent)
+{
+	if (DamageOverlayWidget)
+	{
+		DamageOverlayWidget->UpdateDamageEffect(HealthPercent);
 	}
 }
 
@@ -271,6 +338,7 @@ void USB_UIManager::HideInteractionWidget()
 		InteractionWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
+
 void USB_UIManager::UpdateInteractionWidget(const FInteractableData& InteractableData)
 {
 	if (InteractionWidget)
@@ -282,4 +350,62 @@ void USB_UIManager::UpdateInteractionWidget(const FInteractableData& Interactabl
 
 		InteractionWidget->UpdateWidget(InteractableData);
 	}
+}
+
+void USB_UIManager::ShowBuildPreviewPanel()
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void USB_UIManager::HideBuildPreviewPanel()
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->SetVisibility(ESlateVisibility::Collapsed);
+		Panel->HidePlacementStateMessage();
+	}
+}
+
+void USB_UIManager::UpdateBuildPreviewPanel(const TArray<FBuildPreviewCostUIData>& InCosts)
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->UpdateIngredientList(InCosts);
+	}
+}
+
+void USB_UIManager::ShowBuildPreviewStateMessage(const FText& InMessage, float Duration)
+{
+	if (!UIHUD) return;
+
+	if (UBuildPreview_IngredientPanel* Panel = UIHUD->GetBuildPreview_IngredientPanel())
+	{
+		Panel->ShowPlacementStateMessage(InMessage, Duration);
+	}
+}
+
+bool USB_UIManager::IsPauseMenuOpen() const
+{
+	return PauseMenuWidget && PauseMenuWidget->GetVisibility() != ESlateVisibility::Collapsed;
+}
+
+void USB_UIManager::OpenPauseMenu()
+{
+	if (!PauseMenuWidget) return;
+	PauseMenuWidget->SetVisibility(ESlateVisibility::Visible);
+}
+
+void USB_UIManager::ClosePauseMenu()
+{
+	if (!PauseMenuWidget) return;
+	PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
 }

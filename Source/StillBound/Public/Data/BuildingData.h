@@ -85,4 +85,7 @@ struct FBuildingDataRow : public FTableRowBase
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
     TArray<FBuildCost> Costs;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+    FRotator PreviewRotationOffset = FRotator::ZeroRotator;
 };

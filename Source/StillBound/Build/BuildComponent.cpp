@@ -1,9 +1,15 @@
 #include "Build/BuildComponent.h"
 #include "Character/PlayerCharacter_SB.h"
+#include "Character/PlayerController_SB.h"
 #include "Camera/CameraComponent.h"
 #include "Public/Data/BuildingData.h"
 #include "Engine/OverlapResult.h"
 #include "Inventory/InventoryComponent.h"
+#include "Public/Data/ItemData.h"
+#include "UI/Build/BuildPreview_IngredientPanel.h"
+#include "Landscape.h"
+
+#pragma region Helpers
 
 bool UBuildComponent::GetBuildingData(FName InBuildingID, FBuildingDataRow& OutRow) const
 {
@@ -22,6 +28,30 @@ bool UBuildComponent::GetBuildingData(FName InBuildingID, FBuildingDataRow& OutR
 	OutRow = *Found;
 	return true;
 }
+
+TArray<USceneComponent*> UBuildComponent::GetSnapPointsFromActor(AActor* InActor) const
+{
+	TArray<USceneComponent*> Result;
+	if (!InActor) return Result;
+
+	TArray<USceneComponent*> SceneComps;
+	InActor->GetComponents<USceneComponent>(SceneComps);
+
+	for (USceneComponent* Comp : SceneComps)
+	{
+		if (!Comp) continue;
+
+		const FString CompName = Comp->GetName();
+		if (CompName.StartsWith(TEXT("Snap_")))
+		{
+			Result.Add(Comp);
+		}
+	}
+
+	return Result;
+}
+
+#pragma endregion
 
 UBuildComponent::UBuildComponent()
 {
@@ -138,7 +168,7 @@ void UBuildComponent::UpdateBuildPreview()
 	UpdatePreviewTransform();
 
 	BuildGhost->SetWorldLocation(BuildTransform.GetLocation());
-	BuildGhost->SetWorldRotation(FRotator::ZeroRotator);
+	BuildGhost->SetWorldRotation(BuildTransform.GetRotation().Rotator());
 
 	FBuildingDataRow Row;
 	if (!GetBuildingData(CurrentBuildingID, Row))
@@ -148,33 +178,127 @@ void UBuildComponent::UpdateBuildPreview()
 		return;
 	}
 
-	bCanPlace = CheckCanPlace(Row);
+	const bool bCanPlaceByLocation = CheckCanPlace(Row);
+	const bool bHasEnoughCost = HasEnoughBuildCost(Row);
+
+	bCanPlace = bCanPlaceByLocation && bHasEnoughCost;
 	ApplyPreviewMaterial(bCanPlace);
+
+	if (Player)
+	{
+		APlayerController_SB* PC = Cast<APlayerController_SB>(Player->GetController());
+		if (PC && PC->UIManager)
+		{
+			FBuildingDataRow BuildingDataRow;
+			if (GetBuildingData(CurrentBuildingID, BuildingDataRow))
+			{
+				TArray<FBuildPreviewCostUIData> CostUIList;
+
+				if (UInventoryComponent* Inv = Player->GetInventory())
+				{
+					for (const FBuildCost& Cost : BuildingDataRow.Costs)
+					{
+						FBuildPreviewCostUIData Data;
+						Data.Need = Cost.Count;
+						Data.Have = Inv->GetTotalCountByID_ForUI(Cost.ItemID);
+						Data.ItemName = FText::FromName(Cost.ItemID);
+
+						if (Inv->ItemDataTable)
+						{
+							const FItemDataRow* ItemRow = Inv->ItemDataTable->FindRow<FItemDataRow>(Cost.ItemID, TEXT("BuildPreviewCost"));
+							if (ItemRow)
+							{
+								Data.Icon = ItemRow->AssetData.Icon;
+								Data.ItemName = ItemRow->TextData.Name;
+							}
+						}
+
+						CostUIList.Add(Data);
+					}
+				}
+
+				PC->UIManager->UpdateBuildPreviewPanel(CostUIList);
+			}
+		}
+	}
 }
 
 void UBuildComponent::UpdatePreviewTransform()
 {
 	if (!Player || !Camera) return;
 
-	const FVector StartLocation = Camera->GetComponentLocation();
-	const FVector EndLocation = StartLocation + Camera->GetForwardVector() * 1000.f;
+	// 1st : 카메라 전방으로 어디를 보고 있는지 찾기
+	const FVector ViewStart = Camera->GetComponentLocation();
+	const FVector ViewEnd = ViewStart + Camera->GetForwardVector() * 3000.f;
 
+	FHitResult ViewHit;
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(Player);
 
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(LastPreviewHit, StartLocation, EndLocation, ECC_Visibility, Params);
+	const bool bViewHit = GetWorld()->LineTraceSingleByChannel(
+		ViewHit, 
+		ViewStart, 
+		ViewEnd, 
+		ECC_Visibility, 
+		Params);
 
-	if (bHit)
+	FVector TargetXY = bViewHit ? ViewHit.ImpactPoint : ViewEnd;
+
+
+	// 2nd : 그 XY 기준으로 위에서 아래로 쏴서 실제 지면 찾기
+	const FVector GroundTraceStart(TargetXY.X, TargetXY.Y, TargetXY.Z + 5000.f);
+	const FVector GroundTraceEnd(TargetXY.X, TargetXY.Y, TargetXY.Z - 5000.f);
+
+	FHitResult GroundHit;
+	const bool bGroundHit = GetWorld()->LineTraceSingleByChannel(
+		GroundHit,
+		GroundTraceStart,
+		GroundTraceEnd,
+		ECC_Visibility,
+		Params);
+
+	FVector FinalLocation = TargetXY;
+	FRotator FinalRotation(0.f, CurrentBuildYaw, 0.f);
+
+	if (bGroundHit)
 	{
-		BuildTransform.SetLocation(LastPreviewHit.ImpactPoint);
+		LastPreviewHit = GroundHit;
+		FinalLocation = GroundHit.ImpactPoint;
 	}
 	else
 	{
-		BuildTransform.SetLocation(EndLocation);
 		LastPreviewHit = FHitResult();
+
 	}
 
-	BuildTransform.SetRotation(FQuat(FRotator::ZeroRotator));
+	FinalLocation.Z += CurrentBuildHeightOffset;
+
+	CurrentSnapTargetActor = nullptr;
+	bSnappedToFoundation = false;
+
+	FBuildingDataRow Row;
+	if (GetBuildingData(CurrentBuildingID, Row))
+	{
+		if (Row.SnapRule == EBuildSnapRule::FoundationEdgeOnly)
+		{
+			if (TrySnapWall(Row, FinalLocation, FinalRotation))
+			{
+				bSnappedToFoundation = true;
+			}
+		}
+		else
+		{
+			if (TrySnapToNearbyFoundation(FinalLocation))
+			{
+				bSnappedToFoundation = true;
+			}
+
+			FinalRotation += Row.PreviewRotationOffset;
+		}
+	}
+
+	BuildTransform.SetLocation(FinalLocation);
+	BuildTransform.SetRotation(FQuat(FinalRotation));
 
 	/// LineTrace Debugging
 	// DrawDebugLine(GetWorld(), StartLocation, EndLocation, FColor::Yellow, false, 0.f, 0, 1.f);
@@ -193,8 +317,7 @@ bool UBuildComponent::CheckCanPlace(const FBuildingDataRow& Row)
 		return CheckGroundOnlyPlacement(Row);
 
 	case EBuildSnapRule::FoundationEdgeOnly:
-		// 추후 구현예정
-		return false;
+		return CheckFoundationEdgePlacement(Row);
 
 	case EBuildSnapRule::OnTopOfWall:
 		//추후 구현예정
@@ -207,6 +330,18 @@ bool UBuildComponent::CheckCanPlace(const FBuildingDataRow& Row)
 
 bool UBuildComponent::CheckGroundOnlyPlacement(const FBuildingDataRow& Row)
 {
+	//스냅되었으면 지면 검사 없이 허용
+	if (bSnappedToFoundation)
+	{
+		if (CheckOverlapAtPreview(Row))
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	// 스냅 안된 경우에만 지면 검사
 	if (!LastPreviewHit.bBlockingHit)
 	{
 		return false;
@@ -232,15 +367,30 @@ bool UBuildComponent::CheckOverlapAtPreview(const FBuildingDataRow& Row) const
 
 	const FBoxSphereBounds Bounds = BuildGhost->CalcBounds(BuildGhost->GetComponentTransform());
 
-	const FVector BoxCenter = Bounds.Origin;
-	const FVector BoxExtent = Bounds.BoxExtent * 0.95f;
+	FVector BoxCenter = Bounds.Origin;
+	FVector BoxExtent;
+
+	BoxExtent *= 0.9f;
+
+	if (Row.SnapRule == EBuildSnapRule::FoundationEdgeOnly)
+	{
+		BoxExtent.X *= 0.55f;
+		BoxExtent.Y *= 0.55f;
+		BoxExtent.Z *= 0.9f;
+	}
 
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(Player);
 
 	TArray<FOverlapResult> Overlaps;
 
-	const bool bOverlapped = GetWorld()->OverlapMultiByChannel(Overlaps, BoxCenter, FQuat::Identity, ECC_WorldStatic, FCollisionShape::MakeBox(BoxExtent), Params);
+	const bool bOverlapped = GetWorld()->OverlapMultiByChannel(
+		Overlaps, 
+		BoxCenter, 
+		FQuat::Identity, 
+		ECC_WorldStatic, 
+		FCollisionShape::MakeBox(BoxExtent), 
+		Params);
 
 	if (!bOverlapped) return false;
 
@@ -250,6 +400,17 @@ bool UBuildComponent::CheckOverlapAtPreview(const FBuildingDataRow& Row) const
 		if (!OverlapActor) continue;
 
 		if (OverlapActor == BuildGhost->GetOwner()) continue;
+
+		// Landscape Ignore
+		if (OverlapActor->IsA<ALandscape>()) continue;
+
+		if (Row.SnapRule == EBuildSnapRule::FoundationEdgeOnly && CurrentSnapTargetActor)
+		{
+			if (OverlapActor == CurrentSnappedAcotr)
+			{
+				continue;
+			}
+		}
 
 		return true;
 	}
@@ -271,30 +432,60 @@ void UBuildComponent::ApplyPreviewMaterial(bool bInCanPlace)
 	}
 }
 
-bool UBuildComponent::ConfirmBuild()
+bool UBuildComponent::HasEnoughBuildCost(const FBuildingDataRow& Row) const
 {
-	if (!bIsBuildModeOn) return false;
+	if (!Player) return false;
 
-	if (!bCanPlace)
+	UInventoryComponent* Inv = Player->GetInventory();
+	if (!Inv) return false;
+
+	for (const FBuildCost& Cost : Row.Costs)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Build] ConfirmBuild failed: bCanPlace is false"));
-		return false;
+		const int32 Have = Inv->GetTotalCountByID_ForUI(Cost.ItemID);
+		if (Have < Cost.Count)
+		{
+			return false;
+		}
 	}
 	
-	if (!Player || CurrentBuildingID.IsNone()) return false;
+	return true;
+}
 
-	FBuildingDataRow Row;
-	if (!GetBuildingData(CurrentBuildingID, Row)) return false;
+bool UBuildComponent::ConfirmBuild(EBuildFailReason& OutFailReason)
+{
+	OutFailReason = EBuildFailReason::None;
 
-	if (!Row.BuildActorClass)
+	if (!bIsBuildModeOn)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Build] BuildActorClass is null for %s"), *CurrentBuildingID.ToString());
+		OutFailReason = EBuildFailReason::InvalidPlacement;
 		return false;
 	}
 
+	FBuildingDataRow Row;
+	if (!GetBuildingData(CurrentBuildingID, Row))
+	{
+		OutFailReason = EBuildFailReason::SpawnFailed;
+		return false;
+	}
+
+	//위치 불가
+	if (!CheckCanPlace(Row))
+	{
+		OutFailReason = EBuildFailReason::InvalidPlacement;
+		return false;
+	}
+
+	//재료 부족
+	if (!HasEnoughBuildCost(Row))
+	{
+		OutFailReason = EBuildFailReason::NotEnoughCost;
+		return false;
+	}
+
+	//재료 차감
 	if (!ConsumeBuildCost(Row))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Build] ConfirmBuild failed: cost consume failed"));
+		OutFailReason = EBuildFailReason::NotEnoughCost;
 		return false;
 	}
 
@@ -305,9 +496,10 @@ bool UBuildComponent::ConfirmBuild()
 
 	AActor* Spawned = GetWorld()->SpawnActor<AActor>(Row.BuildActorClass, BuildTransform, SpawnParams);
 
+
 	if (!Spawned)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[Build] SpawnActor failed for %s"), *CurrentBuildingID.ToString());
+		OutFailReason = EBuildFailReason::SpawnFailed;
 		return false;
 	}
 
@@ -348,3 +540,188 @@ bool UBuildComponent::ConsumeBuildCost(const FBuildingDataRow& Row)
 	}
 	return true;
 }
+
+void UBuildComponent::AdjustBuildHeight(int32 Direction)
+{
+	CurrentBuildHeightOffset += Direction * HeightStep;
+	CurrentBuildHeightOffset = FMath::Clamp(CurrentBuildHeightOffset, MinBuildHeightOffset, MaxBuildHeightOffset);
+}
+
+bool UBuildComponent::TrySnapToNearbyFoundation(FVector& InOutLocation) const
+{
+	const float SnapSearchRadius = 300.f;
+	const float SnapAcceptDistance = 200.f;
+
+	TArray<FOverlapResult> Overlaps;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(Player);
+
+	const bool bFound = GetWorld()->OverlapMultiByChannel(
+		Overlaps,
+		InOutLocation,
+		FQuat::Identity,
+		ECC_WorldDynamic,
+		FCollisionShape::MakeSphere(SnapSearchRadius),
+		Params
+	);
+
+	if (!bFound) return false;
+
+	float BestDistSq = TNumericLimits<float>::Max();
+	FVector BestSnapLocation = InOutLocation;
+	bool bHasSnap = false;
+
+	for (const FOverlapResult& Result : Overlaps)
+	{
+		AActor* OverlapActor = Result.GetActor();
+		if (!OverlapActor) continue;
+
+		// 태그로 토대 판별
+		if (!OverlapActor->ActorHasTag(TEXT("Build.Foundation"))) continue;
+
+		const TArray<USceneComponent*> SnapPoints = GetSnapPointsFromActor(OverlapActor);
+
+		for (USceneComponent* SnapPoint : SnapPoints)
+		{
+			if (!SnapPoint) continue;
+
+			const FVector SnapLoc = SnapPoint->GetComponentLocation();
+			const float DistSq = FVector::DistSquared(SnapLoc, InOutLocation);
+
+			if (DistSq < BestDistSq)
+			{
+				BestDistSq = DistSq;
+				BestSnapLocation = SnapLoc;
+				bHasSnap = true;
+			}
+		}
+	}
+
+	if (bHasSnap && BestDistSq <= FMath::Square(SnapAcceptDistance))
+	{
+		InOutLocation = BestSnapLocation;
+		return true;
+	}
+
+	return false;
+}
+
+bool UBuildComponent::CheckFoundationEdgePlacement(const FBuildingDataRow& Row)
+{
+	if (!bSnappedToFoundation) return false;
+
+	if (CheckOverlapAtPreview(Row)) return false;
+
+	return true;
+}
+
+bool UBuildComponent::TrySnapWall(const FBuildingDataRow& Row, FVector& InOutLocation, FRotator& OutRotation) 
+{
+	if (!Player) return false;
+
+	const float SnapSearchRadius = 350.f;
+	const float SnapAcceptDistance = 180.f;
+
+	TArray<FOverlapResult> Overlaps;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(Player);
+	
+	const bool bFound = GetWorld()->OverlapMultiByChannel(
+		Overlaps,
+		InOutLocation,
+		FQuat::Identity,
+		ECC_WorldDynamic,
+		FCollisionShape::MakeSphere(SnapSearchRadius),
+		Params);
+
+	if (!bFound) return false;
+
+	float BestDistSq = TNumericLimits<float>::Max();
+	FVector BestSnapLocation = InOutLocation;
+	FRotator BestSnapRotation = OutRotation;
+	AActor* BestSnapActor = nullptr;
+	bool bHasSnap = false;
+
+	for (const FOverlapResult& Result : Overlaps)
+	{
+		AActor* OverlapActor = Result.GetActor();
+		if (!OverlapActor) continue;
+
+		TArray<USceneComponent*> SnapPoints;
+
+		// 토대에 붙는벽
+		if (OverlapActor->ActorHasTag(TEXT("Build.Foundation")))
+		{
+			SnapPoints = GetSnapPointsByPrefix(OverlapActor, TEXT("Snap_Wall_"));
+		}
+		// 벽 위에 벽
+		else if (OverlapActor->ActorHasTag(TEXT("Build.Wall")))
+		{
+			SnapPoints = GetSnapPointsByPrefix(OverlapActor, TEXT("Snap_WallTop"));
+		}
+		else
+		{
+			continue;
+		}
+
+		for (USceneComponent* SnapPoint : SnapPoints)
+		{
+			if (!SnapPoint) continue;
+
+			const FVector SnapLoc = SnapPoint->GetComponentLocation();
+			const float DistSq = FVector::DistSquared(SnapLoc, InOutLocation);
+
+			if (DistSq < BestDistSq)
+			{
+				BestDistSq = DistSq;
+				BestSnapLocation = SnapLoc;
+
+				BestSnapRotation = SnapPoint->GetComponentRotation() + Row.PreviewRotationOffset;
+				BestSnapActor = OverlapActor;
+				bHasSnap = true;
+			}
+		}
+	}
+
+	if (bHasSnap && BestDistSq <= FMath::Square(SnapAcceptDistance))
+	{
+		InOutLocation = BestSnapLocation;
+		OutRotation = BestSnapRotation;
+		CurrentSnapTargetActor = BestSnapActor;
+		return true;
+	}
+
+	CurrentSnapTargetActor = nullptr;
+	return false;
+}
+
+TArray<USceneComponent*> UBuildComponent::GetSnapPointsByPrefix(AActor* InActor, const FString& Prefix) const
+{
+	TArray<USceneComponent*> Result;
+	if (!InActor) return Result;
+
+	TArray<USceneComponent*> SceneComponents;
+	InActor->GetComponents<USceneComponent>(SceneComponents);
+
+	for (USceneComponent* Comp : SceneComponents)
+	{
+		if (!Comp) continue;
+
+		const FString CompName = Comp->GetName();
+		if (CompName.StartsWith(Prefix))
+		{
+			Result.Add(Comp);
+		}
+	}
+
+	return Result;
+}
+
+void UBuildComponent::AddBuildRotation(float DeltaYaw)
+{
+	CurrentBuildYaw += DeltaYaw;
+
+	CurrentBuildYaw = FMath::Fmod(CurrentBuildYaw, 360.f);
+}
+
+

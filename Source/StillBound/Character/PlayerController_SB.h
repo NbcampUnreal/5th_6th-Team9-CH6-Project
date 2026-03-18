@@ -12,6 +12,7 @@ class UInputMappingContext;
 class UInputAction;
 class USB_UIManager;
 class AMapWorldManager;
+class UCameraShakeBase;
 struct FInputActionValue;
 
 UENUM(BlueprintType)
@@ -22,7 +23,8 @@ enum class EOverlayInputState : uint8
 	Crafting     UMETA(DisplayName = "Crafting"),
 	BuildMenu    UMETA(DisplayName = "BuildMenu"),
 	BuildPreview UMETA(DisplayName = "BuildPreview"),
-	FullMap      UMETA(DisplayName = "FullMap")
+	FullMap      UMETA(DisplayName = "FullMap"),
+	PauseMenu    UMETA(DisplayName = "PauseMenu")
 };
 
 UCLASS()
@@ -41,6 +43,9 @@ private:
 	/// Input - Mapping Contexts
 	/// =========================
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
+	TObjectPtr<UInputMappingContext> IMC_System;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
 	TObjectPtr<UInputMappingContext> IMC_Movement;
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
@@ -48,6 +53,9 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
 	TObjectPtr<UInputMappingContext> IMC_Hotbar;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Contexts")
+	TObjectPtr<UInputMappingContext> IMC_BuildPreviewMode;
 
 	/// =========================
 	/// Input - Movement
@@ -128,7 +136,27 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Build")
 	TObjectPtr<UInputAction> ToggleBuildAction;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> PlaceBuildAction;
 
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> CancelBuildAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> RaiseBuildAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> LowerBuildAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|System")
+	TObjectPtr<UInputAction> ESCAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> BuildRotateAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Input|Build")
+	TObjectPtr<UInputAction> BuildDestroyAction;
 	/// =========================
 	/// UI Map
 	/// =========================
@@ -167,6 +195,8 @@ private:
 
 	void Skill();
 
+	void OnEscapePressed();
+
 	void ToggleMenu();
 
 	void OnMouseWheel(const FInputActionValue& Value);
@@ -182,6 +212,14 @@ private:
 	void OnUseHotbar(const FInputActionValue& Value);
 
 	void ToggleBuild();
+	void OnBuildPlace();
+	void OnBuildCancel();
+
+	void RaiseBuildHeight();
+	void LowerBuildHeight();
+
+	void HandleBuildRotate(const FInputActionValue& Value);
+	void HandleDestroyBuild();
 
 ///------------------------Input Manager--------------------
 public:
@@ -191,6 +229,8 @@ public:
 
 	bool IsMenuLikeState() const;
 	bool IsBuildPreviewState() const;
+
+	bool DoLineTrace(FHitResult& OutHit);
 
 private:
 	void ApplyOverlayInputState();
@@ -213,6 +253,17 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<class USB_UIManager> UIManager;
+
+
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Camera")
+	TSubclassOf<UCameraShakeBase> HitCameraShake;
+
+	UFUNCTION(BlueprintCallable, Category = "SB|UI")
+	void BP_ResumeFromPause();
+
+	UFUNCTION(BlueprintCallable, Category = "SB|UI")
+	void ReturnToPauseFromOptions(UUserWidget* OptionsWidget);
+
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Stamina|Cost")
 	float EvasionStaminaCost = 25.f;

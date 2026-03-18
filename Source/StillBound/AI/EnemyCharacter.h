@@ -8,8 +8,31 @@
 #include "Character/BaseCharacter_SB.h"
 #include "AI/EnemyAIController.h"
 #include "AI/EnemyVisualRow.h"
+#include "Components/WidgetComponent.h"
+#include "Components/SceneComponent.h"
+#include "Data/ItemData.h"
 #include "EnemyCharacter.generated.h"
 
+class APickup;
+class UDataTable;
+
+USTRUCT(BlueprintType)
+struct FEnemyDropItem
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+    FName ItemID;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+    int32 MinCount = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+    int32 MaxCount = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+    float DropChance = 1.0f;
+};
 
 UCLASS()
 class STILLBOUND_API AEnemyCharacter : public ABaseCharacter_SB
@@ -75,6 +98,17 @@ private:
     UPROPERTY()
     TObjectPtr<UBlackboardComponent> BlackboardComp;
 
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Drop", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UDataTable> ItemDataTable;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Drop", meta = (AllowPrivateAccess = "true"))
+    TSubclassOf<APickup> PickupClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Drop", meta = (AllowPrivateAccess = "true"))
+    TArray<FEnemyDropItem> DropItems;
+
+    void SpawnDropItems();
+
 public:
     UFUNCTION(BlueprintCallable, Category = "Enemy|Data")
     void SetEnemyId(int32 NewId);
@@ -93,4 +127,18 @@ public:
     TSubclassOf<class ADamageNumberActor> DamageNumberClass;
 
     void SpawnDamageText(float Damage);
+
+    UPROPERTY(VisibleAnywhere, Category = "UI")
+    TObjectPtr<UWidgetComponent> AlertWidgetComponent;
+
+    UPROPERTY(VisibleAnywhere)
+    TObjectPtr<USceneComponent> AlertAnchor;
+
+    FTimerHandle AlertHideTimer;
+
+public:
+    void ShowAlert();
+
+private:
+    void HideAlert();
 };

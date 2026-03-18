@@ -37,6 +37,14 @@ enum class EWeaponKind : uint8
 	Ranged UMETA(DisplayName = "Ranged")
 };
 
+UENUM(BlueprintType)
+enum class EToolKind : uint8
+{
+	None     UMETA(DisplayName = "None"),
+	Axe      UMETA(DisplayName = "Axe"), 
+	Pickaxe  UMETA(DisplayName = "Pickaxe")   
+};
+
 USTRUCT(BlueprintType)
 struct FItemStatistics
 {
@@ -56,6 +64,13 @@ struct FItemStatistics
 
 	UPROPERTY(EditAnywhere)
 	float BuyValue;
+
+	//Ã¤ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Æ¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½
+	UPROPERTY(EditAnywhere)
+	float ObjectTier;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EToolKind ToolKind = EToolKind::None;
 };
 
 USTRUCT(BlueprintType)
@@ -138,13 +153,13 @@ struct FItemDataRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, Category = "Item|Equip")
 	TSoftClassPtr<AWeaponBase> EquipWeaponClass;
 
-	/** ConsumableÀÌ¸é Àû¿ëÇÒ GE Å¬·¡½º */
+	/** Consumableï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ GE Å¬ï¿½ï¿½ï¿½ï¿½ */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Consumable")
-	TSoftClassPtr<UGameplayEffect> ConsumableEffectClass; //¼öÁ¤
+	TSoftClassPtr<UGameplayEffect> ConsumableEffectClass; //ï¿½ï¿½ï¿½ï¿½
 
-	/** À§ GE°¡ SetByCaller·Î ±â´ëÇÏ´Â Tag (¿¹: Data.RestoreHealth) */
+	/** ï¿½ï¿½ GEï¿½ï¿½ SetByCallerï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ Tag (ï¿½ï¿½: Data.RestoreHealth) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Consumable")
-	FGameplayTag ConsumableSetByCallerTag; //¼öÁ¤
+	FGameplayTag ConsumableSetByCallerTag; //ï¿½ï¿½ï¿½ï¿½
 };
 
 #pragma endregion

@@ -23,6 +23,7 @@
 #include "Weapons/WeaponBase.h"
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Inventory/InventoryComponent.h"
+#include "Camera/CameraShakeBase.h"
 #include "Build/BuildComponent.h"
 
 void APlayerController_SB::SetupInputComponent()
@@ -32,9 +33,10 @@ void APlayerController_SB::SetupInputComponent()
 	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
 	if (!IsValid(InputSubsystem)) return;
 
+	if (IMC_System) InputSubsystem->AddMappingContext(IMC_System, 10);
 	if (IMC_Movement) InputSubsystem->AddMappingContext(IMC_Movement, 0);
 	if (IMC_Abilities) InputSubsystem->AddMappingContext(IMC_Abilities, 0);
-	if (IMC_Hotbar)   InputSubsystem->AddMappingContext(IMC_Hotbar, 0);
+	if (IMC_Hotbar) InputSubsystem->AddMappingContext(IMC_Hotbar, 0);
 
 	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
 	if (!IsValid(EnhancedInputComponent)) return;
@@ -66,7 +68,17 @@ void APlayerController_SB::SetupInputComponent()
 
 	EnhancedInputComponent->BindAction(ToggleMenuAction, ETriggerEvent::Started, this, &ThisClass::ToggleMenu);
 	EnhancedInputComponent->BindAction(FullMapAction,ETriggerEvent::Started,this,&ThisClass::ToggleFullMap);
+
 	EnhancedInputComponent->BindAction(ToggleBuildAction, ETriggerEvent::Started, this, &ThisClass::ToggleBuild);
+	EnhancedInputComponent->BindAction(PlaceBuildAction, ETriggerEvent::Started, this, &ThisClass::OnBuildPlace);
+	EnhancedInputComponent->BindAction(CancelBuildAction, ETriggerEvent::Started, this, &ThisClass::OnBuildCancel);
+	EnhancedInputComponent->BindAction(ESCAction, ETriggerEvent::Started, this, &ThisClass::OnEscapePressed);
+
+	EnhancedInputComponent->BindAction(RaiseBuildAction, ETriggerEvent::Started, this, &ThisClass::RaiseBuildHeight);
+	EnhancedInputComponent->BindAction(LowerBuildAction, ETriggerEvent::Started, this, &ThisClass::LowerBuildHeight);
+
+	EnhancedInputComponent->BindAction(BuildRotateAction, ETriggerEvent::Triggered, this, &ThisClass::HandleBuildRotate);
+	EnhancedInputComponent->BindAction(BuildDestroyAction, ETriggerEvent::Started, this, &ThisClass::HandleDestroyBuild);
 }
 
 #pragma region ========================= Input - Movement =========================
@@ -207,22 +219,10 @@ void APlayerController_SB::ToggleMenu()
 		break;
 
 	case EOverlayInputState::Crafting:
-		UIManager->CloseMenu();
-		SetOverlayInputState(EOverlayInputState::Gameplay);
-		break;
-
 	case EOverlayInputState::BuildMenu:
-		UIManager->HideBuildMenu(Chr->GetBuildComponent());
-		SetOverlayInputState(EOverlayInputState::Gameplay);
-		break;
-
 	case EOverlayInputState::BuildPreview:
-		ExitBuildPreview(true);
-		break;
-
 	case EOverlayInputState::FullMap:
-		UIManager->ToggleFullMap();
-		SetOverlayInputState(EOverlayInputState::Gameplay);
+	case EOverlayInputState::PauseMenu:
 		break;
 	}
 }
@@ -327,7 +327,7 @@ bool APlayerController_SB::ActivateAbilityAttack(const FGameplayTag& InputTag) c
 void APlayerController_SB::Attack()
 {
 	if (IsGameplayInputBlocked()) return;
-
+	
 	ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
 
@@ -357,7 +357,64 @@ void APlayerController_SB::Skill()
 	if (IsGameplayInputBlocked()) return;
 }
 
+
 #pragma endregion
+
+void APlayerController_SB::OnEscapePressed()
+{
+	if (!UIManager) return;
+
+	APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn());
+
+	switch (OverlayState)
+	{
+	case EOverlayInputState::Inventory:
+		UIManager->CloseMenu();
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+
+	case EOverlayInputState::Crafting:
+		UIManager->CloseMenu();
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+
+	case EOverlayInputState::BuildMenu:
+		if (Chr && Chr->GetBuildComponent())
+		{
+			UIManager->HideBuildMenu(Chr->GetBuildComponent());
+		}
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+
+	case EOverlayInputState::BuildPreview:
+		if (Chr && Chr->GetBuildComponent())
+		{
+			Chr->GetBuildComponent()->HandleBuildCancel();
+		}
+
+		UIManager->HideBuildPreviewPanel();
+
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+
+	case EOverlayInputState::FullMap:
+		UIManager->ToggleFullMap();
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+
+	case EOverlayInputState::Gameplay:
+		UIManager->OpenPauseMenu();
+		SetOverlayInputState(EOverlayInputState::PauseMenu);
+		return;
+
+	case EOverlayInputState::PauseMenu:
+		UIManager->ClosePauseMenu();
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+
+
+	}
+}
 
 #pragma region ========================= Input - Hotbar =========================
 
@@ -455,6 +512,9 @@ void APlayerController_SB::OnUseHotbar(const FInputActionValue& Value)
 	Char->UseSelectedHotbarItem();
 }
 
+#pragma endregion
+
+#pragma region ========================= Build =========================
 void APlayerController_SB::ToggleBuild()
 {
 	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetPawn());
@@ -462,7 +522,8 @@ void APlayerController_SB::ToggleBuild()
 
 	if (OverlayState == EOverlayInputState::Crafting
 		|| OverlayState == EOverlayInputState::Inventory
-		|| OverlayState == EOverlayInputState::FullMap)
+		|| OverlayState == EOverlayInputState::FullMap
+		|| OverlayState == EOverlayInputState::PauseMenu)
 	{
 		return;
 	}
@@ -470,6 +531,9 @@ void APlayerController_SB::ToggleBuild()
 	if (OverlayState == EOverlayInputState::BuildPreview)
 	{
 		ExitBuildPreview(true);
+
+		UIManager->ShowBuildMenu(Char->GetBuildComponent());
+		SetOverlayInputState(EOverlayInputState::BuildMenu);
 		return;
 	}
 
@@ -486,6 +550,121 @@ void APlayerController_SB::ToggleBuild()
 		UIManager->HideBuildMenu(Char->GetBuildComponent());
 		SetOverlayInputState(EOverlayInputState::Gameplay);
 		return;
+	}
+}
+
+void APlayerController_SB::OnBuildPlace()
+{
+	if (OverlayState == EOverlayInputState::BuildPreview)
+	{
+		if (APlayerCharacter_SB* PC = Cast<APlayerCharacter_SB>(GetPawn()))
+		{
+			if (PC->BuildComponent)
+			{
+				EBuildFailReason FailReason = EBuildFailReason::None;
+				const bool bPlaced = PC->BuildComponent->ConfirmBuild(FailReason);
+
+				if (!bPlaced && UIManager)
+				{
+					switch (FailReason)
+					{
+					case EBuildFailReason::NotEnoughCost:
+						UIManager->ShowBuildPreviewStateMessage(FText::FromString(TEXT("재료 부족")), 1.f);
+						break;
+
+					case EBuildFailReason::InvalidPlacement:
+						UIManager->ShowBuildPreviewStateMessage(FText::FromString(TEXT("설치 불가")), 1.f);
+						break;
+
+					case EBuildFailReason::SpawnFailed:
+						UIManager->ShowBuildPreviewStateMessage(FText::FromString(TEXT("설치 실패")), 1.f);
+						break;
+
+					default:
+						break;
+					}
+				}
+			}
+		}
+		return;
+	}
+}
+
+void APlayerController_SB::OnBuildCancel()
+{
+	if (OverlayState == EOverlayInputState::BuildPreview)
+	{
+		if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn()))
+		{
+			if (Chr->BuildComponent)
+			{
+				Chr->BuildComponent->HandleBuildCancel();
+			}
+		}
+
+		UIManager->HideBuildPreviewPanel();
+
+		SetOverlayInputState(EOverlayInputState::Gameplay);
+		return;
+	}
+}
+
+void APlayerController_SB::RaiseBuildHeight()
+{
+	if (OverlayState != EOverlayInputState::BuildPreview) return;
+
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn()))
+	{
+		if (Chr->GetBuildComponent())
+		{
+			Chr->GetBuildComponent()->AdjustBuildHeight(+1);
+		}
+	}
+}
+
+void APlayerController_SB::LowerBuildHeight()
+{
+	if (OverlayState != EOverlayInputState::BuildPreview) return;
+
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn()))
+	{
+		if (Chr->GetBuildComponent())
+		{
+			Chr->GetBuildComponent()->AdjustBuildHeight(-1);
+		}
+	}
+}
+
+void APlayerController_SB::HandleBuildRotate(const FInputActionValue& Value)
+{
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn()))
+	{
+		if (!Chr->GetBuildComponent() || !Chr->GetBuildComponent()->bIsBuildModeOn) return;
+
+		const float AxisValue = Value.Get<float>();
+
+		if (FMath::Abs(AxisValue) > 0.1f)
+		{
+			Chr->GetBuildComponent()->AddBuildRotation(AxisValue * 15.f);
+		}
+	}
+}
+
+void APlayerController_SB::HandleDestroyBuild()
+{
+	if (APlayerCharacter_SB* Chr = Cast<APlayerCharacter_SB>(GetPawn()))
+	{
+		FHitResult Hit;
+
+		if (DoLineTrace(Hit))
+		{
+			AActor* HitActor = Hit.GetActor();
+
+			if (HitActor && HitActor->ActorHasTag("Destroyable"))
+			{
+				HitActor->Destroy();
+			}
+		}
 	}
 }
 
@@ -548,6 +727,9 @@ void APlayerController_SB::BeginPlay()
 		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] CurrentSlotId = %s"), *Sub->GetCurrentSlotId());
 		Sub->TouchCurrentWorldLastPlayed();
 	}
+
+	OverlayState = EOverlayInputState::Gameplay;
+	ApplyOverlayInputState();
 }
 
 void APlayerController_SB::OnPossess(APawn* InPawn)
@@ -585,12 +767,20 @@ void APlayerController_SB::ApplyOverlayInputState()
 
 	if (IMC_Movement) Subsystem->RemoveMappingContext(IMC_Movement);
 	if (IMC_Abilities) Subsystem->RemoveMappingContext(IMC_Abilities);
+	if (IMC_Hotbar) Subsystem->RemoveMappingContext(IMC_Hotbar);
+	if (IMC_BuildPreviewMode) Subsystem->RemoveMappingContext(IMC_BuildPreviewMode);
+
+	if (IMC_System)
+	{
+		Subsystem->AddMappingContext(IMC_System, 10);
+	}
 
 	switch (OverlayState)
 	{
 	case EOverlayInputState::Gameplay:
 		if (IMC_Movement) Subsystem->AddMappingContext(IMC_Movement, 0);
 		if (IMC_Abilities) Subsystem->AddMappingContext(IMC_Abilities, 0);
+		if (IMC_Hotbar) Subsystem->AddMappingContext(IMC_Hotbar, 0);
 
 		ResetIgnoreMoveInput();
 		ResetIgnoreLookInput();
@@ -605,6 +795,7 @@ void APlayerController_SB::ApplyOverlayInputState()
 	case EOverlayInputState::Inventory:
 	case EOverlayInputState::Crafting:
 	case EOverlayInputState::BuildMenu:
+	case EOverlayInputState::PauseMenu:
 	case EOverlayInputState::FullMap:
 		SetIgnoreMoveInput(true);
 		SetIgnoreLookInput(true);
@@ -619,6 +810,7 @@ void APlayerController_SB::ApplyOverlayInputState()
 
 	case EOverlayInputState::BuildPreview:
 		if (IMC_Movement) Subsystem->AddMappingContext(IMC_Movement, 0);
+		if (IMC_BuildPreviewMode) Subsystem->AddMappingContext(IMC_BuildPreviewMode, 1);
 
 		ResetIgnoreMoveInput();
 		ResetIgnoreLookInput();
@@ -633,6 +825,30 @@ void APlayerController_SB::ApplyOverlayInputState()
 		break;
 	}
 }
+// =================Pause=================
+void APlayerController_SB::BP_ResumeFromPause()
+{
+	if (UIManager)
+	{
+		UIManager->ClosePauseMenu();
+	}
+	SetOverlayInputState(EOverlayInputState::Gameplay);
+}
+
+void APlayerController_SB::ReturnToPauseFromOptions(UUserWidget* OptionsWidget)
+{
+	if (OptionsWidget)
+	{
+		OptionsWidget->RemoveFromParent();
+	}
+
+	if (UIManager)
+	{
+		UIManager->OpenPauseMenu();
+	}
+
+	SetOverlayInputState(EOverlayInputState::PauseMenu);
+}
 
 void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
 {
@@ -642,7 +858,40 @@ void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
 	}
 
 	UIManager->UpdateHUD();
+
+	if (NewValue < OldValue)
+	{
+		if (HitCameraShake)
+		{
+			ClientStartCameraShake(HitCameraShake);
+		}
+	}
+
+	APawn* P = GetPawn();
+	if (!P) return;
+
+	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(P);
+	if (!ASI) return;
+
+	UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent();
+	if (!ASC) return;
+
+	float Health = ASC->GetNumericAttribute(UPlayerAttributeSet::GetHealthAttribute());
+	float MaxHealth = ASC->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
+
+	float Percent = Health / MaxHealth;
+
+	if (Percent <= 0.3f)
+	{
+		UIManager->ShowDamageOverlay();
+		UIManager->UpdateDamageOverlay(Percent);
+	}
+	else
+	{
+		UIManager->HideDamageOverlay();
+	}
 }
+
 
 void APlayerController_SB::OnStaminaChanged(float OldValue, float NewValue)
 {
@@ -892,7 +1141,11 @@ void APlayerController_SB::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 bool APlayerController_SB::IsGameplayInputBlocked() const
 {
-	return UIManager && UIManager->IsMenuBlockingGameplay();
+	return OverlayState == EOverlayInputState::Inventory
+		|| OverlayState == EOverlayInputState::Crafting
+		|| OverlayState == EOverlayInputState::BuildMenu
+		|| OverlayState == EOverlayInputState::FullMap
+		|| OverlayState == EOverlayInputState::PauseMenu;
 }
 
 
@@ -915,6 +1168,8 @@ void APlayerController_SB::EnterBuildPreview(FName BuildingID)
 
 	Chr->BuildComponent->BeginBuildMode(BuildingID);
 
+	UIManager->ShowBuildPreviewPanel();
+
 	SetOverlayInputState(EOverlayInputState::BuildPreview);
 }
 
@@ -928,6 +1183,11 @@ void APlayerController_SB::ExitBuildPreview(bool bCancel)
 		Chr->BuildComponent->CancelBuildMode();
 	}
 
+	if (UIManager)
+	{
+		UIManager->HideBuildPreviewPanel();
+	}
+
 	SetOverlayInputState(EOverlayInputState::Gameplay);
 }
 
@@ -936,10 +1196,30 @@ bool APlayerController_SB::IsMenuLikeState() const
 	return OverlayState == EOverlayInputState::Inventory
 		|| OverlayState == EOverlayInputState::Crafting
 		|| OverlayState == EOverlayInputState::BuildMenu
-		|| OverlayState == EOverlayInputState::FullMap;
+		|| OverlayState == EOverlayInputState::FullMap
+		|| OverlayState == EOverlayInputState::PauseMenu;
 }
 
 bool APlayerController_SB::IsBuildPreviewState() const
 {
 	return OverlayState == EOverlayInputState::BuildPreview;
+}
+
+bool APlayerController_SB::DoLineTrace(FHitResult& OutHit)
+{
+	APawn* MyPawn = GetPawn();
+	if (!MyPawn) return false;
+
+	FVector Start = PlayerCameraManager->GetCameraLocation();
+	FVector End = Start + PlayerCameraManager->GetActorForwardVector() * 1000.f;
+
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(MyPawn);
+
+	return GetWorld()->LineTraceSingleByChannel(
+		OutHit,
+		Start,
+		End,
+		ECC_Visibility,
+		Params);
 }

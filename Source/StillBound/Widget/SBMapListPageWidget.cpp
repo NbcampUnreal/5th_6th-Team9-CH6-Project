@@ -178,5 +178,6 @@ void USBMapListPageWidget::OnJoinClicked()
 
 void USBMapListPageWidget::OnBackClicked()
 {
-    UGameplayStatics::OpenLevel(GetWorld(), TitleLevelName);
+    //UGameplayStatics::OpenLevel(GetWorld(), TitleLevelName);
+    //RemoveFromParent();
 }
