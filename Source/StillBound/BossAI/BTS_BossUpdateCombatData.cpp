@@ -5,6 +5,9 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Character/PlayerCharacter_SB.h"
 #include "Kismet/GameplayStatics.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
+#include "GameplayTagContainer.h"
 
 UBTS_BossUpdateCombatData::UBTS_BossUpdateCombatData()
 {
@@ -34,6 +37,11 @@ void UBTS_BossUpdateCombatData::TickNode(UBehaviorTreeComponent& OwnerComp, uint
 		BB->SetValueAsBool(ABossAIController::InMeleeRangeKey, false);
 		BB->SetValueAsBool(ABossAIController::InRangedRangeKey, false);
 		BB->SetValueAsBool(ABossAIController::ShouldReturnHomeKey, true);
+
+		// 새로 추가한 블랙보드 키
+		BB->SetValueAsBool(TEXT("bCanMeleeAttack"), false);
+		BB->SetValueAsBool(TEXT("bCanRangedAttack"), false);
+
 		return;
 	}
 
@@ -58,6 +66,10 @@ void UBTS_BossUpdateCombatData::TickNode(UBehaviorTreeComponent& OwnerComp, uint
 		BB->SetValueAsBool(ABossAIController::InMeleeRangeKey, false);
 		BB->SetValueAsBool(ABossAIController::InRangedRangeKey, false);
 		BB->SetValueAsBool(ABossAIController::ShouldReturnHomeKey, true);
+
+		BB->SetValueAsBool(TEXT("bCanMeleeAttack"), false);
+		BB->SetValueAsBool(TEXT("bCanRangedAttack"), false);
+
 		return;
 	}
 
@@ -68,11 +80,16 @@ void UBTS_BossUpdateCombatData::TickNode(UBehaviorTreeComponent& OwnerComp, uint
 		BB->SetValueAsBool(ABossAIController::InMeleeRangeKey, false);
 		BB->SetValueAsBool(ABossAIController::InRangedRangeKey, false);
 		BB->SetValueAsBool(ABossAIController::ShouldReturnHomeKey, false);
+
+		BB->SetValueAsBool(TEXT("bCanMeleeAttack"), false);
+		BB->SetValueAsBool(TEXT("bCanRangedAttack"), false);
+
 		return;
 	}
 
 	BB->SetValueAsFloat(ABossAIController::DistanceToTargetKey, DistFromBossToPlayer);
 
+	// 기존 거리 판정
 	const bool bInMelee = DistFromBossToPlayer <= Boss->GetMeleeAttackRange();
 	const bool bInRanged = DistFromBossToPlayer > Boss->GetMeleeAttackRange()
 		&& DistFromBossToPlayer <= Boss->GetRangedAttackRange();
@@ -81,10 +98,23 @@ void UBTS_BossUpdateCombatData::TickNode(UBehaviorTreeComponent& OwnerComp, uint
 	BB->SetValueAsBool(ABossAIController::InRangedRangeKey, bInRanged);
 	BB->SetValueAsBool(ABossAIController::ShouldReturnHomeKey, false);
 
-	UE_LOG(LogTemp, Warning, TEXT("[BossService] Target=%s Dist=%.1f Melee=%d Ranged=%d Return=%d"),
-		*GetNameSafe(Cast<AActor>(BB->GetValueAsObject(ABossAIController::TargetActorKey))),
-		BB->GetValueAsFloat(ABossAIController::DistanceToTargetKey),
-		BB->GetValueAsBool(ABossAIController::InMeleeRangeKey),
-		BB->GetValueAsBool(ABossAIController::InRangedRangeKey),
-		BB->GetValueAsBool(ABossAIController::ShouldReturnHomeKey));
+	// 쿨다운 태그 검사
+	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Boss);
+
+	const FGameplayTag MeleeCooldownTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Boss.State.MeleeCooldown"));
+
+	const FGameplayTag RangedCooldownTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Boss.State.ShootCooldown"));
+
+	const bool bMeleeCooldown = ASC ? ASC->HasMatchingGameplayTag(MeleeCooldownTag) : false;
+	const bool bRangedCooldown = ASC ? ASC->HasMatchingGameplayTag(RangedCooldownTag) : false;
+
+	// 실제 공격 가능 여부
+	const bool bCanMeleeAttack = bInMelee && !bMeleeCooldown;
+	const bool bCanRangedAttack = bInRanged && !bRangedCooldown;
+
+	BB->SetValueAsBool(TEXT("bCanMeleeAttack"), bCanMeleeAttack);
+	BB->SetValueAsBool(TEXT("bCanRangedAttack"), bCanRangedAttack);
+
 }

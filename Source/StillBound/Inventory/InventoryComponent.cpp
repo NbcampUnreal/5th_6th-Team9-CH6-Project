@@ -136,6 +136,17 @@ void UInventoryComponent::RemoveSingleInstanceOfItem(UItemBase* ItemToRemove)
 			return;
 		}
 	}
+	// 핫바 탐색
+	for (int32 i = 0; i < HotbarContents.Num(); ++i)
+	{
+		if (HotbarContents[i].Get() == ItemToRemove)
+		{
+			HotbarContents[i] = nullptr;
+			OnHotbarUpdated.Broadcast();
+			return;
+		}
+	}
+
 }
 
 int32 UInventoryComponent::RemoveAmountOfItem(UItemBase* ItemIn, int32 DesiredAmountToRemove)

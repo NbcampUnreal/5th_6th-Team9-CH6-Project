@@ -42,7 +42,7 @@ public:
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
+    virtual float GetInteractionDistance_Implementation() override;
 public:
     // ====================FŰ ������ �� IInteractionInterface ����, ���� �ý��� ����
 
@@ -66,6 +66,9 @@ public:
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Gather")
     bool IsActive() const { return bIsActive; }
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gather")
+    class USphereComponent* InteractionCollision;
 
 protected:
     // ============������ ������
