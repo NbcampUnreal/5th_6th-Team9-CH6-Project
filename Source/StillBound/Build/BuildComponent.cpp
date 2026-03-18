@@ -274,26 +274,38 @@ void UBuildComponent::UpdatePreviewTransform()
 	FinalLocation.Z += CurrentBuildHeightOffset;
 
 	CurrentSnapTargetActor = nullptr;
-	bSnappedToFoundation = false;
+	bSnappedToBuild = false;
 
 	FBuildingDataRow Row;
 	if (GetBuildingData(CurrentBuildingID, Row))
 	{
-		if (Row.SnapRule == EBuildSnapRule::FoundationEdgeOnly)
+		switch (Row.SnapRule)
 		{
+		case EBuildSnapRule::FoundationEdgeOnly:
 			if (TrySnapWall(Row, FinalLocation, FinalRotation))
 			{
-				bSnappedToFoundation = true;
+				bSnappedToBuild = true;
 			}
-		}
-		else
-		{
+			break;
+
+		case EBuildSnapRule::OnTopOfWall:
+			if (TrySnapRoof(Row, FinalLocation, FinalRotation))
+			{
+				bSnappedToBuild = true;
+			}
+			break;
+
+		case EBuildSnapRule::GroundOnly:
+		case EBuildSnapRule::None:
+		default:
+			FinalLocation.Z += CurrentBuildHeightOffset;
+			FinalRotation += Row.PreviewRotationOffset;
+
 			if (TrySnapToNearbyFoundation(FinalLocation))
 			{
-				bSnappedToFoundation = true;
+				bSnappedToBuild = true;
 			}
-
-			FinalRotation += Row.PreviewRotationOffset;
+			break;
 		}
 	}
 
@@ -320,8 +332,7 @@ bool UBuildComponent::CheckCanPlace(const FBuildingDataRow& Row)
 		return CheckFoundationEdgePlacement(Row);
 
 	case EBuildSnapRule::OnTopOfWall:
-		//추후 구현예정
-		return false;
+		return CheckRoofPlacement(Row);
 
 	default:
 		return false;
@@ -331,7 +342,7 @@ bool UBuildComponent::CheckCanPlace(const FBuildingDataRow& Row)
 bool UBuildComponent::CheckGroundOnlyPlacement(const FBuildingDataRow& Row)
 {
 	//스냅되었으면 지면 검사 없이 허용
-	if (bSnappedToFoundation)
+	if (bSnappedToBuild)
 	{
 		if (CheckOverlapAtPreview(Row))
 		{
@@ -404,14 +415,25 @@ bool UBuildComponent::CheckOverlapAtPreview(const FBuildingDataRow& Row) const
 		// Landscape Ignore
 		if (OverlapActor->IsA<ALandscape>()) continue;
 
-		if (Row.SnapRule == EBuildSnapRule::FoundationEdgeOnly && CurrentSnapTargetActor)
+		//현재 스냅 대상은 무시
+		if (CurrentSnapTargetActor && OverlapActor == CurrentSnapTargetActor) continue;
+
+		//벽 설치 중이면 지붕과의 겹칭은 허용
+		if (Row.SnapRule == EBuildSnapRule::FoundationEdgeOnly)
 		{
-			if (OverlapActor == CurrentSnappedAcotr)
+			if (OverlapActor->ActorHasTag(TEXT("Build.Roof")))
 			{
 				continue;
 			}
 		}
-
+		// 지붕 설치 중이면 벽/지붕 스냅 대상은 허용
+		if (Row.SnapRule == EBuildSnapRule::OnTopOfWall)
+		{
+			if (OverlapActor->ActorHasTag(TEXT("Build.Wall")) || OverlapActor->ActorHasTag(TEXT("Build.Roof")))
+			{
+				continue;
+			}
+		}
 		return true;
 	}
 
@@ -608,7 +630,7 @@ bool UBuildComponent::TrySnapToNearbyFoundation(FVector& InOutLocation) const
 
 bool UBuildComponent::CheckFoundationEdgePlacement(const FBuildingDataRow& Row)
 {
-	if (!bSnappedToFoundation) return false;
+	if (!bSnappedToBuild) return false;
 
 	if (CheckOverlapAtPreview(Row)) return false;
 
@@ -722,6 +744,84 @@ void UBuildComponent::AddBuildRotation(float DeltaYaw)
 	CurrentBuildYaw += DeltaYaw;
 
 	CurrentBuildYaw = FMath::Fmod(CurrentBuildYaw, 360.f);
+}
+
+bool UBuildComponent::CheckRoofPlacement(const FBuildingDataRow& Row)
+{
+	if (!bSnappedToBuild) return false;
+
+	if (CheckOverlapAtPreview(Row)) return false;
+
+	return true;
+
+}
+
+bool UBuildComponent::TrySnapRoof(const FBuildingDataRow& Row, FVector& InOutLocation, FRotator& OutRotation)
+{
+	if (!Player)
+	{
+		CurrentSnapTargetActor = nullptr;
+		return false;
+	}
+
+	AActor* HitActor = LastPreviewHit.GetActor();
+	if (!HitActor)
+	{
+		CurrentSnapTargetActor = nullptr;
+		return false;
+	}
+
+	const bool bIsWall = HitActor->ActorHasTag(TEXT("Build.Wall"));
+	const bool bIsRoof = HitActor->ActorHasTag(TEXT("Build.Roof"));
+
+	if (!bIsWall && !bIsRoof)
+	{
+		CurrentSnapTargetActor = nullptr;
+		return false;
+	}
+
+	const TArray<USceneComponent*> SnapPoints =
+		GetSnapPointsByPrefix(HitActor, TEXT("Snap_Roof_"));
+
+	if (SnapPoints.Num() == 0)
+	{
+		CurrentSnapTargetActor = nullptr;
+		return false;
+	}
+
+	float BestDistSq = TNumericLimits<float>::Max();
+	USceneComponent* BestSnapPoint = nullptr;
+
+	for (USceneComponent* SnapPoint : SnapPoints)
+	{
+		if (!SnapPoint) continue;
+
+		const FVector SnapLoc = SnapPoint->GetComponentLocation();
+		const float DistSq = FVector::DistSquared(SnapLoc, InOutLocation);
+
+		if (DistSq < BestDistSq)
+		{
+			BestDistSq = DistSq;
+			BestSnapPoint = SnapPoint;
+		}
+	}
+
+	if (!BestSnapPoint)
+	{
+		CurrentSnapTargetActor = nullptr;
+		return false;
+	}
+
+	InOutLocation = BestSnapPoint->GetComponentLocation();
+	OutRotation = BestSnapPoint->GetComponentRotation() + Row.PreviewRotationOffset;
+	CurrentSnapTargetActor = HitActor;
+
+	UE_LOG(LogTemp, Warning, TEXT("[RoofSnap] Target=%s  SnapPoint=%s  Loc=%s"),
+		*GetNameSafe(HitActor),
+		*GetNameSafe(BestSnapPoint),
+		*InOutLocation.ToString());
+
+	return true;
 }
 
 

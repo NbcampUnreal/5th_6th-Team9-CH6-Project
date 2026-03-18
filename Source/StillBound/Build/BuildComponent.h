@@ -78,7 +78,7 @@ public:
 	float HeightStep = 50.f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
-	bool bSnappedToFoundation = false;
+	bool bSnappedToBuild = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
 	TObjectPtr<AActor> CurrentSnappedAcotr = nullptr;
@@ -140,4 +140,7 @@ public:
 	TArray<USceneComponent*> GetSnapPointsByPrefix(AActor* InActor, const FString& Prefix) const;
 
 	void AddBuildRotation(float DeltaYaw);
+
+	bool CheckRoofPlacement(const FBuildingDataRow& Row);
+	bool TrySnapRoof(const FBuildingDataRow& Row, FVector& InOutLocation, FRotator& OutRotation);
 };

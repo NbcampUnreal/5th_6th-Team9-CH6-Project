@@ -58,7 +58,7 @@ void APickup::InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int
 		//ItemReference->PickupActorClass = ItemData->PickupActorClass;
 		ItemReference->EquipWeaponClass = ItemData->EquipWeaponClass;
 
-		ItemReference->ConsumableEffectClass = ItemData->ConsumableEffectClass;         //¼öÁ¤
+		ItemReference->ConsumableEffectClass = ItemData->ConsumableEffectClass;         
 		ItemReference->ConsumableSetByCallerTag = ItemData->ConsumableSetByCallerTag;
 
 		ItemReference->NumericData.bIsStackable = ItemData->NumericData.MaxStackSize > 1;
