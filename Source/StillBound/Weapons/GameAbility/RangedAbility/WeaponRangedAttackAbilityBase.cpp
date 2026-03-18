@@ -22,6 +22,9 @@
 #include "Components/PrimitiveComponent.h"
 #include "DrawDebugHelpers.h"
 
+#include "NiagaraFunctionLibrary.h" // ÃÑ±¸¼¶±¤ Ãß°¡
+#include "NiagaraSystem.h"          // ÃÑ±¸¼¶±¤ Ãß°¡
+
 UWeaponRangedAttackAbilityBase::UWeaponRangedAttackAbilityBase()
 {
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalOnly;
@@ -490,12 +493,103 @@ void UWeaponRangedAttackAbilityBase::HandleHitscanImpact(ARangedWeaponBase* Weap
     ApplyRangedOnHitEffects(HitActor);
 }
 
+bool UWeaponRangedAttackAbilityBase::TryGetMuzzleFlashTransform(
+    ARangedWeaponBase* Weapon,
+    FTransform& OutSpawnTransform
+) const
+{
+    OutSpawnTransform = FTransform::Identity;
+
+    if (!Weapon || !bHasCachedProfile)
+    {
+        return false;
+    }
+
+    // ÃÑ±¸¼¶±¤ Ãß°¡: FX ¿¡¼ÂÀÌ ¾øÀ¸¸é ½ºÆù ¾È ÇÔ
+    if (!CachedProfile.MuzzleFlash.NiagaraSystem)
+    {
+        return false;
+    }
+
+    // ÃÑ±¸¼¶±¤ Ãß°¡: ÇöÀç ¹ß»ç ¸ðµå ±âÁØÀ¸·Î ÃÑ±¸ ¼ÒÄÏ ¼±ÅÃ
+    const FName MuzzleSocket =
+        CachedProfile.IsProjectileMode()
+        ? CachedProfile.Projectile.MuzzleSocket
+        : CachedProfile.Hitscan.MuzzleSocket;
+
+    FTransform SocketTransform;
+    if (!Weapon->GetWeaponSocketTransform(MuzzleSocket, SocketTransform))
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("[RangedGA] MuzzleFlash socket transform failed. Socket=%s Weapon=%s"),
+            *MuzzleSocket.ToString(),
+            *GetNameSafe(Weapon));
+        return false;
+    }
+
+    // ÃÑ±¸¼¶±¤ Ãß°¡: ¼ÒÄÏ ±âÁØ ·ÎÄÃ ¿ÀÇÁ¼Â Àû¿ë
+    const FVector SpawnLocation =
+        SocketTransform.TransformPosition(CachedProfile.MuzzleFlash.LocationOffset);
+
+    const FRotator SpawnRotation =
+        SocketTransform.Rotator() + CachedProfile.MuzzleFlash.RotationOffset;
+
+    OutSpawnTransform = FTransform(
+        SpawnRotation,
+        SpawnLocation,
+        CachedProfile.MuzzleFlash.Scale
+    );
+
+    return true;
+}
+
+bool UWeaponRangedAttackAbilityBase::SpawnMuzzleFlash(ARangedWeaponBase* Weapon) const
+{
+    if (!Weapon || !bHasCachedProfile)
+    {
+        return false;
+    }
+
+    const auto& MuzzleFlash = CachedProfile.MuzzleFlash;
+    if (!MuzzleFlash.NiagaraSystem)
+    {
+        return false;
+    }
+
+    UWorld* World = Weapon->GetWorld();
+    if (!World)
+    {
+        return false;
+    }
+
+    FTransform SpawnTransform;
+    if (!TryGetMuzzleFlashTransform(Weapon, SpawnTransform))
+    {
+        return false;
+    }
+
+    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+        World,
+        MuzzleFlash.NiagaraSystem,
+        SpawnTransform.GetLocation(),
+        SpawnTransform.Rotator(),
+        SpawnTransform.GetScale3D(),
+        true,
+        true
+    );
+
+    return true;
+}
+
 void UWeaponRangedAttackAbilityBase::FireCurrentProfile(ARangedWeaponBase* Weapon)
 {
     if (!Weapon || !bHasCachedProfile)
     {
         return;
     }
+
+    // ÃÑ±¸¼¶±¤ Ãß°¡: ¹ß»ç °øÅë ÁöÁ¡¿¡¼­ 1È¸¸¸ Àç»ý
+    SpawnMuzzleFlash(Weapon);
 
     // //¼öÁ¤: ¹ß»ç ¸ðµå ºÐ±â
     if (CachedProfile.IsProjectileMode())
@@ -669,7 +763,7 @@ void UWeaponRangedAttackAbilityBase::FireProjectileOnce(ARangedWeaponBase* Weapo
         return;
     }
 
-    if (AWeaponProjectileBase* WeaponProjectile = Cast<AWeaponProjectileBase>(SpawnedProjectile))
+    if (AProjectileBase* WeaponProjectile = Cast<AProjectileBase>(SpawnedProjectile))
     {
         WeaponProjectile->InitProjectileData(
             GetAvatarActorFromActorInfo(),
@@ -682,7 +776,7 @@ void UWeaponRangedAttackAbilityBase::FireProjectileOnce(ARangedWeaponBase* Weapo
     else
     {
         UE_LOG(LogTemp, Warning,
-            TEXT("[RangedGA] Spawned projectile is not AWeaponProjectileBase. Damage/FX init skipped. Projectile=%s"),
+            TEXT("[RangedGA] Spawned projectile is not AProjectileBase. Damage/FX init skipped. Projectile=%s"),
             *GetNameSafe(SpawnedProjectile));
     }
 

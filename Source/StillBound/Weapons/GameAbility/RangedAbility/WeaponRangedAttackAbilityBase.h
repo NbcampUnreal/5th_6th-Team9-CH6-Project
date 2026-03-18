@@ -52,6 +52,16 @@ protected:
     FRangedFireProfile CachedProfile;
 
 protected:
+
+    // 총구섬광 추가: 현재 프로파일 기준 총구섬광 스폰 트랜스폼 계산
+    bool TryGetMuzzleFlashTransform(
+        class ARangedWeaponBase* Weapon,
+        FTransform& OutSpawnTransform
+    ) const;
+
+    // 총구섬광 추가: 발사 순간 총구섬광 재생
+    bool SpawnMuzzleFlash(class ARangedWeaponBase* Weapon) const;
+
     // 현재 캐시된 프로파일을 실제 발사로 실행하는 공용 진입점
     virtual void FireCurrentProfile(class ARangedWeaponBase* Weapon);
 

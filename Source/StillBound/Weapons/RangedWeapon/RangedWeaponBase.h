@@ -13,6 +13,7 @@ class UStaticMeshComponent;
 class USkeletalMeshComponent;
 class USceneComponent;
 class AProjectileBase;
+class UNiagaraSystem;
 
 //프로파일이 어떤 발사 방식을 쓰는지 명시
 UENUM(BlueprintType)
@@ -67,7 +68,7 @@ struct FRangedProjectileConfig
     GENERATED_BODY()
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Projectile")
-    TSubclassOf<AWeaponProjectileBase> ProjectileClass = nullptr;
+    TSubclassOf<AProjectileBase> ProjectileClass = nullptr;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Projectile")
     FName MuzzleSocket = TEXT("Muzzle");
@@ -146,6 +147,33 @@ struct FRangedOnHitGameplayEffectSpec
     float Chance = 1.0f;
 };
 
+USTRUCT(BlueprintType)
+struct FRangedMuzzleFlashConfig
+{
+    GENERATED_BODY()
+
+    // 총구섬광 추가: 발사 순간 재생할 나이아가라
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|FX|MuzzleFlash")
+    TObjectPtr<UNiagaraSystem> NiagaraSystem = nullptr;
+
+    // 총구섬광 추가: 총구 소켓 기준 위치 보정
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|FX|MuzzleFlash")
+    FVector LocationOffset = FVector::ZeroVector;
+
+    // 총구섬광 추가: 총구 소켓 기준 회전 보정
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|FX|MuzzleFlash")
+    FRotator RotationOffset = FRotator::ZeroRotator;
+
+    // 총구섬광 추가: FX 스케일
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|FX|MuzzleFlash")
+    FVector Scale = FVector(1.f, 1.f, 1.f);
+
+    bool IsConfigured() const
+    {
+        return NiagaraSystem != nullptr;
+    }
+};
+
 /** 탄약/연사 기본 데이터 */
 USTRUCT(BlueprintType)
 struct FRangedAmmoConfig
@@ -193,7 +221,7 @@ struct FRangedFireProfile
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Fire")
     TArray<FRangedOnHitGameplayEffectSpec> OnHitTargetEffects;
 
-    //추가: 이 프로파일이 어떤 발사 방식을 쓰는지
+    //이 프로파일이 어떤 발사 방식을 쓰는지
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Fire")
     ERangedFireMode FireMode = ERangedFireMode::Hitscan;
 
@@ -202,6 +230,10 @@ struct FRangedFireProfile
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|Fire")
     FRangedProjectileConfig Projectile;
+
+    // 총구섬광 추가: 발사 순간 FX 데이터
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ranged|FX|MuzzleFlash")
+    FRangedMuzzleFlashConfig MuzzleFlash;
 
     // //추가
     bool IsHitscanMode() const
@@ -213,6 +245,18 @@ struct FRangedFireProfile
     bool IsProjectileMode() const
     {
         return FireMode == ERangedFireMode::Projectile;
+    }
+
+    // 총구섬광 추가: 현재 FireMode 기준 총구 소켓 이름 반환
+    FName GetMuzzleSocketName() const
+    {
+        return IsProjectileMode() ? Projectile.MuzzleSocket : Hitscan.MuzzleSocket;
+    }
+
+    // 총구섬광 추가: 총구섬광 설정 여부
+    bool HasMuzzleFlash() const
+    {
+        return MuzzleFlash.IsConfigured();
     }
 
     // //추가: 현재 선택된 FireMode 기준으로만 검증

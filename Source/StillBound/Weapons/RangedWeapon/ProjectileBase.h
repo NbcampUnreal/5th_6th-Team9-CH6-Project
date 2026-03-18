@@ -15,12 +15,12 @@ class UGameplayEffect;
 class AWeaponBase;
 
 UCLASS(Abstract, Blueprintable)
-class STILLBOUND_API AWeaponProjectileBase : public AActor
+class STILLBOUND_API AProjectileBase : public AActor
 {
     GENERATED_BODY()
 
 public:
-    AWeaponProjectileBase();
+    AProjectileBase();
 
     // //추가: GA에서 스폰 직후 런타임 공격 데이터 주입
     UFUNCTION(BlueprintCallable, Category = "Weapon|Projectile")

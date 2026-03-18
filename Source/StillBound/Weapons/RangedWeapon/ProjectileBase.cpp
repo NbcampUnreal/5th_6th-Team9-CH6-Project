@@ -19,7 +19,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 
-AWeaponProjectileBase::AWeaponProjectileBase()
+AProjectileBase::AProjectileBase()
 {
     PrimaryActorTick.bCanEverTick = false;
 
@@ -55,12 +55,12 @@ AWeaponProjectileBase::AWeaponProjectileBase()
     CollisionComp->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnProjectileBeginOverlap);
 }
 
-void AWeaponProjectileBase::BeginPlay()
+void AProjectileBase::BeginPlay()
 {
     Super::BeginPlay();
 }
 
-void AWeaponProjectileBase::InitProjectileData(
+void AProjectileBase::InitProjectileData(
     AActor* InSourceInstigator,
     AWeaponBase* InSourceWeapon,
     TSubclassOf<UGameplayEffect> InBaseDamageEffectClass,
@@ -93,7 +93,7 @@ void AWeaponProjectileBase::InitProjectileData(
     }
 }
 
-void AWeaponProjectileBase::OnProjectileHit(
+void AProjectileBase::OnProjectileHit(
     UPrimitiveComponent* HitComponent,
     AActor* OtherActor,
     UPrimitiveComponent* OtherComp,
@@ -104,7 +104,7 @@ void AWeaponProjectileBase::OnProjectileHit(
     HandleImpact(Hit, OtherActor);
 }
 
-void AWeaponProjectileBase::OnProjectileBeginOverlap(
+void AProjectileBase::OnProjectileBeginOverlap(
     UPrimitiveComponent* OverlappedComponent,
     AActor* OtherActor,
     UPrimitiveComponent* OtherComp,
@@ -121,7 +121,7 @@ void AWeaponProjectileBase::OnProjectileBeginOverlap(
     HandleImpact(SweepResult, OtherActor);
 }
 
-bool AWeaponProjectileBase::ShouldIgnoreActor(AActor* OtherActor) const
+bool AProjectileBase::ShouldIgnoreActor(AActor* OtherActor) const
 {
     if (!OtherActor)
     {
@@ -156,7 +156,7 @@ bool AWeaponProjectileBase::ShouldIgnoreActor(AActor* OtherActor) const
     return false;
 }
 
-void AWeaponProjectileBase::HandleImpact(const FHitResult& HitResult, AActor* ExplicitOtherActor)
+void AProjectileBase::HandleImpact(const FHitResult& HitResult, AActor* ExplicitOtherActor)
 {
     if (bHasImpactProcessed)
     {
@@ -190,7 +190,7 @@ void AWeaponProjectileBase::HandleImpact(const FHitResult& HitResult, AActor* Ex
     }
 }
 
-bool AWeaponProjectileBase::ApplyDamageAndEffectsToTarget(AActor* TargetActor) const
+bool AProjectileBase::ApplyDamageAndEffectsToTarget(AActor* TargetActor) const
 {
     if (!TargetActor)
     {
@@ -235,7 +235,7 @@ bool AWeaponProjectileBase::ApplyDamageAndEffectsToTarget(AActor* TargetActor) c
     return bAnyApplied;
 }
 
-bool AWeaponProjectileBase::ApplyEffectToTargetActor(
+bool AProjectileBase::ApplyEffectToTargetActor(
     AActor* TargetActor,
     TSubclassOf<UGameplayEffect> EffectClass,
     float Level,
@@ -312,7 +312,7 @@ bool AWeaponProjectileBase::ApplyEffectToTargetActor(
     return true;
 }
 
-bool AWeaponProjectileBase::ApplyBaseDamageToTargetActor(
+bool AProjectileBase::ApplyBaseDamageToTargetActor(
     AActor* TargetActor,
     float DamageValue,
     float Level,
@@ -349,7 +349,7 @@ bool AWeaponProjectileBase::ApplyBaseDamageToTargetActor(
     );
 }
 
-bool AWeaponProjectileBase::SpawnWeaponHitImpactFXFromHitResult(const FHitResult& HitResult) const
+bool AProjectileBase::SpawnWeaponHitImpactFXFromHitResult(const FHitResult& HitResult) const
 {
     const AWeaponBase* Weapon = SourceWeapon.Get();
     if (!Weapon)
@@ -411,7 +411,7 @@ bool AWeaponProjectileBase::SpawnWeaponHitImpactFXFromHitResult(const FHitResult
     return true;
 }
 
-FGameplayTag AWeaponProjectileBase::GetDataDamageTag()
+FGameplayTag AProjectileBase::GetDataDamageTag()
 {
     static const FGameplayTag Tag =
         FGameplayTag::RequestGameplayTag(TEXT("Data.EnemyDamage"), false);

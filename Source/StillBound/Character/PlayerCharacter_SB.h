@@ -104,6 +104,8 @@ public:
 	void HandleHotbarSelectionChanged();
 	void UseSelectedHotbarItem();
 
+	bool ConsumeSelectedThrowableAfterThrow();
+
 	UFUNCTION(BlueprintCallable)
 	void OpenCraftingUI(FName InStationTag, UDataTable* InRecipeTable);
 
@@ -185,6 +187,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UItemBase> SelectedConsumable = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UItemBase> SelectedThrowable = nullptr;
 
 	//============채집 기능 추가
 public:
