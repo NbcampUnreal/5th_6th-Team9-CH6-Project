@@ -652,15 +652,16 @@ void APlayerCharacter_SB::Die()
 	if (DeathMontage)
 	{
 		PlayAnimMontage(DeathMontage, 1.5f);
+		return;
 	}
 
-	GetWorldTimerManager().SetTimer(
-		RagdollTimerHandle,
-		this,
-		&APlayerCharacter_SB::EnableRagdoll,
-		2.0f,
-		false
-	);
+	//GetWorldTimerManager().SetTimer(
+	//	RagdollTimerHandle,
+	//	this,
+	//	&APlayerCharacter_SB::EnableRagdoll,
+	//	2.0f,
+	//	false
+	//);
 }
 
 bool APlayerCharacter_SB::ModifyGold(int32 Amount)
