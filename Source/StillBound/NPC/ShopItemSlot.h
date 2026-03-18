@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "NPC/NPCCharacter.h"
+#include "Components/Button.h"
 #include "ShopItemSlot.generated.h"
 
 class UImage;
@@ -28,6 +29,12 @@ protected:
 public:
     UFUNCTION(BlueprintCallable, Category = "Shop")
     void SetShopItemData(const FShopItemData& InItemData, UShopWidget* InShopWidget, ANPCCharacter* InNPC);
+
+    void SetBuyButtonVisible(bool bVisible)
+    {
+        if (BTN_Buy)
+            BTN_Buy->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+    }
 
 protected:
     UPROPERTY(meta = (BindWidget))
