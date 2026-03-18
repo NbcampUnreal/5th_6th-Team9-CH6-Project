@@ -1,4 +1,4 @@
-#include "Character/PlayerCharacter_SB.h"
+﻿#include "Character/PlayerCharacter_SB.h"
 #include "AbilitySystemComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -688,19 +688,13 @@ void APlayerCharacter_SB::Revive()
 
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 
+
 	if (AbilitySystemComponent)
 	{
 		float MaxHealth = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 		AbilitySystemComponent->SetNumericAttributeBase(UPlayerAttributeSet::GetHealthAttribute(), MaxHealth);
 	}
 
-	GetWorldTimerManager().SetTimer(
-		RagdollTimerHandle,
-		this,
-		&APlayerCharacter_SB::EnableRagdoll,
-		2.0f,
-		false
-	);
 }
 
 bool APlayerCharacter_SB::ModifyGold(int32 Amount)
