@@ -4,7 +4,10 @@
 #include "UI/UW_ExpBar.h"
 #include "UI/UW_Minimap.h"
 #include "UI/UW_BossHPbar.h"
+#include "UI/UW_PickupText.h"
+#include "Components/Border.h"
 #include "UI/Inventory/HotbarPanel.h"
+#include "Components/VerticalBox.h"
 #include "Inventory/InventoryComponent.h"
 
 void UUW_UIHUD::SetHP(float Current, float Max)
@@ -41,6 +44,50 @@ void UUW_UIHUD::SetLevel(int32 Level)
 	if (ExpBar)
 	{
 		ExpBar->SetLevel(Level);
+	}
+}
+
+void UUW_UIHUD::AddPickupLog(const FText& Text)
+{
+	if (!PickupLogBox || !PickupTextClass)
+	{
+		return;
+	}
+
+	UUW_PickupText* PickupWidget =
+		CreateWidget<UUW_PickupText>(GetOwningPlayer(), PickupTextClass);
+
+	if (!PickupWidget)
+	{
+		return;
+	}
+
+	PickupPanel->SetVisibility(ESlateVisibility::Visible);
+
+
+	PickupWidget->SetPickupText(Text);
+	PickupWidget->StartLifeTimer(2.f);
+
+	PickupLogBox->InsertChildAt(0, PickupWidget);
+}
+
+void UUW_UIHUD::CheckPickupPanel()
+{
+	UE_LOG(LogTemp, Warning, TEXT("CheckPickupPanel Called"));
+
+	if (!PickupLogBox || !PickupPanel)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PickupLogBox or PickupPanel NULL"));
+		return;
+	}
+
+	int32 Count = PickupLogBox->GetChildrenCount();
+
+	UE_LOG(LogTemp, Warning, TEXT("Pickup Children Count: %d"), Count);
+
+	if (Count == 0)
+	{
+		PickupPanel->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
 

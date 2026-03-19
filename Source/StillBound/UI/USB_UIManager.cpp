@@ -7,6 +7,7 @@
 #include "Character/PlayerAttributeSet.h"
 #include "UI/MainMenu.h"
 #include "UI/UW_FullMap.h"
+#include "UI/UW_PickupText.h"
 #include "UI/UW_DamageOverlay.h"
 #include "UI/UW_RoundProgressBar.h"
 #include "UI/Interaction/InteractionWidget.h"
@@ -203,6 +204,13 @@ void USB_UIManager::ToggleFullMap()
 		UE_LOG(LogTemp, Warning, TEXT("Adding FullMap"));
 		FullMapWidget->AddToViewport(50);
 	}
+}
+
+void USB_UIManager::ShowPickupText(const FText& Text)
+{
+	if (!UIHUD) return;
+
+	UIHUD->AddPickupLog(Text);
 }
 
 void USB_UIManager::ShowDamageOverlay()

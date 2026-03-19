@@ -9,6 +9,9 @@ class UUW_StaminaBar;
 class UUW_ExpBar;
 class UUW_Minimap;
 class UBossHPbar;
+class UVerticalBox;
+class UUW_PickupText;
+class UBorder;
 class UHotbarPanel;
 class UInventoryComponent;
 class UBuildPreview_IngredientPanel;
@@ -35,6 +38,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetLevel(int32 Level);
 
+	void AddPickupLog(const FText& Text);
+	void CheckPickupPanel();
 	void SetBossName(const FText& Name);
 	void SetBossHP(float Current, float Max);
 	void HideBossHP();
@@ -62,6 +67,15 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UUW_Minimap> MiniMapWidget;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UBorder> PickupPanel;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UVerticalBox> PickupLogBox;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Pickup")
+	TSubclassOf<UUW_PickupText> PickupTextClass;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UBossHPbar> BossHP;
