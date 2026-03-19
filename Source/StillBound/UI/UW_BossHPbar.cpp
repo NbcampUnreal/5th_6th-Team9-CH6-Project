@@ -18,9 +18,6 @@ void UBossHPbar::SetBossName(const FText& Name)
     }
 }
 
-
-
-
 void UBossHPbar::SetHPPercent(float Percent)
 {
     if (HPBar)

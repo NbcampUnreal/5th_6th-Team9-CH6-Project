@@ -54,6 +54,24 @@ void UUW_UIHUD::AddPickupLog(const FText& Text)
 		return;
 	}
 
+	FString ItemName = Text.ToString();
+
+	ItemName = ItemName.Replace(TEXT("+1"), TEXT(""));
+	ItemName = ItemName.TrimStartAndEnd();
+
+	for (int32 i = 0; i < PickupLogBox->GetChildrenCount(); i++)
+	{
+		UUW_PickupText* Existing =
+			Cast<UUW_PickupText>(PickupLogBox->GetChildAt(i));
+
+		if (Existing && Existing->GetBaseText() == ItemName)
+		{
+			Existing->AddStack(1);
+			Existing->StartLifeTimer(2.f);
+			return;
+		}
+	}
+
 	UUW_PickupText* PickupWidget =
 		CreateWidget<UUW_PickupText>(GetOwningPlayer(), PickupTextClass);
 
@@ -64,8 +82,7 @@ void UUW_UIHUD::AddPickupLog(const FText& Text)
 
 	PickupPanel->SetVisibility(ESlateVisibility::Visible);
 
-
-	PickupWidget->SetPickupText(Text);
+	PickupWidget->SetPickupText(FText::FromString(ItemName));
 	PickupWidget->StartLifeTimer(2.f);
 
 	PickupLogBox->InsertChildAt(0, PickupWidget);

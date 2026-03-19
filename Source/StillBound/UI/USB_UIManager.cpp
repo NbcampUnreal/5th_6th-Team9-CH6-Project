@@ -10,6 +10,8 @@
 #include "UI/UW_PickupText.h"
 #include "UI/UW_DamageOverlay.h"
 #include "UI/UW_RoundProgressBar.h"
+#include "Blueprint/UserWidget.h"
+#include "UI/UW_GameClear.h"
 #include "UI/Interaction/InteractionWidget.h"
 #include "UI/Inventory/HotbarPanel.h"
 #include "UI/Build/BuildMenuWidget.h"
@@ -86,6 +88,17 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 		{
 			PauseMenuWidget->AddToViewport(100);
 			PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
+	if (GameClearWidgetClass)
+	{
+		GameClearWidget = CreateWidget<UUW_GameClear>(OwnerPC.Get(), GameClearWidgetClass);
+
+		if (GameClearWidget)
+		{
+			GameClearWidget->AddToViewport(200);
+			GameClearWidget->SetVisibility(ESlateVisibility::Hidden);
 		}
 	}
 
@@ -236,6 +249,14 @@ void USB_UIManager::UpdateDamageOverlay(float HealthPercent)
 	{
 		DamageOverlayWidget->UpdateDamageEffect(HealthPercent);
 	}
+}
+
+void USB_UIManager::ShowGameClear(bool bBossKilled)
+{
+	if (!GameClearWidget) return;
+
+	GameClearWidget->SetVisibility(ESlateVisibility::Visible);
+	GameClearWidget->SetGameClear(bBossKilled);
 }
 
 void USB_UIManager::UpdateHUD()

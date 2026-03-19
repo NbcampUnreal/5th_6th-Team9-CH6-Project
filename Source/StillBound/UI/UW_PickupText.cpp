@@ -6,11 +6,47 @@
 
 void UUW_PickupText::SetPickupText(const FText& InText)
 {
-	if (PickupText)
-	{
-		PickupText->SetText(InText);
-	}
+    if (!PickupText)
+        return;
+
+    FString RawText = InText.ToString().TrimStartAndEnd();
+
+    FString ItemName;
+    int32 Amount = 1;
+
+    int32 PlusIndex;
+    if (RawText.FindLastChar(TEXT('+'), PlusIndex))
+    {
+        ItemName = RawText.Left(PlusIndex).TrimEnd();
+
+        FString AmountString = RawText.Mid(PlusIndex + 1).TrimStartAndEnd();
+        Amount = FCString::Atoi(*AmountString);
+
+        if (Amount <= 0)
+        {
+            Amount = 1;
+        }
+    }
+    else
+    {
+        ItemName = RawText;
+    }
+
+    BaseText = ItemName;
+    StackCount = Amount;
+
+    UpdateText();
 }
+
+void UUW_PickupText::UpdateText()
+{
+    if (PickupText)
+    {
+        FString NewText = FString::Printf(TEXT("%s +%d"), *BaseText, StackCount);
+        PickupText->SetText(FText::FromString(NewText));
+    }
+}
+
 
 void UUW_PickupText::StartLifeTimer(float LifeTime)
 {
@@ -34,6 +70,13 @@ void UUW_PickupText::StartLifeTimer(float LifeTime)
             );
         }
     }
+}
+
+void UUW_PickupText::AddStack(int32 Amount)
+{
+    StackCount += Amount;
+
+    UpdateText();
 }
 
 void UUW_PickupText::RemoveSelf()

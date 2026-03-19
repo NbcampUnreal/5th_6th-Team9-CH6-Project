@@ -18,6 +18,10 @@ public:
 
 	void StartLifeTimer(float LifeTime = 2.f);
 
+	void AddStack(int32 Amount);
+
+	FString GetBaseText() const { return BaseText; }
+
 protected:
 
 	UPROPERTY(meta = (BindWidget))
@@ -29,6 +33,12 @@ protected:
 private:
 
 	FTimerHandle RemoveTimer;
+
+	int32 StackCount = 1;
+
+	FString BaseText;
+
+	void UpdateText();
 
 	UFUNCTION()
 	void RemoveSelf();

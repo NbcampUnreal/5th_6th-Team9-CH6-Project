@@ -13,6 +13,7 @@ struct FInteractableData;
 class UUW_FullMap;
 class UUW_RoundProgressBar;
 class UUW_PickupText;
+class UUW_GameClear;
 class UHotbarPanel;
 class UInventoryComponent;
 class UBuildMenuWidget;
@@ -55,6 +56,7 @@ public:
 	void ShowDamageOverlay();
 	void HideDamageOverlay();
 	void UpdateDamageOverlay(float HealthPercent);
+	void ShowGameClear(bool bBossKilled);
 	void UpdateHUD();
 	void OpenPauseMenu();
 	void ClosePauseMenu();
@@ -88,6 +90,12 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UUW_RoundProgressBar> GatherProgressWidget;
+
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<UUW_GameClear> GameClearWidgetClass;
+
+	UPROPERTY()
+	TObjectPtr<UUW_GameClear> GameClearWidget;
 
 	UPROPERTY()
 	class UUW_DamageOverlay* DamageOverlayWidget;
