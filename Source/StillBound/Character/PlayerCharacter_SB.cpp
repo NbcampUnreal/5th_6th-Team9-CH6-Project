@@ -1,4 +1,4 @@
-#include "Character/PlayerCharacter_SB.h"
+﻿#include "Character/PlayerCharacter_SB.h"
 #include "AbilitySystemComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -657,18 +657,52 @@ void APlayerCharacter_SB::Die()
 		}
 	}
 
+	float DelayTimer = 2.0f;
+
 	if (DeathMontage)
 	{
-		PlayAnimMontage(DeathMontage, 1.5f);
+		DelayTimer = PlayAnimMontage(DeathMontage, 1.5f);
 	}
 
-	GetWorldTimerManager().SetTimer(
-		RagdollTimerHandle,
-		this,
-		&APlayerCharacter_SB::EnableRagdoll,
-		2.0f,
-		false
-	);
+	if (DelayTimer <= 0.0f)
+	{
+		DelayTimer = 0.1f;
+	}
+
+	FTimerHandle TimerHandle_DeathUI;
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			TimerHandle_DeathUI,
+			this,
+			&APlayerCharacter_SB::K2_OnDeathAnimationFinished,
+			DelayTimer,
+			false
+		);
+	}
+}
+
+//부활 관련 코드 추가
+void APlayerCharacter_SB::Revive()
+{
+	if (!bIsDead) return;
+
+	bIsDead = false;
+
+	if (UCharacterMovementComponent* Move = GetCharacterMovement())
+	{
+		Move->SetMovementMode(MOVE_Walking);
+	}
+
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+
+
+	if (AbilitySystemComponent)
+	{
+		float MaxHealth = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
+		AbilitySystemComponent->SetNumericAttributeBase(UPlayerAttributeSet::GetHealthAttribute(), MaxHealth);
+	}
+
 }
 
 bool APlayerCharacter_SB::ModifyGold(int32 Amount)
