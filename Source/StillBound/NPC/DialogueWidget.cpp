@@ -108,7 +108,7 @@ void UDialogueWidget::ShowDialogue(const FDialogueRow& DialogueData)
                 if (Button)
                 {
                     Button->OnOptionClicked.AddDynamic(this, &UDialogueWidget::HandleOptionSelected);
-
+                    
                     VB_OptionList->AddChild(Button);
                     OptionButtonPool.Add(Button);
                 }

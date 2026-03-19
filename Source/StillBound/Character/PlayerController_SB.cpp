@@ -1156,6 +1156,8 @@ void APlayerController_SB::SetOverlayInputState(EOverlayInputState NewState)
 	OverlayState = NewState;
 	ApplyOverlayInputState();
 
+	UIManager->SetBuildGuideVisible(NewState == EOverlayInputState::BuildPreview);
+
 	//UE_LOG(LogTemp, Warning, TEXT("[InputState] OverlayState -> %d"), (int32)OverlayState);
 }
 

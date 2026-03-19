@@ -4,8 +4,19 @@
 #include "UI/UW_ExpBar.h"
 #include "UI/UW_Minimap.h"
 #include "UI/UW_BossHPbar.h"
+#include "UI/UW_PickupText.h"
+#include "Components/Border.h"
 #include "UI/Inventory/HotbarPanel.h"
+#include "Components/VerticalBox.h"
 #include "Inventory/InventoryComponent.h"
+#include "Components/Image.h"
+
+void UUW_UIHUD::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	SetBuildGuideVisibile(false);
+}
 
 void UUW_UIHUD::SetHP(float Current, float Max)
 {
@@ -44,6 +55,67 @@ void UUW_UIHUD::SetLevel(int32 Level)
 	}
 }
 
+void UUW_UIHUD::AddPickupLog(const FText& Text)
+{
+	if (!PickupLogBox || !PickupTextClass)
+	{
+		return;
+	}
+
+	FString ItemName = Text.ToString();
+
+	ItemName = ItemName.Replace(TEXT("+1"), TEXT(""));
+	ItemName = ItemName.TrimStartAndEnd();
+
+	for (int32 i = 0; i < PickupLogBox->GetChildrenCount(); i++)
+	{
+		UUW_PickupText* Existing =
+			Cast<UUW_PickupText>(PickupLogBox->GetChildAt(i));
+
+		if (Existing && Existing->GetBaseText() == ItemName)
+		{
+			Existing->AddStack(1);
+			Existing->StartLifeTimer(2.f);
+			return;
+		}
+	}
+
+	UUW_PickupText* PickupWidget =
+		CreateWidget<UUW_PickupText>(GetOwningPlayer(), PickupTextClass);
+
+	if (!PickupWidget)
+	{
+		return;
+	}
+
+	PickupPanel->SetVisibility(ESlateVisibility::Visible);
+
+	PickupWidget->SetPickupText(FText::FromString(ItemName));
+	PickupWidget->StartLifeTimer(2.f);
+
+	PickupLogBox->InsertChildAt(0, PickupWidget);
+}
+
+void UUW_UIHUD::CheckPickupPanel()
+{
+	UE_LOG(LogTemp, Warning, TEXT("CheckPickupPanel Called"));
+
+	if (!PickupLogBox || !PickupPanel)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PickupLogBox or PickupPanel NULL"));
+		return;
+	}
+
+	int32 Count = PickupLogBox->GetChildrenCount();
+
+	UE_LOG(LogTemp, Warning, TEXT("Pickup Children Count: %d"), Count);
+
+	if (Count == 0)
+	{
+		PickupPanel->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
 void UUW_UIHUD::SetBossName(const FText& Name)
 {
 	if (!BossHP) return;
@@ -79,5 +151,13 @@ void UUW_UIHUD::SetSelectedHotbarIndex(int32 Index)
 	if (HotbarPanel)
 	{
 		HotbarPanel->SetSelectedIndex(Index);
+	}
+}
+
+void UUW_UIHUD::SetBuildGuideVisibile(bool bVisible)
+{
+	if (BuildGuideImage)
+	{
+		BuildGuideImage->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 }
