@@ -3,6 +3,8 @@
 #include "BossAI/BosAIAttributeSet.h"
 #include "BossAI/BossAIController.h"
 #include "AIController.h"
+#include "UI/USB_UIManager.h"
+#include "Character/PlayerController_SB.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 
@@ -26,6 +28,14 @@ void ABossAICharacter::BeginPlay()
 
 	const float H = AbilitySystemComponent->GetNumericAttribute(UBosAIAttributeSet::GetHealthAttribute());
 	const float MH = AbilitySystemComponent->GetNumericAttribute(UBosAIAttributeSet::GetMaxHealthAttribute());
+
+	APlayerController_SB* PC = Cast<APlayerController_SB>(GetWorld()->GetFirstPlayerController());
+
+	if (PC && PC->UIManager)
+	{
+		PC->UIManager->ShowBossHP(FText::FromString(TEXT("Ancient Guardian")));
+		PC->UIManager->UpdateBossHP(H, MH);
+	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[Boss] After InitStats H=%.1f / %.1f"), H, MH);
 }

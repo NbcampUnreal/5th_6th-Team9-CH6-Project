@@ -1,6 +1,7 @@
 #include "Items/Pickup.h"
 #include "Items/ItemBase.h"
 #include "Character/PlayerCharacter_SB.h"
+#include "Character/PlayerController_SB.h"
 #include "Inventory/InventoryComponent.h"
 #include "Components/SphereComponent.h"
 //#include "Public/Data/ItemData.h"
@@ -129,12 +130,46 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 				case EItemAddResult::IAR_NoItemAdded:
 					break;
 				case EItemAddResult::IAR_PartialAmountItemAdded:
+				{
 					UpdateInteractableData();
 					Taker->UpdateInteractionWidget();
+
+					if (APlayerController_SB* PC = Cast<APlayerController_SB>(Taker->GetController()))
+					{
+						if (PC->UIManager)
+						{
+							PC->UIManager->ShowPickupText(
+								FText::Format(
+									FText::FromString(TEXT("{0} +{1}")),
+									ItemReference->TextData.Name,
+									ItemReference->Quantity
+								)
+							);
+						}
+					}
+
 					break;
+				}
+				
 				case EItemAddResult::IAR_AllItemAdded:
+				{
+					if (APlayerController_SB* PC = Cast<APlayerController_SB>(Taker->GetController()))
+					{
+						if (PC->UIManager)
+						{
+							PC->UIManager->ShowPickupText(
+								FText::Format(
+									FText::FromString(TEXT("{0} +{1}")),
+									ItemReference->TextData.Name,
+									ItemReference->Quantity
+								)
+							);
+						}
+					}
+
 					Destroy();
 					break;
+				}
 				}
 
 				UE_LOG(LogTemp, Warning, TEXT("%s"), *AddResult.ResultMessage.ToString());
