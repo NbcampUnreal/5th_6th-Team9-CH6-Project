@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,7 +5,6 @@
 #include "GameplayTagContainer.h"
 #include "ProjectileBase.generated.h"
 
-class USphereComponent;
 class UStaticMeshComponent;
 class UProjectileMovementComponent;
 class UPrimitiveComponent;
@@ -40,6 +37,8 @@ class STILLBOUND_API AProjectileBase : public AActor
 public:
     AProjectileBase();
 
+    virtual void Tick(float DeltaTime) override;
+
     UFUNCTION(BlueprintCallable, Category = "Weapon|Projectile")
     void InitProjectileData(
         AActor* InSourceInstigator,
@@ -50,18 +49,21 @@ public:
     );
 
     UFUNCTION(BlueprintPure, Category = "Weapon|Projectile")
-    USphereComponent* GetCollisionComp() const { return CollisionComp; }
+    UStaticMeshComponent* GetProjectileMesh() const { return ProjectileMesh; }
 
     UFUNCTION(BlueprintPure, Category = "Weapon|Projectile")
     UProjectileMovementComponent* GetProjectileMovement() const { return ProjectileMovement; }
+
+    // 수정: 임펄스 모드용 물리 중력 배율 설정
+    void ConfigureImpulsePhysics(UPrimitiveComponent* InPhysicsComponent, float InGravityScale);
 
 protected:
     virtual void BeginPlay() override;
 
 protected:
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Projectile")
-    TObjectPtr<USphereComponent> CollisionComp;
-
+    // 수정:
+    // 메쉬 자체를 충돌 주체로 사용
+    // 충돌 채널/프리셋은 BP에서 설정
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Projectile")
     TObjectPtr<UStaticMeshComponent> ProjectileMesh;
 
@@ -92,6 +94,11 @@ protected:
 
     UPROPERTY()
     bool bHasImpactProcessed = false;
+
+    // 수정: 임펄스 모드에서 GravityScale > 1 지원용
+    TWeakObjectPtr<UPrimitiveComponent> ImpulsePhysicsComponent;
+    bool bUseCustomImpulseGravity = false;
+    float ImpulseGravityScale = 0.f;
 
 protected:
     UFUNCTION()

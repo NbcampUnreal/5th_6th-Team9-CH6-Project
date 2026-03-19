@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "Weapons/RangedWeapon/ProjectileBase.h"
 
 #include "Weapons/WeaponBase.h"
@@ -9,7 +7,6 @@
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
 
-#include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PrimitiveComponent.h"
 
@@ -20,43 +17,92 @@
 
 AProjectileBase::AProjectileBase()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bStartWithTickEnabled = false;
 
-    CollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComp"));
-    SetRootComponent(CollisionComp);
-
-    CollisionComp->InitSphereRadius(8.f);
-    CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-    CollisionComp->SetCollisionObjectType(ECC_WorldDynamic);
-    CollisionComp->SetCollisionResponseToAllChannels(ECR_Ignore);
-    CollisionComp->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
-    CollisionComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
-    CollisionComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
-    CollisionComp->SetGenerateOverlapEvents(true);
-    CollisionComp->SetNotifyRigidBodyCollision(true);
-    CollisionComp->SetCanEverAffectNavigation(false);
-
+    // 수정:
+    // 메쉬 자체를 충돌 주체로 사용
+    // 충돌 채널/프리셋은 BP에서 설정
     ProjectileMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileMesh"));
-    ProjectileMesh->SetupAttachment(CollisionComp);
-    ProjectileMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    ProjectileMesh->SetGenerateOverlapEvents(false);
+    SetRootComponent(ProjectileMesh);
+
+    // 수정: 생성자 최소화
+    ProjectileMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    ProjectileMesh->SetNotifyRigidBodyCollision(true);
+    ProjectileMesh->SetGenerateOverlapEvents(true);
     ProjectileMesh->SetCanEverAffectNavigation(false);
 
+    // 수정:
+    // 고속 임펄스 관통 완화용 CCD
+    // 실제 충돌 형태는 메쉬 에셋의 simple collision 사용
+    ProjectileMesh->BodyInstance.SetUseCCD(true);
+
+    // 수정:
+    // 기본은 물리 off
+    // 임펄스 모드에서만 Ability 쪽에서 켠다
+    ProjectileMesh->SetSimulatePhysics(false);
+    ProjectileMesh->SetEnableGravity(false);
+
     ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
-    ProjectileMovement->UpdatedComponent = CollisionComp;
-    ProjectileMovement->InitialSpeed = 3000.f;
-    ProjectileMovement->MaxSpeed = 3000.f;
+    ProjectileMovement->UpdatedComponent = ProjectileMesh;
+
+    // 수정: 자동 발사 방지. 발사 시점에 GA가 값 넣는다.
+    ProjectileMovement->InitialSpeed = 0.f;
+    ProjectileMovement->MaxSpeed = 0.f;
     ProjectileMovement->ProjectileGravityScale = 0.f;
+    ProjectileMovement->Velocity = FVector::ZeroVector;
+    ProjectileMovement->bAutoActivate = false;
     ProjectileMovement->bRotationFollowsVelocity = true;
     ProjectileMovement->bShouldBounce = false;
 
-    CollisionComp->OnComponentHit.AddDynamic(this, &ThisClass::OnProjectileHit);
-    CollisionComp->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnProjectileBeginOverlap);
+    ProjectileMesh->OnComponentHit.AddDynamic(this, &ThisClass::OnProjectileHit);
+    ProjectileMesh->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnProjectileBeginOverlap);
 }
 
 void AProjectileBase::BeginPlay()
 {
     Super::BeginPlay();
+
+    SetActorTickEnabled(false);
+}
+
+void AProjectileBase::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    if (!bUseCustomImpulseGravity)
+    {
+        return;
+    }
+
+    UPrimitiveComponent* Prim = ImpulsePhysicsComponent.Get();
+    UWorld* World = GetWorld();
+    if (!Prim || !World || !Prim->IsSimulatingPhysics())
+    {
+        bUseCustomImpulseGravity = false;
+        ImpulsePhysicsComponent = nullptr;
+        SetActorTickEnabled(false);
+        return;
+    }
+
+    // GravityScale <= 0 은 무중력 처리
+    if (ImpulseGravityScale <= 0.f)
+    {
+        return;
+    }
+
+    // 1.0 은 엔진 기본 중력만 사용
+    if (FMath::IsNearlyEqual(ImpulseGravityScale, 1.f))
+    {
+        return;
+    }
+
+    // 엔진 기본 중력 1배 외 추가 배율만 보정
+    const float ExtraGravityScale = ImpulseGravityScale - 1.f;
+    const float GravityZ = World->GetGravityZ(); // 보통 음수
+    const FVector ExtraForce = FVector(0.f, 0.f, Prim->GetMass() * GravityZ * ExtraGravityScale);
+
+    Prim->AddForce(ExtraForce, NAME_None, true);
 }
 
 void AProjectileBase::InitProjectileData(
@@ -70,26 +116,30 @@ void AProjectileBase::InitProjectileData(
     SourceInstigatorActor = InSourceInstigator;
     SourceWeapon = InSourceWeapon;
     BaseDamageEffectClass = InBaseDamageEffectClass;
-    CachedFinalDamage = FMath::Max(0.f, InFinalDamage);
+    CachedFinalDamage = InFinalDamage;
     OnHitTargetEffects = InOnHitTargetEffects;
+    bHasImpactProcessed = false;
+}
 
-    if (CollisionComp)
+void AProjectileBase::ConfigureImpulsePhysics(UPrimitiveComponent* InPhysicsComponent, float InGravityScale)
+{
+    ImpulsePhysicsComponent = InPhysicsComponent;
+    ImpulseGravityScale = FMath::Max(0.f, InGravityScale);
+
+    if (!InPhysicsComponent)
     {
-        if (InSourceInstigator)
-        {
-            CollisionComp->IgnoreActorWhenMoving(InSourceInstigator, true);
-        }
-
-        if (InSourceWeapon)
-        {
-            CollisionComp->IgnoreActorWhenMoving(InSourceWeapon, true);
-        }
-
-        if (AActor* OwnerActor = GetOwner())
-        {
-            CollisionComp->IgnoreActorWhenMoving(OwnerActor, true);
-        }
+        bUseCustomImpulseGravity = false;
+        SetActorTickEnabled(false);
+        return;
     }
+
+    InPhysicsComponent->SetEnableGravity(ImpulseGravityScale > 0.f);
+
+    bUseCustomImpulseGravity =
+        (ImpulseGravityScale > 0.f) &&
+        !FMath::IsNearlyEqual(ImpulseGravityScale, 1.f);
+
+    SetActorTickEnabled(bUseCustomImpulseGravity);
 }
 
 void AProjectileBase::OnProjectileHit(
@@ -117,7 +167,77 @@ void AProjectileBase::OnProjectileBeginOverlap(
         return;
     }
 
-    HandleImpact(SweepResult, OtherActor);
+    FHitResult HitResult = SweepResult;
+
+    if (!bFromSweep)
+    {
+        // 수정:
+        // FHitResult에 Actor 직접 대입하지 않음
+        // 대상 액터는 HandleImpact의 ExplicitOtherActor로 전달
+        HitResult.Location = GetActorLocation();
+        HitResult.ImpactPoint = GetActorLocation();
+
+        if (OtherActor)
+        {
+            HitResult.TraceEnd = OtherActor->GetActorLocation();
+            HitResult.Normal = (GetActorLocation() - OtherActor->GetActorLocation()).GetSafeNormal();
+            HitResult.ImpactNormal = HitResult.Normal;
+        }
+        else
+        {
+            HitResult.TraceEnd = GetActorLocation();
+            HitResult.Normal = FVector::UpVector;
+            HitResult.ImpactNormal = FVector::UpVector;
+        }
+    }
+
+    HandleImpact(HitResult, OtherActor);
+}
+
+void AProjectileBase::HandleImpact(const FHitResult& HitResult, AActor* ExplicitOtherActor)
+{
+    AActor* TargetActor = ExplicitOtherActor ? ExplicitOtherActor : HitResult.GetActor();
+
+    if (TargetActor && ShouldIgnoreActor(TargetActor))
+    {
+        return;
+    }
+
+    if (bHasImpactProcessed)
+    {
+        return;
+    }
+
+    bHasImpactProcessed = true;
+
+    SpawnWeaponHitImpactFXFromHitResult(HitResult);
+
+    if (TargetActor)
+    {
+        ApplyDamageAndEffectsToTarget(TargetActor);
+    }
+
+    if (ProjectileMovement)
+    {
+        ProjectileMovement->StopMovementImmediately();
+        ProjectileMovement->Deactivate();
+    }
+
+    if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(GetRootComponent()))
+    {
+        if (Prim->IsSimulatingPhysics())
+        {
+            Prim->SetPhysicsLinearVelocity(FVector::ZeroVector);
+            Prim->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+        }
+
+        Prim->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    }
+
+    if (bDestroyOnImpact)
+    {
+        Destroy();
+    }
 }
 
 bool AProjectileBase::ShouldIgnoreActor(AActor* OtherActor) const
@@ -132,22 +252,17 @@ bool AProjectileBase::ShouldIgnoreActor(AActor* OtherActor) const
         return true;
     }
 
-    if (OtherActor == GetOwner())
+    if (SourceInstigatorActor.IsValid() && OtherActor == SourceInstigatorActor.Get())
     {
         return true;
     }
 
-    if (OtherActor == GetInstigator())
+    if (SourceWeapon.IsValid() && OtherActor == SourceWeapon.Get())
     {
         return true;
     }
 
-    if (OtherActor == SourceInstigatorActor.Get())
-    {
-        return true;
-    }
-
-    if (OtherActor == SourceWeapon.Get())
+    if (GetOwner() && OtherActor == GetOwner())
     {
         return true;
     }
@@ -155,60 +270,22 @@ bool AProjectileBase::ShouldIgnoreActor(AActor* OtherActor) const
     return false;
 }
 
-void AProjectileBase::HandleImpact(const FHitResult& HitResult, AActor* ExplicitOtherActor)
-{
-    if (bHasImpactProcessed)
-    {
-        return;
-    }
-
-    AActor* HitActor = HitResult.GetActor();
-    if (!HitActor)
-    {
-        HitActor = ExplicitOtherActor;
-    }
-
-    if (ShouldIgnoreActor(HitActor))
-    {
-        return;
-    }
-
-    bHasImpactProcessed = true;
-
-    // 수정: 월드/벽 포함해서 먼저 FX 처리
-    SpawnWeaponHitImpactFXFromHitResult(HitResult);
-
-    if (HitActor)
-    {
-        ApplyDamageAndEffectsToTarget(HitActor);
-    }
-
-    if (bDestroyOnImpact)
-    {
-        Destroy();
-    }
-}
-
 bool AProjectileBase::ApplyDamageAndEffectsToTarget(AActor* TargetActor) const
 {
-    if (!TargetActor)
+    if (!TargetActor || ShouldIgnoreActor(TargetActor))
     {
         return false;
     }
 
     bool bAnyApplied = false;
 
-    // 수정: Projectile은 데미지를 다시 계산하지 않고
-    // 수정: GA가 넘겨준 최종 데미지 캐시만 사용
     if (CachedFinalDamage > 0.f)
     {
-        bAnyApplied |= ApplyBaseDamageToTargetActor(TargetActor, CachedFinalDamage, 1.0f, 1.0f);
+        bAnyApplied |= ApplyBaseDamageToTargetActor(TargetActor, CachedFinalDamage, 1.f, 1.f);
     }
 
     const FGameplayTag DamageTag = GetDataDamageTag();
 
-    // 수정: RangedWeaponBase의 FRangedOnHitGameplayEffectSpec 대신
-    // 수정: Projectile 전용 FProjectileOnHitGameplayEffectSpec 사용
     for (const FProjectileOnHitGameplayEffectSpec& Spec : OnHitTargetEffects)
     {
         if (!Spec.Effect)
@@ -217,8 +294,6 @@ bool AProjectileBase::ApplyDamageAndEffectsToTarget(AActor* TargetActor) const
         }
 
         TMap<FGameplayTag, float> Mags = Spec.SetByCallerMagnitudes;
-
-        // 수정: 기본 데미지는 BaseDamageEffectClass에서 이미 처리했으므로 중복 제거
         if (DamageTag.IsValid())
         {
             Mags.Remove(DamageTag);
@@ -258,25 +333,14 @@ bool AProjectileBase::ApplyEffectToTargetActor(
         }
     }
 
-    AActor* InstigatorActor = SourceInstigatorActor.Get();
-    if (!InstigatorActor)
-    {
-        InstigatorActor = GetOwner();
-    }
-
+    AActor* SourceActor = SourceInstigatorActor.Get();
     UAbilitySystemComponent* SourceASC =
-        InstigatorActor ? UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(InstigatorActor) : nullptr;
-
-    if (!SourceASC)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[Projectile] SourceASC is null. Projectile=%s"), *GetNameSafe(this));
-        return false;
-    }
+        SourceActor ? UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(SourceActor) : nullptr;
 
     UAbilitySystemComponent* TargetASC =
         UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
 
-    if (!TargetASC)
+    if (!SourceASC || !TargetASC)
     {
         return false;
     }
@@ -284,10 +348,11 @@ bool AProjectileBase::ApplyEffectToTargetActor(
     AWeaponBase* Weapon = SourceWeapon.Get();
 
     FGameplayEffectContextHandle Ctx = SourceASC->MakeEffectContext();
-    if (InstigatorActor)
+    if (SourceActor)
     {
-        Ctx.AddInstigator(InstigatorActor, Weapon ? Cast<AActor>(Weapon) : InstigatorActor);
+        Ctx.AddInstigator(SourceActor, Weapon ? Cast<AActor>(Weapon) : SourceActor);
     }
+
     if (Weapon)
     {
         Ctx.AddSourceObject(Weapon);
@@ -296,8 +361,6 @@ bool AProjectileBase::ApplyEffectToTargetActor(
     FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(EffectClass, Level, Ctx);
     if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Projectile] MakeOutgoingSpec failed. Effect=%s Projectile=%s"),
-            *GetNameSafe(EffectClass), *GetNameSafe(this));
         return false;
     }
 
@@ -320,7 +383,12 @@ bool AProjectileBase::ApplyBaseDamageToTargetActor(
     float Chance
 ) const
 {
-    if (!TargetActor || DamageValue <= 0.f || !BaseDamageEffectClass)
+    if (!TargetActor || DamageValue <= 0.f)
+    {
+        return false;
+    }
+
+    if (!BaseDamageEffectClass)
     {
         return false;
     }
@@ -333,13 +401,6 @@ bool AProjectileBase::ApplyBaseDamageToTargetActor(
 
     TMap<FGameplayTag, float> Mags;
     Mags.Add(DamageTag, DamageValue);
-
-    UE_LOG(LogTemp, Log,
-        TEXT("[Projectile] ApplyDamage Final=%.2f Target=%s Weapon=%s Projectile=%s"),
-        DamageValue,
-        *GetNameSafe(TargetActor),
-        *GetNameSafe(SourceWeapon.Get()),
-        *GetNameSafe(this));
 
     return ApplyEffectToTargetActor(
         TargetActor,
@@ -370,24 +431,33 @@ bool AProjectileBase::SpawnWeaponHitImpactFXFromHitResult(const FHitResult& HitR
         return false;
     }
 
-    FVector SpawnLocation = HitResult.ImpactPoint;
-    if (SpawnLocation.IsNearlyZero())
+    FVector SpawnLocation = FVector::ZeroVector;
+    FVector ImpactNormal = FVector::UpVector;
+
+    if (!HitResult.ImpactPoint.IsNearlyZero())
+    {
+        SpawnLocation = HitResult.ImpactPoint;
+    }
+    else if (!HitResult.Location.IsNearlyZero())
     {
         SpawnLocation = HitResult.Location;
     }
-    if (SpawnLocation.IsNearlyZero())
+    else if (HitResult.GetActor())
+    {
+        SpawnLocation = HitResult.GetActor()->GetActorLocation();
+    }
+    else
     {
         SpawnLocation = GetActorLocation();
     }
 
-    FVector ImpactNormal = HitResult.ImpactNormal;
-    if (ImpactNormal.IsNearlyZero())
+    if (!HitResult.ImpactNormal.IsNearlyZero())
+    {
+        ImpactNormal = HitResult.ImpactNormal;
+    }
+    else if (!HitResult.Normal.IsNearlyZero())
     {
         ImpactNormal = HitResult.Normal;
-    }
-    if (ImpactNormal.IsNearlyZero())
-    {
-        ImpactNormal = FVector::UpVector;
     }
 
     FRotator SpawnRotation = FRotator::ZeroRotator;
@@ -396,7 +466,9 @@ bool AProjectileBase::SpawnWeaponHitImpactFXFromHitResult(const FHitResult& HitR
         SpawnRotation = ImpactNormal.Rotation();
     }
 
-    const FVector FinalLocation = SpawnLocation + SpawnRotation.RotateVector(FX.LocationOffset);
+    const FVector FinalLocation =
+        SpawnLocation + SpawnRotation.RotateVector(FX.LocationOffset);
+
     const FRotator FinalRotation = SpawnRotation + FX.RotationOffset;
 
     UNiagaraFunctionLibrary::SpawnSystemAtLocation(
@@ -416,5 +488,11 @@ FGameplayTag AProjectileBase::GetDataDamageTag()
 {
     static const FGameplayTag Tag =
         FGameplayTag::RequestGameplayTag(TEXT("Data.EnemyDamage"), false);
+
+    ensureMsgf(
+        Tag.IsValid(),
+        TEXT("[ProjectileBase] GameplayTag 'Data.EnemyDamage' is not registered.")
+    );
+
     return Tag;
 }
