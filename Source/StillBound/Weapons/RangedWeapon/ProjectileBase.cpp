@@ -63,6 +63,7 @@ void AProjectileBase::BeginPlay()
 {
     Super::BeginPlay();
 
+
     SetActorTickEnabled(false);
 }
 
@@ -119,6 +120,7 @@ void AProjectileBase::InitProjectileData(
     CachedFinalDamage = InFinalDamage;
     OnHitTargetEffects = InOnHitTargetEffects;
     bHasImpactProcessed = false;
+    SetupIgnoredActors();
 }
 
 void AProjectileBase::ConfigureImpulsePhysics(UPrimitiveComponent* InPhysicsComponent, float InGravityScale)
@@ -495,4 +497,52 @@ FGameplayTag AProjectileBase::GetDataDamageTag()
     );
 
     return Tag;
+}
+
+void AProjectileBase::SetupIgnoredActors()
+{
+    if (!ProjectileMesh)
+    {
+        return;
+    }
+
+    TArray<AActor*> ActorsToIgnore;
+
+    if (AActor* OwnerActor = GetOwner())
+    {
+        ActorsToIgnore.AddUnique(OwnerActor);
+    }
+
+    if (SourceInstigatorActor.IsValid())
+    {
+        ActorsToIgnore.AddUnique(SourceInstigatorActor.Get());
+    }
+
+    if (SourceWeapon.IsValid())
+    {
+        ActorsToIgnore.AddUnique(SourceWeapon.Get());
+    }
+
+    for (AActor* ActorToIgnore : ActorsToIgnore)
+    {
+        if (!ActorToIgnore)
+        {
+            continue;
+        }
+
+        // 프로젝타일이 이동할 때 이 액터를 무시
+        ProjectileMesh->IgnoreActorWhenMoving(ActorToIgnore, true);
+
+       
+
+        // 상대쪽 컴포넌트도 가능하면 이 프로젝타일을 무시
+        TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(ActorToIgnore);
+        for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
+        {
+            if (PrimComp)
+            {
+                PrimComp->IgnoreActorWhenMoving(this, true);
+            }
+        }
+    }
 }

@@ -145,4 +145,6 @@ protected:
     bool SpawnWeaponHitImpactFXFromHitResult(const FHitResult& HitResult) const;
 
     static FGameplayTag GetDataDamageTag();
+
+    void SetupIgnoredActors();
 };
