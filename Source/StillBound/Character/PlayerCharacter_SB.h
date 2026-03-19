@@ -1,4 +1,4 @@
-
+﻿
 #pragma once
 
 #include "CoreMinimal.h"
@@ -76,6 +76,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category="Drop")
 	TSubclassOf<APickup> PickupClass;
+	
+	//사망 애니메이션 관련
+	UFUNCTION(BlueprintImplementableEvent, Category = "Death", meta = (DisplayName = "On Death Animation Finished"))
+	void K2_OnDeathAnimationFinished();
 
 public:
 	UPROPERTY(VisibleAnywhere, Category = "Inventory")
@@ -104,11 +108,17 @@ public:
 	void HandleHotbarSelectionChanged();
 	void UseSelectedHotbarItem();
 
+	bool ConsumeSelectedThrowableAfterThrow();
+
 	UFUNCTION(BlueprintCallable)
 	void OpenCraftingUI(FName InStationTag, UDataTable* InRecipeTable);
 
 	UFUNCTION(BlueprintCallable)
 	void Die();
+
+	// 부활 관련 함수
+	UFUNCTION(BlueprintCallable)
+	void Revive();
 
 	// ===== 기본 무기 설정 (BP에서 설정) =====
 	// 게임 시작 시 생성할 무기 클래스
@@ -185,6 +195,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UItemBase> SelectedConsumable = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UItemBase> SelectedThrowable = nullptr;
 
 	//============채집 기능 추가
 public:

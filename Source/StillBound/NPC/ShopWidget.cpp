@@ -9,6 +9,8 @@
 #include "Items/ItemBase.h"
 #include "UI/Inventory/ItemDragDropOperation.h"
 #include "Components/WrapBox.h"
+#include "Components/ScrollBox.h"
+#include "Components/ScrollBoxSlot.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
@@ -100,6 +102,8 @@ void UShopWidget::InitializeShop(ANPCCharacter* InNPCCharacter)
     // 인벤토리 업데이트 델리게이트 바인딩
     PlayerInventory->OnInventoryUpdated.AddUniqueDynamic(this, &UShopWidget::OnInventoryUpdated);
     PlayerInventory->OnHotbarUpdated.AddUObject(this, &UShopWidget::OnInventoryUpdated);
+
+    UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] Inventory delegates bound"));
 
     // 상점 이름 설정
     if (TXT_ShopName)
@@ -329,6 +333,10 @@ bool UShopWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 
     // Shift 키로 전체 판매 여부 확인
     int32 SellQuantity = InDragDropEvent.IsShiftDown() ? DraggedItem->Quantity : 1;
+
+    FName ItemRowName = DraggedItem->ID;
+    FText ItemName = DraggedItem->TextData.Name;
+
     APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
     if (!Player) return false;
 
@@ -342,7 +350,18 @@ bool UShopWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 
             // UI 업데이트
             UpdateGoldDisplay();
-            RefreshShop();
+
+            // 판매 기록 추가
+            FSoldItemRecord Record;
+            Record.ItemRowName = ItemRowName;
+            Record.Quantity = SellQuantity;
+            Record.GoldEarned = TotalGold;
+            SoldItemHistory.Add(Record);
+
+            // 판매 목록 갱신
+            RefreshSoldItems();
+
+            DisplayPlayerInventory();
 
             UE_LOG(LogTemp, Log, TEXT("[ShopWidget] Sold %dx %s for %dG"),
                 SellQuantity,
@@ -438,6 +457,8 @@ void UShopWidget::SwitchTab(bool bShowBuy)
 {
     bShowBuyTab = bShowBuy;
 
+    RefreshShop();
+
     if (Border_BuyPanel)
     {
         Border_BuyPanel->SetVisibility(bShowBuy ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
@@ -452,8 +473,6 @@ void UShopWidget::SwitchTab(bool bShowBuy)
     {
         Border_LeftPanel->SetVisibility(bShowBuy ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
     }
-
-    RefreshShop();
 }
 
 // ============================================
@@ -466,6 +485,8 @@ void UShopWidget::OnCloseButtonClicked()
 
 void UShopWidget::CloseShop()
 {
+    SoldItemHistory.Empty();
+
     // 입력 모드 복구
     if (APlayerController* PC = GetOwningPlayer())
     {
@@ -484,6 +505,46 @@ void UShopWidget::CloseShop()
     RemoveFromParent();
 
     UE_LOG(LogTemp, Log, TEXT("[ShopWidget] Shop closed"));
+}
+
+void UShopWidget::RefreshSoldItems()
+{
+    if (!SB_SoldItems || !NPCCharacter) return;
+    SB_SoldItems->ClearChildren();
+
+    for (const FSoldItemRecord& Record : SoldItemHistory)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[RefreshSoldItems] Adding: %s"), *Record.ItemRowName.ToString());
+
+        UShopItemSlot* ItemSlot = CreateWidget<UShopItemSlot>(this, ShopItemSlotClass);
+        if (!ItemSlot)
+        {
+            UE_LOG(LogTemp, Error, TEXT("[RefreshSoldItems] ItemSlot NULL!"));
+            continue;
+        }
+
+        const FItemDataRow* ItemData = NPCCharacter->GetItemData(Record.ItemRowName);
+        if (!ItemData)
+        {
+            UE_LOG(LogTemp, Error, TEXT("[RefreshSoldItems] ItemData NULL for: %s"), *Record.ItemRowName.ToString());
+            continue;
+        }
+
+        FShopItemData TempData;
+        TempData.ItemRowName = Record.ItemRowName;
+        TempData.CurrentStock = Record.Quantity;
+        TempData.MaxStock = Record.Quantity;
+
+        ItemSlot->SetShopItemData(TempData, this, NPCCharacter);
+        //ItemSlot->SetBuyButtonVisible(false);
+
+        UScrollBoxSlot* ScrollSlot = Cast<UScrollBoxSlot>(SB_SoldItems->AddChild(ItemSlot));
+
+        UE_LOG(LogTemp, Warning, TEXT("[RefreshSoldItems] Children count: %d, ScrollSlot valid: %s"),
+            SB_SoldItems->GetChildrenCount(),
+            ScrollSlot ? TEXT("YES") : TEXT("NO"));
+    
+    }
 }
 
 // ============================================

@@ -21,7 +21,8 @@ void UShopItemSlot::NativeConstruct()
     // 버튼 바인딩
     if (BTN_Buy)
     {
-        BTN_Buy->OnClicked.AddDynamic(this, &UShopItemSlot::OnBuyButtonClicked);
+        //BTN_Buy->OnClicked.AddDynamic(this, &UShopItemSlot::OnBuyButtonClicked);
+        BTN_Buy->OnClicked.AddUniqueDynamic(this, &UShopItemSlot::OnBuyButtonClicked);
     }
 }
 

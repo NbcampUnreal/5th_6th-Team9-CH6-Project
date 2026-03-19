@@ -223,6 +223,12 @@ void UWeaponMeleeAttackAbilityBase::OnHitBoxBeginOverlap(
         return;
     }
 
+    const FVector SpawnLoc =
+        OtherComp ? OtherComp->GetComponentLocation() : OtherActor->GetActorLocation();
+
+    SpawnWeaponHitImpactFXAtLocation(SpawnLoc, FVector::UpVector);
+
+
     HitActors.Add(OtherActor);
 
     if (CachedProfile.bHitFirstTargetOnly)

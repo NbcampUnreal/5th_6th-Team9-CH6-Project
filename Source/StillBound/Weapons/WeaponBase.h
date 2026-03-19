@@ -14,6 +14,7 @@ class UGameplayAbility;
 class UGameplayEffect;
 class USceneComponent;
 class UItemBase;
+class UNiagaraSystem;
 
 USTRUCT(BlueprintType)
 struct FWeaponAbilityGrant
@@ -41,6 +42,32 @@ struct FWeaponEffectGrant
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|GAS")
     float EffectLevel = 1.f;
+};
+
+USTRUCT(BlueprintType)
+struct FWeaponHitImpactFX
+{
+    GENERATED_BODY()
+
+    /** 타격 위치에 스폰할 나이아가라 */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX")
+    TObjectPtr<UNiagaraSystem> NiagaraSystem = nullptr;
+
+    /** 스폰 스케일 */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX")
+    FVector Scale = FVector(1.f, 1.f, 1.f);
+
+    /** 히트 위치 기준 추가 오프셋 */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX")
+    FVector LocationOffset = FVector::ZeroVector;
+
+    /** 히트 노멀 기준 추가 회전 오프셋 */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX")
+    FRotator RotationOffset = FRotator::ZeroRotator;
+
+    /** true면 ImpactNormal 방향으로 회전, false면 기본 회전 사용 */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX")
+    bool bUseImpactNormalRotation = true;
 };
 
 USTRUCT()
@@ -95,6 +122,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "Weapon|Tags")
     FGameplayTag GetWeaponTypeTag() const { return WeaponTypeTag; }
 
+    UFUNCTION(BlueprintPure, Category = "Weapon|FX")
+    const FWeaponHitImpactFX& GetHitImpactFX() const { return HitImpactFX; }
+
     UFUNCTION(BlueprintPure, Category = "Weapon|Equip")
     FName GetEquipSocketName() const { return EquipSocketName; }
 
@@ -122,6 +152,8 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|GAS")
     TArray<FWeaponEffectGrant> GrantedEffects;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|FX")
+    FWeaponHitImpactFX HitImpactFX;
 protected:
     virtual void GrantToASC(UAbilitySystemComponent* ASC);
     virtual void RevokeFromASC(UAbilitySystemComponent* ASC);

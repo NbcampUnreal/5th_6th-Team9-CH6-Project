@@ -1,4 +1,4 @@
-#include "Character/PlayerCharacter_SB.h"
+﻿#include "Character/PlayerCharacter_SB.h"
 #include "AbilitySystemComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -98,7 +98,7 @@ void APlayerCharacter_SB::BeginPlay()
 bool APlayerCharacter_SB::EquipWeaponFromItem(UItemBase* Item)
 {
 	if (!Item ||
-		(Item->ItemType != EItemType::Weapon && Item->ItemType != EItemType::Tool))
+		(Item->ItemType != EItemType::Weapon && Item->ItemType != EItemType::Tool&& Item->ItemType != EItemType::Material))
 	{
 		return false;
 	}
@@ -478,6 +478,7 @@ void APlayerCharacter_SB::SelectHotbarIndex(int32 NewIndex)
 void APlayerCharacter_SB::HandleHotbarSelectionChanged()
 {
 	SelectedConsumable = nullptr;
+	SelectedThrowable = nullptr;
 
 	if (!PlayerInventory) return;
 	
@@ -513,6 +514,14 @@ void APlayerCharacter_SB::HandleHotbarSelectionChanged()
 		break;
 
 	case EItemType::Material:
+		//추가: EquipWeaponClass가 있는 Material만 투척용으로 기억 + 장착
+		if (!Item->EquipWeaponClass.IsNull())
+		{
+			SelectedThrowable = Item;
+			EquipWeaponFromItem(Item);
+		}
+		break;
+		break;
 	case EItemType::Building:
 	default:
 		break;
@@ -546,6 +555,44 @@ void APlayerCharacter_SB::UseSelectedHotbarItem()
 	{
 		SelectedConsumable = Cur;
 	}
+}
+
+bool APlayerCharacter_SB::ConsumeSelectedThrowableAfterThrow()
+{
+	if (!PlayerInventory) return false;
+
+	if (!SelectedThrowable) return false;
+	if (SelectedThrowable->ItemType != EItemType::Material) return false;
+	if (SelectedThrowable->EquipWeaponClass.IsNull()) return false;
+
+	UItemBase* Cur = PlayerInventory->GetItemInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex);
+	if (!Cur || Cur != SelectedThrowable) return false;
+
+	PlayerInventory->RemoveAmountInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex, 1);
+
+	UE_LOG(LogTemp, Log, TEXT("[Throwable] Consumed 1 item from hotbar index %d. ItemID=%s"),
+		CurrentHotbarIndex, *Cur->ID.ToString());
+
+	Cur = PlayerInventory->GetItemInContainer(ESlotContainer::Hotbar, CurrentHotbarIndex);
+	if (!Cur)
+	{
+		SelectedThrowable = nullptr;
+		UnequipWeapon(); // 마지막 1개 던졌으면 손에서 해제
+	}
+	else
+	{
+		if (Cur->ItemType == EItemType::Material && !Cur->EquipWeaponClass.IsNull())
+		{
+			SelectedThrowable = Cur;
+		}
+		else
+		{
+			SelectedThrowable = nullptr;
+			HandleHotbarSelectionChanged();
+		}
+	}
+
+	return true;
 }
 
 void APlayerCharacter_SB::OpenCraftingUI(FName InStationTag, UDataTable* InRecipeTable)
@@ -633,6 +680,14 @@ void APlayerCharacter_SB::Die()
 
 	bIsDead = true;
 
+	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
+	{
+		if (PC->UIManager)
+		{
+			PC->UIManager->ShowGameClear(false);
+		}
+	}
+
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
 		Move->StopMovementImmediately();
@@ -649,19 +704,52 @@ void APlayerCharacter_SB::Die()
 		}
 	}
 
+	float DelayTimer = 2.0f;
+
 	if (DeathMontage)
 	{
-		PlayAnimMontage(DeathMontage, 1.5f);
-		return;
+		DelayTimer = PlayAnimMontage(DeathMontage, 1.5f);
 	}
 
-	//GetWorldTimerManager().SetTimer(
-	//	RagdollTimerHandle,
-	//	this,
-	//	&APlayerCharacter_SB::EnableRagdoll,
-	//	2.0f,
-	//	false
-	//);
+	if (DelayTimer <= 0.0f)
+	{
+		DelayTimer = 0.1f;
+	}
+
+	FTimerHandle TimerHandle_DeathUI;
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			TimerHandle_DeathUI,
+			this,
+			&APlayerCharacter_SB::K2_OnDeathAnimationFinished,
+			DelayTimer,
+			false
+		);
+	}
+}
+
+//부활 관련 코드 추가
+void APlayerCharacter_SB::Revive()
+{
+	if (!bIsDead) return;
+
+	bIsDead = false;
+
+	if (UCharacterMovementComponent* Move = GetCharacterMovement())
+	{
+		Move->SetMovementMode(MOVE_Walking);
+	}
+
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+
+
+	if (AbilitySystemComponent)
+	{
+		float MaxHealth = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
+		AbilitySystemComponent->SetNumericAttributeBase(UPlayerAttributeSet::GetHealthAttribute(), MaxHealth);
+	}
+
 }
 
 bool APlayerCharacter_SB::ModifyGold(int32 Amount)

@@ -3,6 +3,8 @@
 #include "GameplayEffectExtension.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "Character/PlayerController_SB.h"
+#include "UI/USB_UIManager.h"
 #include "GameplayTagContainer.h"
 
 void UBosAIAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -34,6 +36,12 @@ void UBosAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 			const float NewHealth = FMath::Clamp(GetHealth() - Reduced, 0.f, GetMaxHealth());
 			SetHealth(NewHealth);
 
+			APlayerController_SB* PC = Cast<APlayerController_SB>(GetWorld()->GetFirstPlayerController());
+			if (PC && PC->UIManager)
+			{
+				PC->UIManager->UpdateBossHP(NewHealth, GetMaxHealth());
+			}
+
 			AActor* Owner = GetOwningActor();
 			if (!Owner) return;
 
@@ -53,6 +61,15 @@ void UBosAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 
 			if (NewHealth <= 0.f)
 			{
+				if (APlayerController_SB* BossPC = Cast<APlayerController_SB>(GetWorld()->GetFirstPlayerController()))
+				{
+					if (BossPC->UIManager)
+					{
+						BossPC->UIManager->HideBossHP();
+						BossPC->UIManager->ShowGameClear(true);
+					}
+				}
+
 				if (!Owner->HasAuthority()) return;
 
 				if (UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Owner))

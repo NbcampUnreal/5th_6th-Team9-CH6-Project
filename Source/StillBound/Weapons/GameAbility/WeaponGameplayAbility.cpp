@@ -10,6 +10,9 @@
 
 #include "Weapons/GameEffect/GE_WeaponDamage_Instant.h"
 
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
+
 // 현재 무기의 HitBox 모양 그대로 디버그 박스를 그린다.
 
 UWeaponGameplayAbility::UWeaponGameplayAbility()
@@ -206,6 +209,102 @@ bool UWeaponGameplayAbility::ApplyWeaponDamageToTargetActor(
     }
 
     return ApplyBaseDamageToTargetActor(TargetActor, FinalDamage, Level, Chance);
+}
+
+// //수정: 공통 히트 FX 스폰 (위치/노멀 직접 전달)
+bool UWeaponGameplayAbility::SpawnWeaponHitImpactFXAtLocation(
+    const FVector& SpawnLocation,
+    const FVector& ImpactNormal
+) const
+{
+    const AWeaponBase* Weapon = GetWeaponFromSourceObject();
+    if (!Weapon)
+    {
+        return false;
+    }
+
+    const FWeaponHitImpactFX& FX = Weapon->GetHitImpactFX();
+    if (!FX.NiagaraSystem)
+    {
+        return false;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return false;
+    }
+
+    FVector FinalNormal = ImpactNormal;
+    if (FinalNormal.IsNearlyZero())
+    {
+        FinalNormal = FVector::UpVector;
+    }
+
+    FRotator SpawnRotation = FRotator::ZeroRotator;
+    if (FX.bUseImpactNormalRotation)
+    {
+        SpawnRotation = FinalNormal.Rotation();
+    }
+
+    // 로컬 오프셋을 현재 회전 기준으로 적용
+    const FVector FinalLocation =
+        SpawnLocation + SpawnRotation.RotateVector(FX.LocationOffset);
+
+    const FRotator FinalRotation = SpawnRotation + FX.RotationOffset;
+
+    UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+        World,
+        FX.NiagaraSystem,
+        FinalLocation,
+        FinalRotation,
+        FX.Scale,
+        true,
+        true
+    );
+
+    return true;
+}
+
+// //수정: FHitResult 기반 공통 히트 FX 스폰
+bool UWeaponGameplayAbility::SpawnWeaponHitImpactFXFromHitResult(const FHitResult& HitResult) const
+{
+    FVector SpawnLocation = FVector::ZeroVector;
+    FVector ImpactNormal = FVector::UpVector;
+
+    if (!HitResult.ImpactPoint.IsNearlyZero())
+    {
+        SpawnLocation = HitResult.ImpactPoint;
+    }
+    else if (!HitResult.Location.IsNearlyZero())
+    {
+        SpawnLocation = HitResult.Location;
+    }
+    else if (HitResult.GetActor())
+    {
+        SpawnLocation = HitResult.GetActor()->GetActorLocation();
+    }
+    else
+    {
+        if (bDebugHitFX)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[HitFX] SpawnFromHitResult failed: no valid location Actor=%s"),
+                *GetNameSafe(HitResult.GetActor()));
+        }
+        return false;
+       
+    }
+
+    if (!HitResult.ImpactNormal.IsNearlyZero())
+    {
+        ImpactNormal = HitResult.ImpactNormal;
+    }
+    else if (!HitResult.Normal.IsNearlyZero())
+    {
+        ImpactNormal = HitResult.Normal;
+    }
+
+    return SpawnWeaponHitImpactFXAtLocation(SpawnLocation, ImpactNormal);
 }
 
 const FGameplayAbilitySpec* UWeaponGameplayAbility::FindCurrentAbilitySpec() const
