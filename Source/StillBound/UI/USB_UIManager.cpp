@@ -398,6 +398,14 @@ bool USB_UIManager::IsPauseMenuOpen() const
 	return PauseMenuWidget && PauseMenuWidget->GetVisibility() != ESlateVisibility::Collapsed;
 }
 
+void USB_UIManager::SetBuildGuideVisible(bool bVisible)
+{
+	if (UIHUD)
+	{
+		UIHUD->SetBuildGuideVisibile(bVisible);
+	}
+}
+
 void USB_UIManager::OpenPauseMenu()
 {
 	if (!PauseMenuWidget) return;

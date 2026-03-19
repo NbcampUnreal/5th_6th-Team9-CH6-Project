@@ -6,6 +6,14 @@
 #include "UI/UW_BossHPbar.h"
 #include "UI/Inventory/HotbarPanel.h"
 #include "Inventory/InventoryComponent.h"
+#include "Components/Image.h"
+
+void UUW_UIHUD::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	SetBuildGuideVisibile(false);
+}
 
 void UUW_UIHUD::SetHP(float Current, float Max)
 {
@@ -79,5 +87,13 @@ void UUW_UIHUD::SetSelectedHotbarIndex(int32 Index)
 	if (HotbarPanel)
 	{
 		HotbarPanel->SetSelectedIndex(Index);
+	}
+}
+
+void UUW_UIHUD::SetBuildGuideVisibile(bool bVisible)
+{
+	if (BuildGuideImage)
+	{
+		BuildGuideImage->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 }

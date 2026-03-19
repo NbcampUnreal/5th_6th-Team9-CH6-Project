@@ -57,6 +57,7 @@ public:
 	void OpenPauseMenu();
 	void ClosePauseMenu();
 	bool IsPauseMenuOpen() const;
+	void SetBuildGuideVisible(bool bVisible);
 
 	UUW_FullMap* GetFullMapWidget() const { return FullMapWidget; }
 	UUW_UIHUD* GetHUD() const { return UIHUD; }

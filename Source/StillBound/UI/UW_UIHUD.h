@@ -12,6 +12,7 @@ class UBossHPbar;
 class UHotbarPanel;
 class UInventoryComponent;
 class UBuildPreview_IngredientPanel;
+class UImage;
 
 /**
  * 
@@ -22,7 +23,6 @@ class STILLBOUND_API UUW_UIHUD : public UUserWidget
 	GENERATED_BODY()
 	
 public:
-
 	UFUNCTION(BlueprintCallable)
 	void SetHP(float Current, float Max);
 
@@ -49,7 +49,10 @@ public:
 
 	UBuildPreview_IngredientPanel* GetBuildPreview_IngredientPanel() const { return BuildPreview_IngredientPanel; }
 
+	void SetBuildGuideVisibile(bool bVisible);
+
 protected:
+	virtual void NativeConstruct() override;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UUW_HPBar> HPBar;
@@ -71,5 +74,8 @@ protected:
 	
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UBuildPreview_IngredientPanel> BuildPreview_IngredientPanel;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UImage> BuildGuideImage;
 
 };
