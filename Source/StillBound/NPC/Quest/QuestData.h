@@ -9,10 +9,8 @@ UENUM(BlueprintType)
 enum class EQuestType : uint8
 {
     None        UMETA(DisplayName = "None"),
-    Kill        UMETA(DisplayName = "킬 퀘스트"),
-    Collect     UMETA(DisplayName = "수집 퀘스트"),
-    Deliver     UMETA(DisplayName = "배달 퀘스트"),
-    Talk        UMETA(DisplayName = "대화 퀘스트"),
+    Collect     UMETA(DisplayName = "Collect"),
+    Talk        UMETA(DisplayName = "Dialogue"),
 };
 
 // 퀘스트 상태

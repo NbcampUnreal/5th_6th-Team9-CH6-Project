@@ -27,6 +27,7 @@
 #include "Weapons/GameEffect/GE_RestoreStamina_Instant.h"
 
 #include "NPC/Quest/QuestComponent.h"
+#include "NPC/Quest/QuestWidget.h"
 
 #include "Animation/AnimInstance.h"
 APlayerCharacter_SB::APlayerCharacter_SB()
@@ -97,6 +98,15 @@ void APlayerCharacter_SB::BeginPlay()
 
 	BuildComponent->Camera = FollowCamera;
 
+	if (QuestWidgetClass)
+	{
+		QuestWidget = CreateWidget<UQuestWidget>(GetWorld(), QuestWidgetClass);
+		if (QuestWidget)
+		{
+			QuestWidget->AddToViewport(50);
+			QuestWidget->SetQuestComponent(QuestComponent);
+		}
+	}
 }
 
 bool APlayerCharacter_SB::EquipWeaponFromItem(UItemBase* Item)

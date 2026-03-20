@@ -3,6 +3,7 @@
 #include "Character/PlayerCharacter_SB.h"
 #include "Inventory/InventoryComponent.h"
 #include "Components/SphereComponent.h"
+#include "NPC/Quest/QuestComponent.h"
 //#include "Public/Data/ItemData.h"
 
 APickup::APickup()
@@ -129,10 +130,20 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 				case EItemAddResult::IAR_NoItemAdded:
 					break;
 				case EItemAddResult::IAR_PartialAmountItemAdded:
+					// 퀘스트 진행도 업데이트 (부분 추가된 수량)
+					if (UQuestComponent* QuestComp = Taker->FindComponentByClass<UQuestComponent>())
+					{
+						QuestComp->OnItemCollected(ItemReference->ID, AddResult.ActualAmountAdded);
+					}
 					UpdateInteractableData();
 					Taker->UpdateInteractionWidget();
 					break;
 				case EItemAddResult::IAR_AllItemAdded:
+					// 퀘스트 진행도 업데이트 (전체 수량)
+					if (UQuestComponent* QuestComp = Taker->FindComponentByClass<UQuestComponent>())
+					{
+						QuestComp->OnItemCollected(ItemReference->ID, AddResult.ActualAmountAdded);
+					}
 					Destroy();
 					break;
 				}

@@ -4,7 +4,7 @@
 UQuestComponent::UQuestComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
-}
+} 
 
 void UQuestComponent::BeginPlay()
 {

@@ -44,6 +44,7 @@ class APickup;
 class UBuildComponent;
 class UAnimMontage;
 class UQuestComponent;
+class UQuestWidget;
 
 UCLASS()
 class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB, public IInteractionInterface
@@ -208,4 +209,10 @@ protected:
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Quest")
 	UQuestComponent* QuestComponent;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Quest")
+	TSubclassOf<UQuestWidget> QuestWidgetClass;
+
+	UPROPERTY()
+	UQuestWidget* QuestWidget;
 };
