@@ -18,16 +18,16 @@ AGatherableObject::AGatherableObject()
     RootComponent = MeshComponent;
 
     // 오브젝트 크기에 상관없이 표면 근처에서 상호작용 가능
-    InteractionCollision = CreateDefaultSubobject<USphereComponent>(TEXT("InteractionCollision"));
-    InteractionCollision->SetupAttachment(RootComponent);
-    InteractionCollision->SetSphereRadius(150.f);        // BP에서 오브젝트 크기에 맞게 조절
-    InteractionCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-    InteractionCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
-    InteractionCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap); // 캐릭터만 감지
+    //InteractionCollision = CreateDefaultSubobject<USphereComponent>(TEXT("InteractionCollision"));
+    //InteractionCollision->SetupAttachment(RootComponent);
+    //InteractionCollision->SetSphereRadius(150.f);        // BP에서 오브젝트 크기에 맞게 조절
+    //InteractionCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    //InteractionCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
+    //InteractionCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap); // 캐릭터만 감지
 
-    //Block 응답 추가. PerformInteractionCheck의 LineTrace(ECC_Visibility)가 이 SphereComponent에 먼저 닿음
-    InteractionCollision->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
-    InteractionCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+    ////Block 응답 추가. PerformInteractionCheck의 LineTrace(ECC_Visibility)가 이 SphereComponent에 먼저 닿음
+    //InteractionCollision->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+    //InteractionCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 }
 
 void AGatherableObject::BeginPlay()
@@ -414,8 +414,9 @@ void AGatherableObject::OnFallComplete()
 
 float AGatherableObject::GetInteractionDistance_Implementation()
 {
-    if (!InteractionCollision) { return 225.f; }
+    /*if (!InteractionCollision) { return 225.f; }*/
 
     // SphereRadius + 여유 50cm 반환
-    return InteractionCollision->GetScaledSphereRadius() + 150.f;
+    /*return InteractionCollision->GetScaledSphereRadius() + 150.f;*/
+    return 500.f;
 }
