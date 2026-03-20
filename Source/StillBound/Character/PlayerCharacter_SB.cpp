@@ -100,12 +100,18 @@ void APlayerCharacter_SB::BeginPlay()
 
 	if (QuestWidgetClass)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[Player] Creating QuestWidget"));
 		QuestWidget = CreateWidget<UQuestWidget>(GetWorld(), QuestWidgetClass);
 		if (QuestWidget)
 		{
 			QuestWidget->AddToViewport(50);
+			QuestWidget->SetVisibility(ESlateVisibility::Collapsed); // 초기 숨김
 			QuestWidget->SetQuestComponent(QuestComponent);
 		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Player] QuestWidgetClass is NULL!"));
 	}
 }
 

@@ -36,14 +36,20 @@ void UQuestWidget::RefreshQuestObjectives()
 
     TArray<FQuestProgress> ActiveQuests = QuestComponent->GetActiveQuests();
 
-    // 퀘스트 없으면 "없음" 텍스트 표시
+    // 퀘스트 없으면 위젯 전체 숨기기
+    if (ActiveQuests.Num() == 0)
+    {
+        SetVisibility(ESlateVisibility::Collapsed);
+        return;
+    }
+
+    // 퀘스트 있으면 위젯 표시
+    SetVisibility(ESlateVisibility::Visible);
+
+    // TXT_NoQuest 숨기기
     if (TXT_NoQuest)
     {
-        TXT_NoQuest->SetVisibility(
-            ActiveQuests.Num() == 0 ?
-            ESlateVisibility::Visible :
-            ESlateVisibility::Collapsed
-        );
+        TXT_NoQuest->SetVisibility(ESlateVisibility::Collapsed);
     }
 
     for (const FQuestProgress& Progress : ActiveQuests)
