@@ -303,24 +303,15 @@ void AAltaractor::EndArena()
 	// 아레나 벽 전부 제거
 	for (ABossArenaWall* Wall : SpawnedWalls)
 	{
-		if (IsValid(Wall))
-		{
-			Wall->Destroy();
-		}
+		if (IsValid(Wall)) Wall->Destroy();
 	}
 	SpawnedWalls.Empty();
 
-	//리스폰용 데이터 로컬 복사 (Destroy 전에 저장)
 	UWorld* World = GetWorld();
 	TSubclassOf<AAltaractor> ClassToSpawn = AltarBPClass;
-	FVector SpawnLoc = AltarSpawnLocation;
+	FVector  SpawnLoc = AltarSpawnLocation;
 	FRotator SpawnRot = AltarSpawnRotation;
 	FVector  SpawnScale = AltarSpawnScale;
-
-	// 스폰 전 지면 높이 보정
-	FHitResult GroundHit;
-	FVector TraceStart = SpawnLoc + FVector(0.f, 0.f, 500.f);
-	FVector TraceEnd = SpawnLoc - FVector(0.f, 0.f, 500.f);
 
 	if (!World || !ClassToSpawn)
 	{
@@ -331,19 +322,22 @@ void AAltaractor::EndArena()
 
 	Destroy();
 
-	// 제단 리스폰
-	FActorSpawnParameters Params;
-	Params.SpawnCollisionHandlingOverride =
-		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	// FTransform으로 스케일까지 포함해서 스폰
+	FTransform SpawnTransform(SpawnRot, SpawnLoc, SpawnScale);
 
-	AAltaractor* NewAltar = World->SpawnActor<AAltaractor>(
-		ClassToSpawn, SpawnLoc, SpawnRot, Params);
+	AAltaractor* NewAltar = World->SpawnActorDeferred<AAltaractor>(
+		ClassToSpawn, SpawnTransform);
 
 	if (NewAltar)
 	{
-		//원본 스케일 복원
+		// BeginPlay 전에 스케일 적용
 		NewAltar->SetActorScale3D(SpawnScale);
-		UE_LOG(LogTemp, Log, TEXT("[Altar] Altar respawned"));
+
+		// BeginPlay 호출 완료
+		NewAltar->FinishSpawning(SpawnTransform);
+
+		UE_LOG(LogTemp, Log, TEXT("[Altar] Altar respawned with scale %s"),
+			*SpawnScale.ToString());
 	}
 	else
 	{

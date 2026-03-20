@@ -63,11 +63,11 @@ struct FItemStatistics
 	float SellValue = 0.f;
 
 	UPROPERTY(EditAnywhere)
-	float BuyValue;
+	float BuyValue = 0.f;
 
 	//ä������ Ƽ�� ���� �߰�
 	UPROPERTY(EditAnywhere)
-	float ObjectTier;
+	float ObjectTier = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EToolKind ToolKind = EToolKind::None;
@@ -130,7 +130,7 @@ struct FItemDataRow : public FTableRowBase
 	FName ID;
 
 	UPROPERTY(EditAnywhere, Category = "Item")
-	EItemType ItemType ;
+	EItemType ItemType = EItemType::Material;
 
 	UPROPERTY(EditAnywhere, Category = "Item")
 	EItemQuality ItemQuality = EItemQuality::Common;
