@@ -25,6 +25,7 @@
 #include "Inventory/InventoryComponent.h"
 #include "Camera/CameraShakeBase.h"
 #include "Build/BuildComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 void APlayerController_SB::SetupInputComponent()
 {
@@ -405,6 +406,10 @@ void APlayerController_SB::OnEscapePressed()
 	case EOverlayInputState::Gameplay:
 		UIManager->OpenPauseMenu();
 		SetOverlayInputState(EOverlayInputState::PauseMenu);
+		return;
+
+	case EOverlayInputState::OptionsMenu:
+		BP_ReturnToPauseFromOptions();
 		return;
 
 	case EOverlayInputState::PauseMenu:
@@ -796,6 +801,7 @@ void APlayerController_SB::ApplyOverlayInputState()
 	case EOverlayInputState::Crafting:
 	case EOverlayInputState::BuildMenu:
 	case EOverlayInputState::PauseMenu:
+	case EOverlayInputState::OptionsMenu:
 	case EOverlayInputState::FullMap:
 		SetIgnoreMoveInput(true);
 		SetIgnoreLookInput(true);
@@ -835,20 +841,38 @@ void APlayerController_SB::BP_ResumeFromPause()
 	SetOverlayInputState(EOverlayInputState::Gameplay);
 }
 
-void APlayerController_SB::ReturnToPauseFromOptions(UUserWidget* OptionsWidget)
+void APlayerController_SB::BP_OpenOptionsFromPause()
 {
-	if (OptionsWidget)
-	{
-		OptionsWidget->RemoveFromParent();
-	}
+	if (!UIManager) return;
 
-	if (UIManager)
-	{
-		UIManager->OpenPauseMenu();
-	}
+	UIManager->ClosePauseMenu();
+	UIManager->OpenOptionsPage_FromPause();
+	SetOverlayInputState(EOverlayInputState::OptionsMenu);
+}
 
+void APlayerController_SB::BP_ReturnToPauseFromOptions()
+{
+	if (!UIManager) return;
+
+	UIManager->CloseOptionsPage();
+	UIManager->OpenPauseMenu();
 	SetOverlayInputState(EOverlayInputState::PauseMenu);
 }
+
+//void APlayerController_SB::ReturnToPauseFromOptions(UUserWidget* OptionsWidget)
+//{
+//	if (OptionsWidget)
+//	{
+//		OptionsWidget->RemoveFromParent();
+//	}
+//
+//	if (UIManager)
+//	{
+//		UIManager->OpenPauseMenu();
+//	}
+//
+//	SetOverlayInputState(EOverlayInputState::PauseMenu);
+//}
 
 void APlayerController_SB::OnHealthChanged(float OldValue, float NewValue)
 {
@@ -1097,6 +1121,8 @@ void APlayerController_SB::GoToTitleMenu()
 	// 타이틀 이동은 여기서 나중에 연결
 }
 
+
+
 #pragma endregion 
 
 #pragma region ===== World Save =====
@@ -1119,7 +1145,34 @@ void APlayerController_SB::SB_LoadWorld()
 	}
 }
 
+bool APlayerController_SB::BP_SaveWorld()
+{
+	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
+	{
+		const bool bOk = Sub->SaveCurrentWorldFromPawn(GetPawn());
+		Sub->TouchCurrentWorldLastPlayed();
+		UE_LOG(LogTemp, Warning, TEXT("[UI] BP_SaveWorld -> %d"), bOk);
+		return bOk;
+	}
+	UE_LOG(LogTemp, Error, TEXT("[UI] BP_SaveWorld -> Subsystem NULL"));
+	return false;
+}
 
+bool APlayerController_SB::BP_SaveWorldAndQuitToTitle()
+{
+	const bool bSaved = BP_SaveWorld();
+	if (!bSaved) return false;
+
+	if (UIManager)
+	{
+		UIManager->CloseOptionsPage();
+		UIManager->ClosePauseMenu();
+	}
+	SetOverlayInputState(EOverlayInputState::Gameplay);
+
+	UGameplayStatics::OpenLevel(this, FName("TitleLevel")); // 네 타이틀 맵 이름으로 교체
+	return true;
+}
 
 void APlayerController_SB::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
@@ -1145,7 +1198,8 @@ bool APlayerController_SB::IsGameplayInputBlocked() const
 		|| OverlayState == EOverlayInputState::Crafting
 		|| OverlayState == EOverlayInputState::BuildMenu
 		|| OverlayState == EOverlayInputState::FullMap
-		|| OverlayState == EOverlayInputState::PauseMenu;
+		|| OverlayState == EOverlayInputState::PauseMenu
+		|| OverlayState == EOverlayInputState::OptionsMenu;
 }
 
 

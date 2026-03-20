@@ -63,6 +63,16 @@ public:
 	bool IsPauseMenuOpen() const;
 	void SetBuildGuideVisible(bool bVisible);
 
+	void OpenOptionsPage();
+	void CloseOptionsPage();
+	bool IsOptionsPageOpen() const;
+
+	UFUNCTION(BlueprintCallable, Category = "SB|UI")
+	void OpenOptionsPage_FromPause();
+
+	UFUNCTION(BlueprintCallable, Category = "SB|UI")
+	void OpenOptionsPage_FromTitle();
+
 	UUW_FullMap* GetFullMapWidget() const { return FullMapWidget; }
 	UUW_UIHUD* GetHUD() const { return UIHUD; }
 
@@ -133,6 +143,13 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UUserWidget>PauseMenuWidget;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
+	TSubclassOf<UUserWidget> OptionsPageClass;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> OptionsPageWidget;
+
 
 	///===============================================================================
 	/// FUNCTIONS
