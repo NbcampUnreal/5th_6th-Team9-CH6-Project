@@ -118,6 +118,9 @@ void APlayerCharacter_SB::BeginPlay()
 
 		const bool bBuildOk = Sub->LoadCurrentWorldBuildingsToPawn(this);
 		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldBuildingsToPawn -> %d"), bBuildOk);
+
+		const bool bDropOk = Sub->LoadCurrentWorldDroppedItemsToPawn(this);
+		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldDroppedItemsToPawn -> %d"), bDropOk);
 	}
 
 	if (AbilitySystemComponent)
@@ -716,6 +719,7 @@ void APlayerCharacter_SB::DropItemFromSlot(ESlotContainer FromContainer, int32 F
 	if (Pickup)
 	{
 		Pickup->InitializeDrop(DropTemplate, RemovedQuantity);
+		Pickup->Tags.AddUnique(TEXT("SavedWorldDrop"));
 	}
 }
 

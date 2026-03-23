@@ -56,7 +56,12 @@ public:
 
 	FORCEINLINE UInventoryComponent* GetInventory() const { return PlayerInventory; };
 
+	UFUNCTION(BlueprintCallable, Category = "Drop")
+	TSubclassOf<APickup> GetPickupClass() const { return PickupClass; }
+
 	FORCEINLINE UBuildComponent* GetBuildComponent() const { return BuildComponent; };
+
+
 
 	void UpdateInteractionWidget() const;
 
