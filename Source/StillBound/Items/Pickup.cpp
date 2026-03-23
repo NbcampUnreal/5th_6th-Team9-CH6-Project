@@ -131,7 +131,7 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 				case EItemAddResult::IAR_NoItemAdded:
 					break;
 				case EItemAddResult::IAR_PartialAmountItemAdded:
-
+				{
 					// 퀘스트 진행도 업데이트 (부분 추가된 수량)
 					if (UQuestComponent* QuestComp = Taker->FindComponentByClass<UQuestComponent>())
 					{
@@ -159,6 +159,7 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 				}
 				
 				case EItemAddResult::IAR_AllItemAdded:
+				{
 					// 퀘스트 진행도 업데이트 (전체 수량)
 					if (UQuestComponent* QuestComp = Taker->FindComponentByClass<UQuestComponent>())
 					{
