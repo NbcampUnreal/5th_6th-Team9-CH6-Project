@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/InventoryTypes.h"
+#include "Data/SBWorldSaveGame.h"
 #include "Data/CraftingRecipeRow.h"
 #include "InventoryComponent.generated.h"
 
@@ -253,6 +254,11 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Crafting|UI")
     int32 GetTotalCountByID_ForUI(FName ItemID) const;
+
+    void BuildSaveData(TArray<FSBItemSlotSaveData>& OutInv, TArray<FSBItemSlotSaveData>& OutHotbar) const;
+
+    void ApplySaveData(const TArray<FSBItemSlotSaveData>& InInv, const TArray<FSBItemSlotSaveData>& InHotbar);
+
 #pragma endregion
 
 };

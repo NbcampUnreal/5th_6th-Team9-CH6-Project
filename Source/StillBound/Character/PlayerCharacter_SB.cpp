@@ -69,30 +69,76 @@ FInteractableData APlayerCharacter_SB::GetInteractableData_Implementation()
 	return FInteractableData();
 }
 
+//void APlayerCharacter_SB::BeginPlay()
+//{
+//	Super::BeginPlay();
+//
+//	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
+//	{
+//		const bool bOk = Sub->LoadCurrentWorldAttributesToPawn(this);
+//		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldAttributesToPawn -> %d"), bOk);
+//	}
+//
+//	if (!AbilitySystemComponent) return;
+//
+//	const UPlayerAttributeSet* AS = AbilitySystemComponent->GetSet<UPlayerAttributeSet>();
+//
+//	UE_LOG(LogTemp, Warning, TEXT("[Player] ASC Set<UPlayerAttributeSet>=%p"), AS);
+//
+//	const float H = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetHealthAttribute());
+//	const float MH = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
+//
+//	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
+//
+//
+//	BuildComponent->Camera = FollowCamera;
+//
+//	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
+//	{
+//		const bool bAttrOk = Sub->LoadCurrentWorldAttributesToPawn(this);
+//		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldAttributesToPawn -> %d"), bAttrOk);
+//
+//		const bool bInvOk = Sub->LoadCurrentWorldInventoryToPawn(this);
+//		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldInventoryToPawn -> %d"), bInvOk);
+//	}
+//
+//}
+
 void APlayerCharacter_SB::BeginPlay()
 {
 	Super::BeginPlay();
 
 	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
 	{
-		const bool bOk = Sub->LoadCurrentWorldAttributesToPawn(this);
-		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldAttributesToPawn -> %d"), bOk);
+		const bool bAttrOk = Sub->LoadCurrentWorldAttributesToPawn(this);
+		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldAttributesToPawn -> %d"), bAttrOk);
+
+		const bool bInvOk = Sub->LoadCurrentWorldInventoryToPawn(this);
+		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldInventoryToPawn -> %d"), bInvOk);
+
+		const bool bBuildOk = Sub->LoadCurrentWorldBuildingsToPawn(this);
+		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldBuildingsToPawn -> %d"), bBuildOk);
 	}
 
-	if (!AbilitySystemComponent) return;
+	if (AbilitySystemComponent)
+	{
+		const UPlayerAttributeSet* AS = AbilitySystemComponent->GetSet<UPlayerAttributeSet>();
+		UE_LOG(LogTemp, Warning, TEXT("[Player] ASC Set<UPlayerAttributeSet>=%p"), AS);
 
-	const UPlayerAttributeSet* AS = AbilitySystemComponent->GetSet<UPlayerAttributeSet>();
+		const float H = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetHealthAttribute());
+		const float MH = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 
-	UE_LOG(LogTemp, Warning, TEXT("[Player] ASC Set<UPlayerAttributeSet>=%p"), AS);
+		UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Player] AbilitySystemComponent is null in BeginPlay"));
+	}
 
-	const float H = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetHealthAttribute());
-	const float MH = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
-
-	UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
-
-
-	BuildComponent->Camera = FollowCamera;
-
+	if (BuildComponent)
+	{
+		BuildComponent->Camera = FollowCamera;
+	}
 }
 
 bool APlayerCharacter_SB::EquipWeaponFromItem(UItemBase* Item)

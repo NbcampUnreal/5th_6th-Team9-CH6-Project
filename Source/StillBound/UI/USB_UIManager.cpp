@@ -102,6 +102,16 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 		}
 	}
 
+	if (OptionsPageClass)
+	{
+		OptionsPageWidget = CreateWidget<UUserWidget>(OwnerPC, OptionsPageClass);
+		if (OptionsPageWidget)
+		{
+			OptionsPageWidget->AddToViewport(200);
+			OptionsPageWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
 	ABaseCharacter_SB* Char = Cast<ABaseCharacter_SB>(OwnerPC->GetPawn());
 	if (!Char) return;
 
@@ -445,4 +455,49 @@ void USB_UIManager::ClosePauseMenu()
 {
 	if (!PauseMenuWidget) return;
 	PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+}
+
+bool USB_UIManager::IsOptionsPageOpen() const
+{
+	return OptionsPageWidget && OptionsPageWidget->GetVisibility() != ESlateVisibility::Collapsed;
+}
+
+void USB_UIManager::OpenOptionsPage()
+{
+	if (!OptionsPageWidget) return;
+	OptionsPageWidget->SetVisibility(ESlateVisibility::Visible);
+}
+
+void USB_UIManager::CloseOptionsPage()
+{
+	if (!OptionsPageWidget) return;
+	OptionsPageWidget->SetVisibility(ESlateVisibility::Collapsed);
+}
+
+static void CallBPFuncIfExists(UUserWidget* Widget, const FName FuncName)
+{
+	if (!Widget) return;
+
+	if (UFunction* Fn = Widget->FindFunction(FuncName))
+	{
+		Widget->ProcessEvent(Fn, nullptr);
+	}
+}
+
+void USB_UIManager::OpenOptionsPage_FromPause()
+{
+	if (!OptionsPageWidget) return;
+
+	CallBPFuncIfExists(OptionsPageWidget, TEXT("SetupForPauseMenu"));
+
+	OptionsPageWidget->SetVisibility(ESlateVisibility::Visible);
+}
+
+void USB_UIManager::OpenOptionsPage_FromTitle()
+{
+	if (!OptionsPageWidget) return;
+
+	CallBPFuncIfExists(OptionsPageWidget, TEXT("SetupForTitle"));
+
+	OptionsPageWidget->SetVisibility(ESlateVisibility::Visible);
 }

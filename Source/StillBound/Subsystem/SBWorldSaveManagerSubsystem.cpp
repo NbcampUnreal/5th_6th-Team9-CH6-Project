@@ -6,6 +6,13 @@
 #include "AbilitySystemInterface.h"
 #include "AbilitySystemComponent.h"
 #include "Character/PlayerAttributeSet.h"
+#include "Character/PlayerCharacter_SB.h"
+#include "Inventory/InventoryComponent.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Build/BuildComponent.h"
+#include "EngineUtils.h"
+#include "Data/BuildingData.h"
+
 
 const FString USBWorldSaveManagerSubsystem::IndexSlotName = TEXT("SB_WorldIndex");
 
@@ -176,6 +183,8 @@ USBWorldSaveGame* USBWorldSaveManagerSubsystem::LoadOrCreateWorldSave(const FStr
     Created->SavedExperience = 0.f;
     Created->SavedAttack = 0.f;
     Created->SavedDefense = 0.f;
+    Created->bHasInventory = false;
+    Created->SavedGold = 1000;
 
     UGameplayStatics::SaveGameToSlot(Created, SlotId, 0);
     return Created;
@@ -189,6 +198,18 @@ bool USBWorldSaveManagerSubsystem::SaveWorldSave(const FString& SlotId, USBWorld
 }
 
 // Attributes Save/Load
+
+bool USBWorldSaveManagerSubsystem::LoadCurrentWorldInventoryToPawn(APawn* Pawn)
+{
+    if (!Pawn) return false;
+    if (CurrentSlotId.IsEmpty()) return false;
+
+    USBWorldSaveGame* Save = LoadOrCreateWorldSave(CurrentSlotId);
+    if (!Save) return false;
+
+    return ApplyInventoryToPawn(Pawn, Save);
+}
+
 bool USBWorldSaveManagerSubsystem::FillPlayerAttributesFromPawn(APawn* Pawn, USBWorldSaveGame* Save)
 {
     if (!Pawn || !Save) return false;
@@ -219,6 +240,51 @@ bool USBWorldSaveManagerSubsystem::FillPlayerAttributesFromPawn(APawn* Pawn, USB
     return true;
 }
 
+bool USBWorldSaveManagerSubsystem::FillInventoryFromPawn(APawn* Pawn, USBWorldSaveGame* Save)
+{
+    if (!Pawn || !Save) return false;
+
+    APlayerCharacter_SB* PC = Cast<APlayerCharacter_SB>(Pawn);
+    if (!PC) { Save->bHasInventory = false; return false; }
+
+    UInventoryComponent* Inv = PC->GetInventory();
+    if (!Inv) { Save->bHasInventory = false; return false; }
+
+    Save->bHasInventory = true;
+    Inv->BuildSaveData(Save->SavedInventorySlots, Save->SavedHotbarSlots);
+
+    FString DebugMsg = FString::Printf(TEXT("Inventory Save - Inv: %d, Hotbar: %d"),
+        Save->SavedInventorySlots.Num(),
+        Save->SavedHotbarSlots.Num());
+
+    // PrintString 실행 (화면 왼쪽 상단에 출력됨)
+    UKismetSystemLibrary::PrintString(GetWorld(), DebugMsg, true, true, FLinearColor::Yellow, 5.f);
+
+    return true;
+}
+
+bool USBWorldSaveManagerSubsystem::ApplyInventoryToPawn(APawn* Pawn, const USBWorldSaveGame* Save)
+{
+    if (!Pawn || !Save) return false;
+    if (!Save->bHasInventory) return true;
+
+    APlayerCharacter_SB* PC = Cast<APlayerCharacter_SB>(Pawn);
+    if (!PC) return false;
+
+    UInventoryComponent* Inv = PC->GetInventory();
+    if (!Inv) return false;
+
+    Inv->ApplySaveData(Save->SavedInventorySlots, Save->SavedHotbarSlots);
+
+    PC->SetGold(Save->SavedGold);
+
+    const int32 HotbarSize = Inv->GetHotbarCapacity();
+    const int32 SavedIndex = FMath::Clamp(Save->SavedSelectedHotbarIndex, 0, FMath::Max(0, HotbarSize - 1));
+    PC->SelectHotbarIndex(SavedIndex);
+
+    return true;
+}
+
 bool USBWorldSaveManagerSubsystem::ApplyPlayerAttributesToPawn(APawn* Pawn, const USBWorldSaveGame* Save)
 {
     if (!Pawn || !Save) return false;
@@ -232,6 +298,7 @@ bool USBWorldSaveManagerSubsystem::ApplyPlayerAttributesToPawn(APawn* Pawn, cons
         UE_LOG(LogTemp, Warning, TEXT("[Save] ApplyPlayerAttributesToPawn: ASC is null"));
         return false;
     }
+
 
     // Max -> Current 순서 (Clamp 안정)
     ASC->SetNumericAttributeBase(UPlayerAttributeSet::GetMaxHealthAttribute(), Save->SavedMaxHealth);
@@ -303,6 +370,14 @@ bool USBWorldSaveManagerSubsystem::SaveCurrentWorldFromPawn(APawn* Pawn)
 
     // Attributes
     FillPlayerAttributesFromPawn(Pawn, Save);
+    FillInventoryFromPawn(Pawn, Save);
+    FillPlacedBuildingsFromPawn(Pawn, Save);
+
+    if (APlayerCharacter_SB* PC = Cast<APlayerCharacter_SB>(Pawn))
+    {
+        Save->SavedSelectedHotbarIndex = PC->CurrentHotbarIndex;
+        Save->SavedGold = PC->GetGold();
+    }
 
     const bool bOk = SaveWorldSave(CurrentSlotId, Save);
     if (bOk)
@@ -387,6 +462,162 @@ bool USBWorldSaveManagerSubsystem::LoadCurrentWorldToPawn(APawn* Pawn)
 
     // Attributes
     bOk = ApplyPlayerAttributesToPawn(Pawn, Save) && bOk;
-
+    bOk = ApplyInventoryToPawn(Pawn, Save) && bOk;
     return bOk;
+
+
+}
+
+bool USBWorldSaveManagerSubsystem::FillPlacedBuildingsFromPawn(APawn* Pawn, USBWorldSaveGame* Save)
+{
+    if (!Pawn || !Save) return false;
+
+    Save->SavedBuildings.Reset();
+
+    UWorld* World = Pawn->GetWorld();
+    if (!World)
+    {
+        Save->bHasPlacedBuildings = false;
+        return false;
+    }
+
+    for (TActorIterator<AActor> It(World); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (!Actor) continue;
+
+        if (!Actor->ActorHasTag(TEXT("PlacedBuild")))
+        {
+            continue;
+        }
+
+        FName FoundBuildingID = NAME_None;
+
+        APlayerCharacter_SB* PlayerChar = Cast<APlayerCharacter_SB>(Pawn);
+        UBuildComponent* BuildComp = PlayerChar ? PlayerChar->GetBuildComponent() : nullptr;
+
+        if (!BuildComp)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[Save] BuildComp is null"));
+            Save->bHasPlacedBuildings = false;
+            return false;
+        }
+
+        for (const FName& Tag : Actor->Tags)
+        {
+            if (Tag == TEXT("PlacedBuild"))
+            {
+                continue;
+            }
+
+            FBuildingDataRow DummyRow;
+            if (BuildComp->GetBuildingData(Tag, DummyRow))
+            {
+                FoundBuildingID = Tag;
+                break;
+            }
+        }
+
+        if (FoundBuildingID.IsNone())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[Save] PlacedBuild has no BuildingID tag: %s"), *GetNameSafe(Actor));
+            continue;
+        }
+
+        FSBPlacedBuildingSaveData Data;
+        Data.BuildingID = FoundBuildingID;
+        Data.Transform = Actor->GetActorTransform();
+
+        Save->SavedBuildings.Add(Data);
+    }
+
+    Save->bHasPlacedBuildings = Save->SavedBuildings.Num() > 0;
+
+    UE_LOG(LogTemp, Warning, TEXT("[Save] Buildings Saved = %d"), Save->SavedBuildings.Num());
+    return true;
+}
+
+bool USBWorldSaveManagerSubsystem::ApplyPlacedBuildingsToPawn(APawn* Pawn, const USBWorldSaveGame* Save)
+{
+    if (!Pawn || !Save) return false;
+    if (!Save->bHasPlacedBuildings) return true;
+
+    APlayerCharacter_SB* PC = Cast<APlayerCharacter_SB>(Pawn);
+    if (!PC) return false;
+
+    UBuildComponent* BuildComp = PC->GetBuildComponent();
+    if (!BuildComp) return false;
+
+    UWorld* World = Pawn->GetWorld();
+    if (!World) return false;
+
+    // 혹시 기존 배치 건축물이 있으면 제거
+    TArray<AActor*> ToDestroy;
+    for (TActorIterator<AActor> It(World); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (Actor && Actor->ActorHasTag(TEXT("PlacedBuild")))
+        {
+            ToDestroy.Add(Actor);
+        }
+    }
+
+    for (AActor* Actor : ToDestroy)
+    {
+        if (Actor)
+        {
+            Actor->Destroy();
+        }
+    }
+
+    // 저장된 건축물 복원
+    for (const FSBPlacedBuildingSaveData& Data : Save->SavedBuildings)
+    {
+        if (Data.BuildingID.IsNone())
+        {
+            continue;
+        }
+
+        FBuildingDataRow Row;
+        if (!BuildComp->GetBuildingData(Data.BuildingID, Row))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[Load] Building row not found: %s"), *Data.BuildingID.ToString());
+            continue;
+        }
+
+        if (!Row.BuildActorClass)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[Load] BuildActorClass is null: %s"), *Data.BuildingID.ToString());
+            continue;
+        }
+
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.Owner = PC;
+        SpawnParams.Instigator = PC;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+        AActor* Spawned = World->SpawnActor<AActor>(Row.BuildActorClass, Data.Transform, SpawnParams);
+        if (!Spawned)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[Load] Failed to spawn building: %s"), *Data.BuildingID.ToString());
+            continue;
+        }
+
+        Spawned->Tags.AddUnique(TEXT("PlacedBuild"));
+        Spawned->Tags.AddUnique(Data.BuildingID);
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("[Load] Buildings Loaded = %d"), Save->SavedBuildings.Num());
+    return true;
+}
+
+bool USBWorldSaveManagerSubsystem::LoadCurrentWorldBuildingsToPawn(APawn* Pawn)
+{
+    if (!Pawn) return false;
+    if (CurrentSlotId.IsEmpty()) return false;
+
+    USBWorldSaveGame* Save = LoadOrCreateWorldSave(CurrentSlotId);
+    if (!Save) return false;
+
+    return ApplyPlacedBuildingsToPawn(Pawn, Save);
 }

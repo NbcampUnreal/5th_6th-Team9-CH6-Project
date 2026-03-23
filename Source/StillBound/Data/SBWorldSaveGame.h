@@ -1,10 +1,40 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
 #include "SBWorldSaveGame.generated.h"
+
+/// ===============================================================================
+/// SAVE DATA STRUCTURES (클래스 밖, 위쪽에 배치)
+/// ===============================================================================
+
+USTRUCT(BlueprintType)
+struct FSBItemSlotSaveData
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, SaveGame)
+    FName ItemID = NAME_None;
+
+    UPROPERTY(BlueprintReadWrite, SaveGame)
+    int32 Quantity = 0;
+
+    UPROPERTY(BlueprintReadWrite, SaveGame)
+    int32 Index = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FSBPlacedBuildingSaveData
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, SaveGame) FName BuildingID = NAME_None;
+    UPROPERTY(BlueprintReadOnly, SaveGame) FTransform Transform;
+};
+
+/// ===============================================================================
+/// SAVE GAME CLASS
+/// ===============================================================================
 
 UCLASS()
 class STILLBOUND_API USBWorldSaveGame : public USaveGame
@@ -15,6 +45,7 @@ public:
     UPROPERTY(BlueprintReadOnly, SaveGame)
     FString SlotId;
 
+    // --- Player Transform ---
     UPROPERTY(BlueprintReadOnly, SaveGame)
     bool bHasPlayerTransform = false;
 
@@ -30,11 +61,11 @@ public:
     UPROPERTY(BlueprintReadOnly, SaveGame)
     FRotator SavedControlRotation = FRotator::ZeroRotator;
 
-    // World Meta
+    // --- World Meta ---
     UPROPERTY(BlueprintReadOnly, SaveGame)
     int32 Day = 1;
 
-    // Player Attributes
+    // --- Player Attributes ---
     UPROPERTY(BlueprintReadOnly, SaveGame)
     bool bHasPlayerAttributes = false;
 
@@ -61,4 +92,28 @@ public:
 
     UPROPERTY(BlueprintReadOnly, SaveGame)
     float SavedDefense = 0.f;
+
+    // --- Inventory & Hotbar  ---
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    bool bHasInventory = false;
+
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    TArray<FSBItemSlotSaveData> SavedInventorySlots;
+
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    TArray<FSBItemSlotSaveData> SavedHotbarSlots;
+
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    int32 SavedSelectedHotbarIndex = 0;
+
+    // --- Gold --- //
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    int32 SavedGold = 0;
+
+    // --- Buildings  ---
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    bool bHasPlacedBuildings = false;
+
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    TArray<FSBPlacedBuildingSaveData> SavedBuildings;
 };

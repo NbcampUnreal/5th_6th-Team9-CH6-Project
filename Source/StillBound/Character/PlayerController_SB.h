@@ -24,7 +24,8 @@ enum class EOverlayInputState : uint8
 	BuildMenu    UMETA(DisplayName = "BuildMenu"),
 	BuildPreview UMETA(DisplayName = "BuildPreview"),
 	FullMap      UMETA(DisplayName = "FullMap"),
-	PauseMenu    UMETA(DisplayName = "PauseMenu")
+	PauseMenu    UMETA(DisplayName = "PauseMenu"),
+	OptionsMenu  UMETA(DisplayName = "OptionsMenu")
 };
 
 UCLASS()
@@ -261,8 +262,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SB|UI")
 	void BP_ResumeFromPause();
 
-	UFUNCTION(BlueprintCallable, Category = "SB|UI")
-	void ReturnToPauseFromOptions(UUserWidget* OptionsWidget);
+	UFUNCTION(BlueprintCallable)
+	void BP_OpenOptionsFromPause();
+
+	UFUNCTION(BlueprintCallable)
+	void BP_ReturnToPauseFromOptions();
+
+	//UFUNCTION(BlueprintCallable, Category = "SB|UI")
+	//void ReturnToPauseFromOptions(UUserWidget* OptionsWidget);
 
 
 	UPROPERTY(EditDefaultsOnly, Category = "SB|Stamina|Cost")
@@ -348,5 +355,11 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void GoToTitleMenu();
+
+	UFUNCTION(BlueprintCallable, Category = "SB|Save")
+	bool BP_SaveWorld();
+
+	UFUNCTION(BlueprintCallable, Category = "SB|Save")
+	bool BP_SaveWorldAndQuitToTitle();
 
 };

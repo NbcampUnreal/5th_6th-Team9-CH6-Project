@@ -691,9 +691,47 @@ bool UInventoryComponent::AddByID(FName ItemID, int32 Count)
 	return Res.ActualAmountAdded == Count;
 }
 
+//UItemBase* UInventoryComponent::CreateItemInstanceByID(FName ItemID, int32 Quantity) const
+//{
+//	if (ItemID.IsNone() || Quantity <= 0) return nullptr;
+//	if (!ItemDataTable)
+//	{
+//		UE_LOG(LogTemp, Error, TEXT("[Craft] ItemDataTable is null"));
+//		return nullptr;
+//	}
+//
+//	const FItemDataRow* ItemData = ItemDataTable->FindRow<FItemDataRow>(ItemID, TEXT("CraftCreateItem"));
+//	if (!ItemData)
+//	{
+//		UE_LOG(LogTemp, Error, TEXT("[Craft] ItemData not found: %s"), *ItemID.ToString());
+//		return nullptr;
+//	}
+//
+//
+//	UItemBase* NewItem = NewObject<UItemBase>(GetOwner());
+//	if (!NewItem) return nullptr;
+//
+//	NewItem->ID = ItemID;
+//	NewItem->ItemType = ItemData->ItemType;
+//	NewItem->ItemQuality = ItemData->ItemQuality;
+//	NewItem->NumericData = ItemData->NumericData;
+//	NewItem->TextData = ItemData->TextData;
+//	NewItem->AssetData = ItemData->AssetData;
+//	NewItem->PickupActorClass = ItemData->PickupActorClass;
+//
+//	NewItem->NumericData.bIsStackable = (ItemData->NumericData.MaxStackSize > 1);
+//
+//	NewItem->OwningInventory = const_cast<UInventoryComponent*>(this);
+//	NewItem->ResetItemFlags();
+//	NewItem->SetQuantity(Quantity);
+//
+//	return NewItem;
+//}
+
 UItemBase* UInventoryComponent::CreateItemInstanceByID(FName ItemID, int32 Quantity) const
 {
 	if (ItemID.IsNone() || Quantity <= 0) return nullptr;
+
 	if (!ItemDataTable)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[Craft] ItemDataTable is null"));
@@ -707,17 +745,22 @@ UItemBase* UInventoryComponent::CreateItemInstanceByID(FName ItemID, int32 Quant
 		return nullptr;
 	}
 
-
 	UItemBase* NewItem = NewObject<UItemBase>(GetOwner());
 	if (!NewItem) return nullptr;
 
-	NewItem->ID = ItemID;
+	NewItem->ID = ItemData->ID;
 	NewItem->ItemType = ItemData->ItemType;
 	NewItem->ItemQuality = ItemData->ItemQuality;
-	NewItem->NumericData = ItemData->NumericData;
+
+	NewItem->ItemStatistics = ItemData->ItemStatistics;
 	NewItem->TextData = ItemData->TextData;
+	NewItem->NumericData = ItemData->NumericData;
 	NewItem->AssetData = ItemData->AssetData;
+
 	NewItem->PickupActorClass = ItemData->PickupActorClass;
+	NewItem->EquipWeaponClass = ItemData->EquipWeaponClass;
+	NewItem->ConsumableEffectClass = ItemData->ConsumableEffectClass;
+	NewItem->ConsumableSetByCallerTag = ItemData->ConsumableSetByCallerTag;
 
 	NewItem->NumericData.bIsStackable = (ItemData->NumericData.MaxStackSize > 1);
 
@@ -835,4 +878,89 @@ int32 UInventoryComponent::GetTotalCountByID_ForUI(FName ItemID) const
 
 }
 
+void UInventoryComponent::BuildSaveData(TArray<FSBItemSlotSaveData>& OutInv, TArray<FSBItemSlotSaveData>& OutHotbar) const
+{
+	OutInv.Reset();
+	OutHotbar.Reset();
 
+	for (int32 i = 0; i < InventorySlots.Num(); ++i)
+	{
+		UItemBase* It = InventorySlots[i].Get();
+		if (!It) continue;
+
+		FSBItemSlotSaveData D;
+		D.ItemID = It->ID;
+		D.Quantity = It->Quantity;
+		D.Index = i;
+		OutInv.Add(D);
+	}
+
+	for (int32 i = 0; i < HotbarContents.Num(); ++i)
+	{
+		UItemBase* It = HotbarContents[i].Get();
+		if (!It) continue;
+
+		FSBItemSlotSaveData D;
+		D.ItemID = It->ID;
+		D.Quantity = It->Quantity;
+		D.Index = i;
+		OutHotbar.Add(D);
+	}
+}
+
+void UInventoryComponent::ApplySaveData(const TArray<FSBItemSlotSaveData>& InInv, const TArray<FSBItemSlotSaveData>& InHotbar)
+{
+	// 슬롯 초기화
+	InventorySlots.SetNum(InventorySlotsCapacity);
+	HotbarContents.SetNum(HotbarSlotsCapacity);
+
+	for (int32 i = 0; i < InventorySlots.Num(); ++i) InventorySlots[i] = nullptr;
+	for (int32 i = 0; i < HotbarContents.Num(); ++i) HotbarContents[i] = nullptr;
+
+	InventoryTotalWeight = 0.f;
+
+	// 인벤 복원
+	for (const auto& D : InInv)
+	{
+		if (D.ItemID.IsNone() || D.Quantity <= 0) continue;
+		if (!InventorySlots.IsValidIndex(D.Index)) continue;
+
+		UItemBase* NewItem = CreateItemInstanceByID(D.ItemID, D.Quantity);
+
+		if (!NewItem)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[Load] 인벤토리 아이템 생성 실패! ID: %s"), *D.ItemID.ToString());
+			continue;
+		}
+
+		if (!NewItem) continue;
+
+		NewItem->OwningInventory = this;
+		InventorySlots[D.Index] = NewItem;
+		InventoryTotalWeight += NewItem->GetItemStackWeight();
+	}
+
+	// 핫바 복원
+	for (const auto& D : InHotbar)
+	{
+		if (D.ItemID.IsNone() || D.Quantity <= 0) continue;
+		if (!HotbarContents.IsValidIndex(D.Index)) continue;
+
+		UItemBase* NewItem = CreateItemInstanceByID(D.ItemID, D.Quantity);
+
+		if (!NewItem)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[Load] 핫바 아이템 생성 실패! ID: %s"), *D.ItemID.ToString());
+			continue;
+		}
+
+		if (!NewItem) continue;
+
+		NewItem->OwningInventory = this;
+		HotbarContents[D.Index] = NewItem;
+		InventoryTotalWeight += NewItem->GetItemStackWeight();
+	}
+
+	OnHotbarUpdated.Broadcast();
+	OnInventoryUpdated.Broadcast();
+}

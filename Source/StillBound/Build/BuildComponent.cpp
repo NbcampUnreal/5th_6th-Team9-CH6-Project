@@ -525,6 +525,9 @@ bool UBuildComponent::ConfirmBuild(EBuildFailReason& OutFailReason)
 		return false;
 	}
 
+	Spawned->Tags.AddUnique(TEXT("PlacedBuild"));
+	Spawned->Tags.AddUnique(CurrentBuildingID);
+
 	//만약 한번 설치하고 프리뷰유지하고싶지않으면 false;
 	return true;
 }
