@@ -176,6 +176,22 @@ void UShopItemSlot::SetShopItemData(const FShopItemData& InItemData, UShopWidget
         );
         TXT_ItemPrice->SetText(PriceText);
     }
+    //재고
+    if (TXT_ItemStock)
+    {
+        if (ItemData.CurrentStock < 0)
+        {
+            TXT_ItemStock->SetText(FText::FromString( TEXT("Infi_Stock")));
+        }
+        else
+        {
+            FText StockText = FText::Format(
+                FText::FromString(TEXT("{0}G")),
+                FText::AsNumber(ItemData.CurrentStock)
+            );
+            TXT_ItemStock->SetText(StockText);
+        }
+    }
 
     // 아이콘
     if (IMG_ItemIcon && FullItemData->AssetData.Icon)
@@ -196,7 +212,7 @@ void UShopItemSlot::SetShopItemData(const FShopItemData& InItemData, UShopWidget
         if (TXT_ItemName)
         {
             FText OutOfStockText = FText::Format(
-                FText::FromString(TEXT("{0} (품절)")),
+                FText::FromString(TEXT("{0} (Out Of Stock)")),
                 FullItemData->TextData.Name
             );
             TXT_ItemName->SetText(OutOfStockText);
@@ -206,6 +222,11 @@ void UShopItemSlot::SetShopItemData(const FShopItemData& InItemData, UShopWidget
         if (TXT_ItemPrice)
         {
             TXT_ItemPrice->SetColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f, 1.0f));
+        }
+        if (TXT_ItemStock)
+        {
+            TXT_ItemStock->SetText(FText::FromString(TEXT("Out Of Stock")));
+            TXT_ItemStock->SetColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f, 1.0f));
         }
     }
 }
