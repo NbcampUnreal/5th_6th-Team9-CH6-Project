@@ -213,6 +213,10 @@ public:
 	void NotifyGatherEnd();
 
 private:
+	//현재 재생 중인 채집 몽타주 캐싱
+	UPROPERTY()
+	TObjectPtr<UAnimMontage> CurrentGatherMontage = nullptr;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Gather")
 	TObjectPtr<UAnimMontage> GatherPickaxeLoopMontage;
 
