@@ -212,7 +212,15 @@ public:
 	void NotifyGatherStart(float Duration);
 	void NotifyGatherEnd();
 
-protected:
-		UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gather")
-		TObjectPtr<UAnimMontage> GatherLoopMontage;
+private:
+	UPROPERTY(EditDefaultsOnly, Category = "Gather")
+	TObjectPtr<UAnimMontage> GatherPickaxeLoopMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gather")
+	TObjectPtr<UAnimMontage> GatherAxeLoopMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gather")
+	TObjectPtr<UAnimMontage> GatherDefaultLoopMontage;
+
+	UAnimMontage* GetGatherMontageForEquippedTool() const;
 };

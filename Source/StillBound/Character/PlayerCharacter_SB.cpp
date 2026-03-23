@@ -838,9 +838,9 @@ void APlayerCharacter_SB::NotifyGatherStart(float Duration)
 
 	if (UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
 	{
-		if (GatherLoopMontage)
+		if (UAnimMontage* MontageToPlay = GetGatherMontageForEquippedTool())
 		{
-			AnimInstance->Montage_Play(GatherLoopMontage);
+			AnimInstance->Montage_Play(MontageToPlay);
 		}
 	}
 
@@ -856,15 +856,50 @@ void APlayerCharacter_SB::NotifyGatherEnd()
 
 	if (UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
 	{
-		if (GatherLoopMontage)
+		if (UAnimMontage* MontageToStop = GetGatherMontageForEquippedTool())
 		{
-			AnimInstance->Montage_Stop(0.2f, GatherLoopMontage);
+			AnimInstance->Montage_Stop(0.2f, MontageToStop);
 		}
 	}
 
 	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
 	{
 		PC->EndGatherProgress();
+	}
+}
+
+UAnimMontage* APlayerCharacter_SB::GetGatherMontageForEquippedTool() const
+{
+	if (!PlayerInventory)
+	{
+		return GatherDefaultLoopMontage;
+	}
+
+	UItemBase* Item = PlayerInventory->GetItemInContainer(
+		ESlotContainer::Hotbar,
+		CurrentHotbarIndex
+	);
+
+	if (!Item)
+	{
+		return GatherDefaultLoopMontage;
+	}
+
+	if (Item->ItemType != EItemType::Tool)
+	{
+		return GatherDefaultLoopMontage;
+	}
+
+	switch (Item->ItemStatistics.ToolKind)
+	{
+	case EToolKind::Pickaxe:
+		return GatherPickaxeLoopMontage;
+
+	case EToolKind::Axe:
+		return GatherAxeLoopMontage;
+
+	default:
+		return GatherDefaultLoopMontage;
 	}
 }
 
