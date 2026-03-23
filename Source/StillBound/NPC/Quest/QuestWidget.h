@@ -8,6 +8,7 @@
 class UTextBlock;
 class UVerticalBox;
 class UQuestComponent;
+class UQuestObjectiveSlot;
 
 UCLASS()
 class STILLBOUND_API UQuestWidget : public UUserWidget
@@ -16,6 +17,7 @@ class STILLBOUND_API UQuestWidget : public UUserWidget
 
 protected:
     virtual void NativeConstruct() override;
+    virtual void NativeDestruct() override;
 
 public:
     // 퀘스트 목표 업데이트
@@ -45,7 +47,7 @@ protected:
 
     // 개별 퀘스트 항목 위젯 클래스
     UPROPERTY(EditDefaultsOnly, Category = "Quest")
-    TSubclassOf<UUserWidget> QuestObjectiveItemClass;
+    TSubclassOf<UQuestObjectiveSlot> QuestObjectiveSlotClass;
 
 private:
     UPROPERTY()

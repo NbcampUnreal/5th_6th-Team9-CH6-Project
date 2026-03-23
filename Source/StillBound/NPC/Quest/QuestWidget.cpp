@@ -1,18 +1,30 @@
-#include "QuestWidget.h"
+ï»¿#include "QuestWidget.h"
 #include "QuestComponent.h"
+#include "QuestObjectiveSlot.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 
 void UQuestWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 }
 
+void UQuestWidget::NativeDestruct()
+{
+    if (QuestComponent)
+    {
+        QuestComponent->OnQuestUpdated.RemoveAll(this);
+        QuestComponent->OnQuestProgressUpdated.RemoveAll(this);
+    }
+    Super::NativeDestruct();
+}
+
 void UQuestWidget::SetQuestComponent(UQuestComponent* InQuestComponent)
 {
     if (!InQuestComponent) return;
 
-    // ±âÁ¸ ¹ÙÀÎµù ÇØÁ¦
+    // ê¸°ì¡´ ë°”ì¸ë”© í•´ì œ
     if (QuestComponent)
     {
         QuestComponent->OnQuestUpdated.RemoveAll(this);
@@ -21,7 +33,7 @@ void UQuestWidget::SetQuestComponent(UQuestComponent* InQuestComponent)
 
     QuestComponent = InQuestComponent;
 
-    // µ¨¸®°ÔÀÌÆ® ¹ÙÀÎµù
+    // ë¸ë¦¬ê²Œì´íŠ¸ ë°”ì¸ë”©
     QuestComponent->OnQuestUpdated.AddUniqueDynamic(this, &UQuestWidget::OnQuestUpdated);
     QuestComponent->OnQuestProgressUpdated.AddUniqueDynamic(this, &UQuestWidget::OnQuestProgressUpdated);
 
@@ -36,61 +48,64 @@ void UQuestWidget::RefreshQuestObjectives()
 
     TArray<FQuestProgress> ActiveQuests = QuestComponent->GetActiveQuests();
 
-    // Äù½ºÆ® ¾øÀ¸¸é "¾øÀ½" ÅØ½ºÆ® Ç¥½Ã
-    if (TXT_NoQuest)
+    // í€˜ìŠ¤íŠ¸ ì—†ìœ¼ë©´ ìœ„ì ¯ ìˆ¨ê¸°ê¸°
+    if (ActiveQuests.Num() == 0)
     {
-        TXT_NoQuest->SetVisibility(
-            ActiveQuests.Num() == 0 ?
-            ESlateVisibility::Visible :
-            ESlateVisibility::Collapsed
-        );
+        SetVisibility(ESlateVisibility::Collapsed);
+
+        if (TXT_NoQuest)
+            TXT_NoQuest->SetVisibility(ESlateVisibility::Visible);
+        
+        return;
     }
+    //í€˜ìŠ¤íŠ¸ ìˆìœ¼ë©´ í‘œì‹œ
+    SetVisibility(ESlateVisibility::Visible);
+
+    if (TXT_NoQuest)
+        TXT_NoQuest->SetVisibility(ESlateVisibility::Collapsed);
 
     for (const FQuestProgress& Progress : ActiveQuests)
     {
         FQuestDataRow* QuestData = QuestComponent->GetQuestData(Progress.QuestID);
         if (!QuestData) continue;
 
-        // ¸ñÇ¥ ÅØ½ºÆ® µ¿Àû »ı¼º
-        UTextBlock* ObjectiveText = NewObject<UTextBlock>(this);
-        if (!ObjectiveText) continue;
-
-        // "³ª¹« ¼öÁı: 3/5" ÇüÅÂ·Î Ç¥½Ã
-        FString ObjectiveStr;
-        if (QuestData->TargetCount > 0)
+        //QuestObjectiveSlotClassê°€ ì—†ìœ¼ë©´ í…ìŠ¤íŠ¸ í´ë°±
+        if (!QuestObjectiveSlotClass)
         {
-            ObjectiveStr = FString::Printf(TEXT("? %s (%d/%d)"),
+            UTextBlock* FallbackText = NewObject<UTextBlock>(this);
+            if (!FallbackText) continue;
+
+            FString Str = FString::Printf(TEXT("â€¢ %s (%d/%d)"),
                 *QuestData->ObjectiveText.ToString(),
                 Progress.CurrentCount,
-                QuestData->TargetCount
-            );
+                QuestData->TargetCount);
+
+            FLinearColor Color = (Progress.State == EQuestState::Completed) ?
+                FLinearColor(0.29f, 0.87f, 0.50f, 1.f) :
+                FLinearColor(0.91f, 0.91f, 0.94f, 1.f);
+
+            FallbackText->SetText(FText::FromString(Str));
+            FallbackText->SetColorAndOpacity(Color);
+
+            FSlateFontInfo FontInfo = FallbackText->GetFont();
+            FontInfo.Size = 12;
+            FallbackText->SetFont(FontInfo);
+
+            VB_QuestObjectives->AddChildToVerticalBox(FallbackText);
+            continue;
         }
-        else
+        //ì„œë¸Œ ìœ„ì ¯ ìƒì„±
+        UQuestObjectiveSlot* QuestSlot = CreateWidget<UQuestObjectiveSlot>(this, QuestObjectiveSlotClass);
+        if (!QuestSlot) continue;
+
+        QuestSlot->SetObjectiveData(*QuestData, Progress);
+
+        UVerticalBoxSlot* VBSlot = VB_QuestObjectives->AddChildToVerticalBox(QuestSlot);
+        if (VBSlot)
         {
-            ObjectiveStr = FString::Printf(TEXT("? %s"),
-                *QuestData->ObjectiveText.ToString()
-            );
+            VBSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
+            VBSlot->SetHorizontalAlignment(EHorizontalAlignment::HAlign_Fill);
         }
-
-        // ¿Ï·á °¡´É »óÅÂ¸é »ö»ó º¯°æ
-        if (Progress.State == EQuestState::Completed)
-        {
-            ObjectiveText->SetColorAndOpacity(FLinearColor(0.f, 1.f, 0.f, 1.f)); // ÃÊ·Ï»ö
-            ObjectiveStr += TEXT(" [¿Ï·á!]");
-        }
-        else
-        {
-            ObjectiveText->SetColorAndOpacity(FLinearColor::White);
-        }
-
-        ObjectiveText->SetText(FText::FromString(ObjectiveStr));
-
-        // ÆùÆ® »çÀÌÁî ¼³Á¤
-        FSlateFontInfo FontInfo = ObjectiveText->GetFont();
-        FontInfo.Size = 14;
-        ObjectiveText->SetFont(FontInfo);
-
-        VB_QuestObjectives->AddChildToVerticalBox(ObjectiveText);
     }
 }
 
