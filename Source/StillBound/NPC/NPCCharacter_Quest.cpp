@@ -9,13 +9,15 @@ ANPCCharacter_Quest::ANPCCharacter_Quest()
 
 void ANPCCharacter_Quest::BeginPlay()
 {
-    // 퀘스트 NPC는 상점 초기화 스킵
-    // Super::BeginPlay() 대신 ANPCCharacter::BeginPlay()에서
-    // InitializeShopItems()만 건너뜁니다
+    // ANPCCharacter::BeginPlay의 InitializeShopItems 스킵을 위해
+    // AActor::BeginPlay()부터 직접 호출하는 대신
+    // ItemDataTable을 임시로 null 처리
+    UDataTable* TempTable = ItemDataTable;
+    ItemDataTable = nullptr;  // 상점 초기화 스킵
 
-    // AActor::BeginPlay()부터 직접 호출
-    // (ANPCCharacter::BeginPlay의 상점 초기화만 제외하고 나머지는 동일하게)
     Super::BeginPlay();
+
+    ItemDataTable = TempTable;  // 복구
 }
 
 bool ANPCCharacter_Quest::TryAcceptQuest(APlayerCharacter_SB* Player, int32 QuestID)

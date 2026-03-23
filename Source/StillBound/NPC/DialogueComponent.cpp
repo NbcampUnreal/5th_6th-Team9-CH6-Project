@@ -175,11 +175,11 @@ bool UDialogueComponent::SelectOption(int32 OptionIndex)
 			if (NPC)
 			{
 				// 대화창은 유지하거나 닫기 (선택)
-				EndDialogue(); 
+				EndDialogue();
 				NPC->OpenShop();
 
 				return true;
-			}  
+			}
 		}
 		else if (SelectedOption.SwitchToMenu == EMenuType::Quest)
 		{
@@ -204,7 +204,8 @@ bool UDialogueComponent::SelectOption(int32 OptionIndex)
 			{
 				// 완료 처리 후 퀘스트 메뉴로
 				QuestNPC->TryCompleteQuest(Player, CompletableID);
-				SwitchToMenu(EMenuType::Quest);
+				//SwitchToMenu(EMenuType::Quest);
+				EndDialogue();
 				return true;
 			}
 
@@ -213,33 +214,28 @@ bool UDialogueComponent::SelectOption(int32 OptionIndex)
 			if (AvailableID != 0)
 			{
 				QuestNPC->TryAcceptQuest(Player, AvailableID);
-				SwitchToMenu(EMenuType::Quest);
+				//SwitchToMenu(EMenuType::Quest);
+				EndDialogue();
 				return true;
 			}
 
-			// 줄 수 있는 퀘스트 없음 → 그냥 퀘스트 메뉴로
-			SwitchToMenu(EMenuType::Quest);
+			EndDialogue();
+			return true;
+		}
+	}
+
+		//다음 대화로 이동 or 종료
+		if (SelectedOption.NextDialogueID == 0)
+		{
+			EndDialogue();
 			return true;
 		}
 		else
 		{
-			SwitchToMenu(SelectedOption.SwitchToMenu);
+			GoToDialogue(SelectedOption.NextDialogueID);
 			return true;
 		}
 	}
-
-	//다음 대화로 이동 or 종료
-	if (SelectedOption.NextDialogueID == 0)
-	{
-		EndDialogue();
-		return true;
-	}
-	else
-	{
-		GoToDialogue(SelectedOption.NextDialogueID);
-		return true;
-	}
-}
 
 bool UDialogueComponent::CheckCondition_Implementation(const FDialogueCondition& Condition)
 {

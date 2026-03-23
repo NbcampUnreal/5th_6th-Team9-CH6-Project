@@ -55,14 +55,17 @@ void UQuestWidget::RefreshQuestObjectives()
 
         if (TXT_NoQuest)
             TXT_NoQuest->SetVisibility(ESlateVisibility::Visible);
-        
+
         return;
     }
-    //퀘스트 있으면 표시
+
+    // 퀘스트 있을 경우
     SetVisibility(ESlateVisibility::Visible);
 
     if (TXT_NoQuest)
+    {
         TXT_NoQuest->SetVisibility(ESlateVisibility::Collapsed);
+    }
 
     for (const FQuestProgress& Progress : ActiveQuests)
     {
