@@ -14,22 +14,24 @@ public class StillBound : ModuleRules
 			"Engine",
 			"InputCore",
 			"EnhancedInput",
-            "NavigationSystem",
-            "AIModule",
-			
+			"NavigationSystem",
+			"AIModule",
+
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
-            "Landscape",
-            "Slate",
-            "SlateCore",
-            "MoviePlayer",
+			"Landscape",
+			"Slate",
+			"SlateCore",
+			"MoviePlayer",
 
-            "GameplayAbilities",
-            "GameplayTasks",
-            "GameplayTags",
+			"GameplayAbilities",
+			"GameplayTasks",
+			"GameplayTags",
 
 			"AudioModulation",
+
+            "Niagara",
         });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

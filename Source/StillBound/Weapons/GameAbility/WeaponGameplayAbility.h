@@ -56,6 +56,9 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Weapon|GA|Debug")
     bool bDebugGE = true;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Weapon|GA|Debug")
+    bool bDebugHitFX = true;
+
     // ✅ (추가) SourceObject(Weapon)에서 데미지를 가져온다.
     // WeaponDamage가 0이면 FallbackDamage(예: BaseDamage)를 사용.
     UFUNCTION(BlueprintPure, Category = "Weapon|Damage")
@@ -70,6 +73,15 @@ protected:
         float Level = 1.f,
         float Chance = 1.f,
         float FallbackDamage = 0.f
+    ) const;
+
+    // //수정: 히트 결과 기준으로 공통 히트 FX 스폰
+    bool SpawnWeaponHitImpactFXFromHitResult(const FHitResult& HitResult) const;
+
+    // //수정: 위치/노멀만 있을 때도 공통 히트 FX 스폰 가능
+    bool SpawnWeaponHitImpactFXAtLocation(
+        const FVector& SpawnLocation,
+        const FVector& ImpactNormal = FVector::UpVector
     ) const;
 
 protected:

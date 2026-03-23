@@ -74,10 +74,10 @@ public:
 	TSoftClassPtr<AWeaponBase> EquipWeaponClass;
 
 	UPROPERTY(VisibleAnywhere, Category = "Item|Consumable")
-	TSoftClassPtr<UGameplayEffect> ConsumableEffectClass; //수정
+	TSoftClassPtr<UGameplayEffect> ConsumableEffectClass;
 
 	UPROPERTY(VisibleAnywhere, Category = "Item|Consumable")
-	FGameplayTag ConsumableSetByCallerTag; //수정
+	FGameplayTag ConsumableSetByCallerTag;
 
 	bool bIsCopy;
 	bool bIsPickup;

@@ -12,6 +12,8 @@ class UInteractionWidget;
 struct FInteractableData;
 class UUW_FullMap;
 class UUW_RoundProgressBar;
+class UUW_PickupText;
+class UUW_GameClear;
 class UHotbarPanel;
 class UInventoryComponent;
 class UBuildMenuWidget;
@@ -50,13 +52,26 @@ public:
 	void UpdateGatherProgress(float Percent);
 	void UpdateGatherTime(float Remaining);
 	void ToggleFullMap();
+	void ShowPickupText(const FText& Text);
 	void ShowDamageOverlay();
 	void HideDamageOverlay();
 	void UpdateDamageOverlay(float HealthPercent);
+	void ShowGameClear(bool bBossKilled);
 	void UpdateHUD();
 	void OpenPauseMenu();
 	void ClosePauseMenu();
 	bool IsPauseMenuOpen() const;
+	void SetBuildGuideVisible(bool bVisible);
+
+	void OpenOptionsPage();
+	void CloseOptionsPage();
+	bool IsOptionsPageOpen() const;
+
+	UFUNCTION(BlueprintCallable, Category = "SB|UI")
+	void OpenOptionsPage_FromPause();
+
+	UFUNCTION(BlueprintCallable, Category = "SB|UI")
+	void OpenOptionsPage_FromTitle();
 
 	UUW_FullMap* GetFullMapWidget() const { return FullMapWidget; }
 	UUW_UIHUD* GetHUD() const { return UIHUD; }
@@ -78,11 +93,20 @@ private:
 	UPROPERTY()
 	TObjectPtr<UUW_FullMap> FullMapWidget;
 
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUW_PickupText> PickupTextClass;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
 	TSubclassOf<UUW_RoundProgressBar> GatherProgressClass;
 
 	UPROPERTY()
 	TObjectPtr<UUW_RoundProgressBar> GatherProgressWidget;
+
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<UUW_GameClear> GameClearWidgetClass;
+
+	UPROPERTY()
+	TObjectPtr<UUW_GameClear> GameClearWidget;
 
 	UPROPERTY()
 	class UUW_DamageOverlay* DamageOverlayWidget;
@@ -119,6 +143,13 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UUserWidget>PauseMenuWidget;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
+	TSubclassOf<UUserWidget> OptionsPageClass;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> OptionsPageWidget;
+
 
 	///===============================================================================
 	/// FUNCTIONS

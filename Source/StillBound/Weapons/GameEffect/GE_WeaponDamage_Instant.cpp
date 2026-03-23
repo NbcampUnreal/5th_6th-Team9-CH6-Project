@@ -11,7 +11,7 @@
 
 UGE_WeaponDamage_Instant::UGE_WeaponDamage_Instant()
 {
-    // ï¿½ï¿½ï¿½(Instant)
+    // ï¿½ï¿½ï¿?Instant)
     DurationPolicy = EGameplayEffectDurationType::Instant;
 
     // SetByCaller(Data.EnemyDamage)
@@ -22,8 +22,9 @@ UGE_WeaponDamage_Instant::UGE_WeaponDamage_Instant()
     ensureMsgf(SBC.DataTag.IsValid(),
         TEXT("[GAS] GameplayTag 'Data.EnemyDamage' is not registered. Add it in Project Settings > GameplayTags"));
 
-    // =========================
-    // ï¿½Ï¹ï¿½ ï¿½ï¿½ï¿½Í¿ï¿½ Damage
+
+    // ÀÏ¹Ý ¸ó½ºÅÍ¿ë Damage
+
     // =========================
     {
         FGameplayModifierInfo Mod;
@@ -33,12 +34,10 @@ UGE_WeaponDamage_Instant::UGE_WeaponDamage_Instant()
         Modifiers.Add(Mod);
     }
 
-    // =========================
-    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Damage
-    // =========================
+
     {
-        FGameplayModifierInfo Mod; // //ï¿½ï¿½ï¿½ï¿½
-        Mod.Attribute = UBosAIAttributeSet::GetDamageAttribute(); // //ï¿½ï¿½ï¿½ï¿½
+        FGameplayModifierInfo Mod; // //¼öÁ¤
+        Mod.Attribute = UBosAIAttributeSet::GetDamageAttribute(); // //¼öÁ¤
         Mod.ModifierOp = EGameplayModOp::Additive;
         Mod.ModifierMagnitude = FGameplayEffectModifierMagnitude(SBC);
         Modifiers.Add(Mod);

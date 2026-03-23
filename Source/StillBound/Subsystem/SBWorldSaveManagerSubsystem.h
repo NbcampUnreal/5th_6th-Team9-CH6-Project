@@ -52,6 +52,9 @@ public:
     UFUNCTION(BlueprintCallable)
     bool LoadCurrentWorldAttributesToPawn(APawn* Pawn);
 
+    UFUNCTION(BlueprintCallable)
+    bool LoadCurrentWorldInventoryToPawn(APawn* Pawn);
+
 private:
     static const FString IndexSlotName;
 
@@ -67,7 +70,18 @@ private:
     bool ApplyPlayerAttributesToPawn(APawn* Pawn, const USBWorldSaveGame* Save);
     void UpdateIndexMetaFromWorldSave(const FString& SlotId, const USBWorldSaveGame* WorldSave);
 
+// Save ฐüทร
 private:
     UPROPERTY()
     FString CurrentSlotId;
+
+    bool FillInventoryFromPawn(APawn* Pawn, USBWorldSaveGame* Save);
+    bool ApplyInventoryToPawn(APawn* Pawn, const USBWorldSaveGame* Save);
+
+    bool FillPlacedBuildingsFromPawn(APawn* Pawn, USBWorldSaveGame* Save);
+    bool ApplyPlacedBuildingsToPawn(APawn* Pawn, const USBWorldSaveGame* Save);
+
+public:
+    UFUNCTION(BlueprintCallable)
+    bool LoadCurrentWorldBuildingsToPawn(APawn* Pawn);
 };

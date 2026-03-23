@@ -67,8 +67,8 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Gather")
     bool IsActive() const { return bIsActive; }
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gather")
-    class USphereComponent* InteractionCollision;
+    //UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gather")
+    //class USphereComponent* InteractionCollision;
 
 protected:
     // ============������ ������

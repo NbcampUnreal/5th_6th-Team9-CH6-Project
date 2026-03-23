@@ -8,6 +8,7 @@
 #include "Public/Data/ItemData.h"
 #include "UI/Build/BuildPreview_IngredientPanel.h"
 #include "Landscape.h"
+#include "Kismet/GameplayStatics.h"
 
 #pragma region Helpers
 
@@ -49,6 +50,22 @@ TArray<USceneComponent*> UBuildComponent::GetSnapPointsFromActor(AActor* InActor
 	}
 
 	return Result;
+}
+
+void UBuildComponent::AddIgnoredBuildActorsForGroundTrace(FCollisionQueryParams& Params) const
+{
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), FoundActors);
+
+	for (AActor* Actor : FoundActors)
+	{
+		if (!Actor) continue;
+
+		if (Actor->ActorHasTag(TEXT("Build.Roof")) || Actor->ActorHasTag(TEXT("Build.Wall")))
+		{
+			Params.AddIgnoredActor(Actor);
+		}
+	}
 }
 
 #pragma endregion
@@ -227,81 +244,120 @@ void UBuildComponent::UpdatePreviewTransform()
 {
 	if (!Player || !Camera) return;
 
-	// 1st : 카메라 전방으로 어디를 보고 있는지 찾기
+	FBuildingDataRow Row;
+	if (!GetBuildingData(CurrentBuildingID, Row)) return;
+
 	const FVector ViewStart = Camera->GetComponentLocation();
 	const FVector ViewEnd = ViewStart + Camera->GetForwardVector() * 3000.f;
 
+	FCollisionQueryParams ViewParams;
+	ViewParams.AddIgnoredActor(Player);
+
 	FHitResult ViewHit;
-	FCollisionQueryParams Params;
-	Params.AddIgnoredActor(Player);
-
 	const bool bViewHit = GetWorld()->LineTraceSingleByChannel(
-		ViewHit, 
-		ViewStart, 
-		ViewEnd, 
-		ECC_Visibility, 
-		Params);
-
-	FVector TargetXY = bViewHit ? ViewHit.ImpactPoint : ViewEnd;
-
-
-	// 2nd : 그 XY 기준으로 위에서 아래로 쏴서 실제 지면 찾기
-	const FVector GroundTraceStart(TargetXY.X, TargetXY.Y, TargetXY.Z + 5000.f);
-	const FVector GroundTraceEnd(TargetXY.X, TargetXY.Y, TargetXY.Z - 5000.f);
-
-	FHitResult GroundHit;
-	const bool bGroundHit = GetWorld()->LineTraceSingleByChannel(
-		GroundHit,
-		GroundTraceStart,
-		GroundTraceEnd,
+		ViewHit,
+		ViewStart,
+		ViewEnd,
 		ECC_Visibility,
-		Params);
+		ViewParams
+	);
 
-	FVector FinalLocation = TargetXY;
-	FRotator FinalRotation(0.f, CurrentBuildYaw, 0.f);
-
-	if (bGroundHit)
+	if (bViewHit)
 	{
-		LastPreviewHit = GroundHit;
-		FinalLocation = GroundHit.ImpactPoint;
+		LastPreviewHit = ViewHit;
 	}
 	else
 	{
 		LastPreviewHit = FHitResult();
-
 	}
 
-	FinalLocation.Z += CurrentBuildHeightOffset;
+	FVector FinalLocation = bViewHit ? ViewHit.ImpactPoint : ViewEnd;
+	FRotator FinalRotation(0.f, CurrentBuildYaw, 0.f);
 
-	CurrentSnapTargetActor = nullptr;
-	bSnappedToFoundation = false;
+	FHitResult GroundHit;
+	bool bGroundHit = false;
 
-	FBuildingDataRow Row;
-	if (GetBuildingData(CurrentBuildingID, Row))
 	{
-		if (Row.SnapRule == EBuildSnapRule::FoundationEdgeOnly)
-		{
-			if (TrySnapWall(Row, FinalLocation, FinalRotation))
-			{
-				bSnappedToFoundation = true;
-			}
-		}
-		else
-		{
-			if (TrySnapToNearbyFoundation(FinalLocation))
-			{
-				bSnappedToFoundation = true;
-			}
+		FCollisionQueryParams GroundParams;
+		GroundParams.AddIgnoredActor(Player);
 
-			FinalRotation += Row.PreviewRotationOffset;
+		// 토대/작업대는 지붕, 벽 무시
+		if (Row.SnapRule == EBuildSnapRule::GroundOnly ||
+			Row.SnapRule == EBuildSnapRule::None)
+		{
+			AddIgnoredBuildActorsForGroundTrace(GroundParams);
 		}
+
+		const FVector GroundTraceStart(FinalLocation.X, FinalLocation.Y, FinalLocation.Z + 5000.f);
+		const FVector GroundTraceEnd(FinalLocation.X, FinalLocation.Y, FinalLocation.Z - 5000.f);
+
+		bGroundHit = GetWorld()->LineTraceSingleByChannel(
+			GroundHit,
+			GroundTraceStart,
+			GroundTraceEnd,
+			ECC_Visibility,
+			GroundParams
+		);
+	}
+
+	if (bGroundHit)
+	{
+		LastGroundHit = GroundHit;
+	}
+	else
+	{
+		LastGroundHit = FHitResult();
+	}
+
+	bSnappedToBuild = false;
+	CurrentSnapTargetActor = nullptr;
+
+	switch (Row.SnapRule)
+	{
+	case EBuildSnapRule::FoundationEdgeOnly:
+		if (TrySnapWall(Row, FinalLocation, FinalRotation))
+		{
+			bSnappedToBuild = true;
+		}
+		break;
+
+	case EBuildSnapRule::OnTopOfWall:
+		if (TrySnapRoof(Row, FinalLocation, FinalRotation))
+		{
+			bSnappedToBuild = true;
+		}
+		break;
+
+	case EBuildSnapRule::GroundOnly:
+		if (bGroundHit)
+		{
+			FinalLocation = GroundHit.ImpactPoint;
+		}
+
+		FinalLocation.Z += CurrentBuildHeightOffset;
+		FinalRotation += Row.PreviewRotationOffset;
+
+		if (TrySnapToNearbyFoundation(FinalLocation))
+		{
+			bSnappedToBuild = true;
+		}
+		break;
+
+	case EBuildSnapRule::None:
+		if (bGroundHit)
+		{
+			FinalLocation = GroundHit.ImpactPoint;
+		}
+
+		FinalRotation += Row.PreviewRotationOffset;
+		break;
+
+	default:
+		break;
 	}
 
 	BuildTransform.SetLocation(FinalLocation);
 	BuildTransform.SetRotation(FQuat(FinalRotation));
-
-	/// LineTrace Debugging
-	// DrawDebugLine(GetWorld(), StartLocation, EndLocation, FColor::Yellow, false, 0.f, 0, 1.f);
 }
 
 bool UBuildComponent::CheckCanPlace(const FBuildingDataRow& Row)
@@ -309,9 +365,7 @@ bool UBuildComponent::CheckCanPlace(const FBuildingDataRow& Row)
 	switch (Row.SnapRule)
 	{
 	case EBuildSnapRule::None:
-
-		//일단은 GroundOnly취급함. 자유배치면 단순 겹침만 검사
-		return CheckGroundOnlyPlacement(Row);
+		return CheckFreePlaceOnGround(Row);
 
 	case EBuildSnapRule::GroundOnly:
 		return CheckGroundOnlyPlacement(Row);
@@ -320,8 +374,7 @@ bool UBuildComponent::CheckCanPlace(const FBuildingDataRow& Row)
 		return CheckFoundationEdgePlacement(Row);
 
 	case EBuildSnapRule::OnTopOfWall:
-		//추후 구현예정
-		return false;
+		return CheckRoofPlacement(Row);
 
 	default:
 		return false;
@@ -331,7 +384,7 @@ bool UBuildComponent::CheckCanPlace(const FBuildingDataRow& Row)
 bool UBuildComponent::CheckGroundOnlyPlacement(const FBuildingDataRow& Row)
 {
 	//스냅되었으면 지면 검사 없이 허용
-	if (bSnappedToFoundation)
+	if (bSnappedToBuild)
 	{
 		if (CheckOverlapAtPreview(Row))
 		{
@@ -404,18 +457,54 @@ bool UBuildComponent::CheckOverlapAtPreview(const FBuildingDataRow& Row) const
 		// Landscape Ignore
 		if (OverlapActor->IsA<ALandscape>()) continue;
 
-		if (Row.SnapRule == EBuildSnapRule::FoundationEdgeOnly && CurrentSnapTargetActor)
+		//현재 스냅 대상은 무시
+		if (CurrentSnapTargetActor && OverlapActor == CurrentSnapTargetActor) continue;
+
+		//벽 설치 중이면 지붕과의 겹칭은 허용
+		if (Row.SnapRule == EBuildSnapRule::FoundationEdgeOnly)
 		{
-			if (OverlapActor == CurrentSnappedAcotr)
+			if (OverlapActor->ActorHasTag(TEXT("Build.Roof")))
 			{
 				continue;
 			}
 		}
-
+		// 지붕 설치 중이면 벽/지붕 스냅 대상은 허용
+		if (Row.SnapRule == EBuildSnapRule::OnTopOfWall)
+		{
+			if (OverlapActor->ActorHasTag(TEXT("Build.Wall")) || OverlapActor->ActorHasTag(TEXT("Build.Roof")))
+			{
+				continue;
+			}
+		}
 		return true;
 	}
 
 	return false;
+}
+
+bool UBuildComponent::CheckFreePlaceOnGround(const FBuildingDataRow& Row)
+{
+	if (!LastGroundHit.bBlockingHit)
+	{
+		return false;
+	}
+
+	//기울기 검사
+	const FVector HitNormal = LastGroundHit.ImpactNormal;
+	const float UpDot = FVector::DotProduct(HitNormal, FVector::UpVector);
+
+	if (UpDot < 0.95)
+	{
+		return false;
+	}
+
+	//겹침 검사
+	if (CheckOverlapAtPreview(Row))
+	{
+		return false;
+	}
+
+	return true;
 }
 
 void UBuildComponent::ApplyPreviewMaterial(bool bInCanPlace)
@@ -503,6 +592,9 @@ bool UBuildComponent::ConfirmBuild(EBuildFailReason& OutFailReason)
 		return false;
 	}
 
+	Spawned->Tags.AddUnique(TEXT("PlacedBuild"));
+	Spawned->Tags.AddUnique(CurrentBuildingID);
+
 	//만약 한번 설치하고 프리뷰유지하고싶지않으면 false;
 	return true;
 }
@@ -579,7 +671,8 @@ bool UBuildComponent::TrySnapToNearbyFoundation(FVector& InOutLocation) const
 		// 태그로 토대 판별
 		if (!OverlapActor->ActorHasTag(TEXT("Build.Foundation"))) continue;
 
-		const TArray<USceneComponent*> SnapPoints = GetSnapPointsFromActor(OverlapActor);
+		//토대 전용 스냅포인트만 허용
+		const TArray<USceneComponent*> SnapPoints = GetSnapPointsByPrefix(OverlapActor, TEXT("Snap_Foundation_"));
 
 		for (USceneComponent* SnapPoint : SnapPoints)
 		{
@@ -608,7 +701,7 @@ bool UBuildComponent::TrySnapToNearbyFoundation(FVector& InOutLocation) const
 
 bool UBuildComponent::CheckFoundationEdgePlacement(const FBuildingDataRow& Row)
 {
-	if (!bSnappedToFoundation) return false;
+	if (!bSnappedToBuild) return false;
 
 	if (CheckOverlapAtPreview(Row)) return false;
 
@@ -722,6 +815,84 @@ void UBuildComponent::AddBuildRotation(float DeltaYaw)
 	CurrentBuildYaw += DeltaYaw;
 
 	CurrentBuildYaw = FMath::Fmod(CurrentBuildYaw, 360.f);
+}
+
+bool UBuildComponent::CheckRoofPlacement(const FBuildingDataRow& Row)
+{
+	if (!bSnappedToBuild) return false;
+
+	if (CheckOverlapAtPreview(Row)) return false;
+
+	return true;
+
+}
+
+bool UBuildComponent::TrySnapRoof(const FBuildingDataRow& Row, FVector& InOutLocation, FRotator& OutRotation)
+{
+	if (!Player)
+	{
+		CurrentSnapTargetActor = nullptr;
+		return false;
+	}
+
+	AActor* HitActor = LastPreviewHit.GetActor();
+	if (!HitActor)
+	{
+		CurrentSnapTargetActor = nullptr;
+		return false;
+	}
+
+	const bool bIsWall = HitActor->ActorHasTag(TEXT("Build.Wall"));
+	const bool bIsRoof = HitActor->ActorHasTag(TEXT("Build.Roof"));
+
+	if (!bIsWall && !bIsRoof)
+	{
+		CurrentSnapTargetActor = nullptr;
+		return false;
+	}
+
+	const TArray<USceneComponent*> SnapPoints =
+		GetSnapPointsByPrefix(HitActor, TEXT("Snap_Roof_"));
+
+	if (SnapPoints.Num() == 0)
+	{
+		CurrentSnapTargetActor = nullptr;
+		return false;
+	}
+
+	float BestDistSq = TNumericLimits<float>::Max();
+	USceneComponent* BestSnapPoint = nullptr;
+
+	for (USceneComponent* SnapPoint : SnapPoints)
+	{
+		if (!SnapPoint) continue;
+
+		const FVector SnapLoc = SnapPoint->GetComponentLocation();
+		const float DistSq = FVector::DistSquared(SnapLoc, InOutLocation);
+
+		if (DistSq < BestDistSq)
+		{
+			BestDistSq = DistSq;
+			BestSnapPoint = SnapPoint;
+		}
+	}
+
+	if (!BestSnapPoint)
+	{
+		CurrentSnapTargetActor = nullptr;
+		return false;
+	}
+
+	InOutLocation = BestSnapPoint->GetComponentLocation();
+	OutRotation = BestSnapPoint->GetComponentRotation() + Row.PreviewRotationOffset;
+	CurrentSnapTargetActor = HitActor;
+
+	UE_LOG(LogTemp, Warning, TEXT("[RoofSnap] Target=%s  SnapPoint=%s  Loc=%s"),
+		*GetNameSafe(HitActor),
+		*GetNameSafe(BestSnapPoint),
+		*InOutLocation.ToString());
+
+	return true;
 }
 
 

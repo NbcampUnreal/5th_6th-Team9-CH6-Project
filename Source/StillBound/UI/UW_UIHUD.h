@@ -9,9 +9,13 @@ class UUW_StaminaBar;
 class UUW_ExpBar;
 class UUW_Minimap;
 class UBossHPbar;
+class UVerticalBox;
+class UUW_PickupText;
+class UBorder;
 class UHotbarPanel;
 class UInventoryComponent;
 class UBuildPreview_IngredientPanel;
+class UImage;
 
 /**
  * 
@@ -22,7 +26,6 @@ class STILLBOUND_API UUW_UIHUD : public UUserWidget
 	GENERATED_BODY()
 	
 public:
-
 	UFUNCTION(BlueprintCallable)
 	void SetHP(float Current, float Max);
 
@@ -35,6 +38,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetLevel(int32 Level);
 
+	void AddPickupLog(const FText& Text);
+	void CheckPickupPanel();
 	void SetBossName(const FText& Name);
 	void SetBossHP(float Current, float Max);
 	void HideBossHP();
@@ -49,7 +54,10 @@ public:
 
 	UBuildPreview_IngredientPanel* GetBuildPreview_IngredientPanel() const { return BuildPreview_IngredientPanel; }
 
+	void SetBuildGuideVisibile(bool bVisible);
+
 protected:
+	virtual void NativeConstruct() override;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UUW_HPBar> HPBar;
@@ -64,6 +72,15 @@ protected:
 	TObjectPtr<UUW_Minimap> MiniMapWidget;
 
 	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UBorder> PickupPanel;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UVerticalBox> PickupLogBox;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Pickup")
+	TSubclassOf<UUW_PickupText> PickupTextClass;
+
+	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UBossHPbar> BossHP;
 
 	UPROPERTY(meta = (BindWidget))
@@ -71,5 +88,8 @@ protected:
 	
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UBuildPreview_IngredientPanel> BuildPreview_IngredientPanel;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UImage> BuildGuideImage;
 
 };

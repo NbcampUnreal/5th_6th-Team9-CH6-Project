@@ -7,8 +7,11 @@
 #include "Character/PlayerAttributeSet.h"
 #include "UI/MainMenu.h"
 #include "UI/UW_FullMap.h"
+#include "UI/UW_PickupText.h"
 #include "UI/UW_DamageOverlay.h"
 #include "UI/UW_RoundProgressBar.h"
+#include "Blueprint/UserWidget.h"
+#include "UI/UW_GameClear.h"
 #include "UI/Interaction/InteractionWidget.h"
 #include "UI/Inventory/HotbarPanel.h"
 #include "UI/Build/BuildMenuWidget.h"
@@ -85,6 +88,27 @@ void USB_UIManager::Init(APlayerController* InOwnerPC)
 		{
 			PauseMenuWidget->AddToViewport(100);
 			PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
+	if (GameClearWidgetClass)
+	{
+		GameClearWidget = CreateWidget<UUW_GameClear>(OwnerPC.Get(), GameClearWidgetClass);
+
+		if (GameClearWidget)
+		{
+			GameClearWidget->AddToViewport(200);
+			GameClearWidget->SetVisibility(ESlateVisibility::Hidden);
+		}
+	}
+
+	if (OptionsPageClass)
+	{
+		OptionsPageWidget = CreateWidget<UUserWidget>(OwnerPC, OptionsPageClass);
+		if (OptionsPageWidget)
+		{
+			OptionsPageWidget->AddToViewport(200);
+			OptionsPageWidget->SetVisibility(ESlateVisibility::Collapsed);
 		}
 	}
 
@@ -205,6 +229,13 @@ void USB_UIManager::ToggleFullMap()
 	}
 }
 
+void USB_UIManager::ShowPickupText(const FText& Text)
+{
+	if (!UIHUD) return;
+
+	UIHUD->AddPickupLog(Text);
+}
+
 void USB_UIManager::ShowDamageOverlay()
 {
 	if (DamageOverlayWidget)
@@ -228,6 +259,14 @@ void USB_UIManager::UpdateDamageOverlay(float HealthPercent)
 	{
 		DamageOverlayWidget->UpdateDamageEffect(HealthPercent);
 	}
+}
+
+void USB_UIManager::ShowGameClear(bool bBossKilled)
+{
+	if (!GameClearWidget) return;
+
+	GameClearWidget->SetVisibility(ESlateVisibility::Visible);
+	GameClearWidget->SetGameClear(bBossKilled);
 }
 
 void USB_UIManager::UpdateHUD()
@@ -398,6 +437,14 @@ bool USB_UIManager::IsPauseMenuOpen() const
 	return PauseMenuWidget && PauseMenuWidget->GetVisibility() != ESlateVisibility::Collapsed;
 }
 
+void USB_UIManager::SetBuildGuideVisible(bool bVisible)
+{
+	if (UIHUD)
+	{
+		UIHUD->SetBuildGuideVisibile(bVisible);
+	}
+}
+
 void USB_UIManager::OpenPauseMenu()
 {
 	if (!PauseMenuWidget) return;
@@ -408,4 +455,49 @@ void USB_UIManager::ClosePauseMenu()
 {
 	if (!PauseMenuWidget) return;
 	PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+}
+
+bool USB_UIManager::IsOptionsPageOpen() const
+{
+	return OptionsPageWidget && OptionsPageWidget->GetVisibility() != ESlateVisibility::Collapsed;
+}
+
+void USB_UIManager::OpenOptionsPage()
+{
+	if (!OptionsPageWidget) return;
+	OptionsPageWidget->SetVisibility(ESlateVisibility::Visible);
+}
+
+void USB_UIManager::CloseOptionsPage()
+{
+	if (!OptionsPageWidget) return;
+	OptionsPageWidget->SetVisibility(ESlateVisibility::Collapsed);
+}
+
+static void CallBPFuncIfExists(UUserWidget* Widget, const FName FuncName)
+{
+	if (!Widget) return;
+
+	if (UFunction* Fn = Widget->FindFunction(FuncName))
+	{
+		Widget->ProcessEvent(Fn, nullptr);
+	}
+}
+
+void USB_UIManager::OpenOptionsPage_FromPause()
+{
+	if (!OptionsPageWidget) return;
+
+	CallBPFuncIfExists(OptionsPageWidget, TEXT("SetupForPauseMenu"));
+
+	OptionsPageWidget->SetVisibility(ESlateVisibility::Visible);
+}
+
+void USB_UIManager::OpenOptionsPage_FromTitle()
+{
+	if (!OptionsPageWidget) return;
+
+	CallBPFuncIfExists(OptionsPageWidget, TEXT("SetupForTitle"));
+
+	OptionsPageWidget->SetVisibility(ESlateVisibility::Visible);
 }

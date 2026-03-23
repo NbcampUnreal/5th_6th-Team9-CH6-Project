@@ -1,6 +1,7 @@
 #include "Items/Pickup.h"
 #include "Items/ItemBase.h"
 #include "Character/PlayerCharacter_SB.h"
+#include "Character/PlayerController_SB.h"
 #include "Inventory/InventoryComponent.h"
 #include "Components/SphereComponent.h"
 #include "NPC/Quest/QuestComponent.h"
@@ -59,7 +60,7 @@ void APickup::InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int
 		//ItemReference->PickupActorClass = ItemData->PickupActorClass;
 		ItemReference->EquipWeaponClass = ItemData->EquipWeaponClass;
 
-		ItemReference->ConsumableEffectClass = ItemData->ConsumableEffectClass;         //수정
+		ItemReference->ConsumableEffectClass = ItemData->ConsumableEffectClass;         
 		ItemReference->ConsumableSetByCallerTag = ItemData->ConsumableSetByCallerTag;
 
 		ItemReference->NumericData.bIsStackable = ItemData->NumericData.MaxStackSize > 1;
@@ -130,22 +131,56 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 				case EItemAddResult::IAR_NoItemAdded:
 					break;
 				case EItemAddResult::IAR_PartialAmountItemAdded:
+
 					// 퀘스트 진행도 업데이트 (부분 추가된 수량)
 					if (UQuestComponent* QuestComp = Taker->FindComponentByClass<UQuestComponent>())
 					{
 						QuestComp->OnItemCollected(ItemReference->ID, AddResult.ActualAmountAdded);
 					}
+
 					UpdateInteractableData();
 					Taker->UpdateInteractionWidget();
+
+					if (APlayerController_SB* PC = Cast<APlayerController_SB>(Taker->GetController()))
+					{
+						if (PC->UIManager)
+						{
+							PC->UIManager->ShowPickupText(
+								FText::Format(
+									FText::FromString(TEXT("{0} +{1}")),
+									ItemReference->TextData.Name,
+									ItemReference->Quantity
+								)
+							);
+						}
+					}
+
 					break;
+				}
+				
 				case EItemAddResult::IAR_AllItemAdded:
 					// 퀘스트 진행도 업데이트 (전체 수량)
 					if (UQuestComponent* QuestComp = Taker->FindComponentByClass<UQuestComponent>())
 					{
 						QuestComp->OnItemCollected(ItemReference->ID, AddResult.ActualAmountAdded);
 					}
+
+					if (APlayerController_SB* PC = Cast<APlayerController_SB>(Taker->GetController()))
+					{
+						if (PC->UIManager)
+						{
+							PC->UIManager->ShowPickupText(
+								FText::Format(
+									FText::FromString(TEXT("{0} +{1}")),
+									ItemReference->TextData.Name,
+									ItemReference->Quantity
+								)
+							);
+						}
+					}
 					Destroy();
 					break;
+				}
 				}
 
 				UE_LOG(LogTemp, Warning, TEXT("%s"), *AddResult.ResultMessage.ToString());

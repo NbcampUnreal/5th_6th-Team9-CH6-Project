@@ -88,4 +88,7 @@ struct FBuildingDataRow : public FTableRowBase
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
     FRotator PreviewRotationOffset = FRotator::ZeroRotator;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+    FVector PreviewLocationOffset = FVector::ZeroVector;
 };
