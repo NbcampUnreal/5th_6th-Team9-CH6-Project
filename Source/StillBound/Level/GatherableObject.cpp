@@ -326,6 +326,16 @@ void AGatherableObject::CheckHotbarChanged()
 
     if (bShouldCancel)
     {
+        //타이머 먼저 정리후 EndInteract호출
+        UWorld* World = GetWorld();
+        if (World)
+        {
+            World->GetTimerManager().ClearTimer(HotbarCheckTimerHandle);
+        }
+
+        // 캐시 초기화
+        CachedHotbarIndex = -1;
+        CachedToolID = NAME_None;
         //캐릭터의 EndInteract 호출해서 채집 취소
         Player->EndInteract();
     }

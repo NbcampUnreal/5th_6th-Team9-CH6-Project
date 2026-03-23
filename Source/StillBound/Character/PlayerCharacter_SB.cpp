@@ -437,14 +437,16 @@ void APlayerCharacter_SB::BeginInteract()
 
 void APlayerCharacter_SB::EndInteract()
 {
-	if (InteractionData.CurrentInteractable)
+	//CurrentInteractable유효성 체크 추가.
+	if (InteractionData.CurrentInteractable &&
+		IsValid(InteractionData.CurrentInteractable))
 	{
-		IInteractionInterface::Execute_EndInteract(InteractionData.CurrentInteractable);
+		IInteractionInterface::Execute_EndInteract(
+			InteractionData.CurrentInteractable);
 	}
 
 	InteractionData.bIsInteracting = false;
 	GetWorldTimerManager().ClearTimer(TimerHandle_Interaction);
-
 }
 
 void APlayerCharacter_SB::Interact()
