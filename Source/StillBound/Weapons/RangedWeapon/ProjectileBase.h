@@ -5,11 +5,13 @@
 #include "GameplayTagContainer.h"
 #include "ProjectileBase.generated.h"
 
+class USphereComponent;
 class UStaticMeshComponent;
 class UProjectileMovementComponent;
 class UPrimitiveComponent;
 class UGameplayEffect;
-class AWeaponBase;
+class UAbilitySystemComponent;
+class UNiagaraSystem;
 
 USTRUCT(BlueprintType)
 struct FProjectileOnHitGameplayEffectSpec
@@ -29,6 +31,32 @@ struct FProjectileOnHitGameplayEffectSpec
     float Chance = 1.0f;
 };
 
+USTRUCT(BlueprintType)
+struct FProjectileImpactFXPayload
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon|Projectile|ImpactFX")
+    TObjectPtr<UNiagaraSystem> NiagaraSystem = nullptr;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon|Projectile|ImpactFX")
+    FVector Scale = FVector(1.f, 1.f, 1.f);
+
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon|Projectile|ImpactFX")
+    FVector LocationOffset = FVector::ZeroVector;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon|Projectile|ImpactFX")
+    FRotator RotationOffset = FRotator::ZeroRotator;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon|Projectile|ImpactFX")
+    bool bUseImpactNormalRotation = true;
+
+    bool IsConfigured() const
+    {
+        return NiagaraSystem != nullptr;
+    }
+};
+
 UCLASS(Abstract, Blueprintable)
 class STILLBOUND_API AProjectileBase : public AActor
 {
@@ -37,33 +65,33 @@ class STILLBOUND_API AProjectileBase : public AActor
 public:
     AProjectileBase();
 
-    virtual void Tick(float DeltaTime) override;
-
     UFUNCTION(BlueprintCallable, Category = "Weapon|Projectile")
     void InitProjectileData(
         AActor* InSourceInstigator,
-        AWeaponBase* InSourceWeapon,
+        UAbilitySystemComponent* InSourceASC,
         TSubclassOf<UGameplayEffect> InBaseDamageEffectClass,
         float InFinalDamage,
-        const TArray<FProjectileOnHitGameplayEffectSpec>& InOnHitTargetEffects
+        const TArray<FProjectileOnHitGameplayEffectSpec>& InOnHitTargetEffects,
+        const FProjectileImpactFXPayload& InImpactFXPayload
     );
 
     UFUNCTION(BlueprintPure, Category = "Weapon|Projectile")
-    UStaticMeshComponent* GetProjectileMesh() const { return ProjectileMesh; }
+    USphereComponent* GetCollisionComp() const { return CollisionComp; }
 
     UFUNCTION(BlueprintPure, Category = "Weapon|Projectile")
     UProjectileMovementComponent* GetProjectileMovement() const { return ProjectileMovement; }
 
-    // 수정: 임펄스 모드용 물리 중력 배율 설정
-    void ConfigureImpulsePhysics(UPrimitiveComponent* InPhysicsComponent, float InGravityScale);
+    // 수정:
+    // impulse mode에서는 중력 ON/OFF만 처리
+    void ConfigureImpulsePhysics(UPrimitiveComponent* InPhysicsComponent, bool bEnableGravity);
 
 protected:
     virtual void BeginPlay() override;
 
 protected:
-    // 수정:
-    // 메쉬 자체를 충돌 주체로 사용
-    // 충돌 채널/프리셋은 BP에서 설정
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Projectile")
+    TObjectPtr<USphereComponent> CollisionComp;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Projectile")
     TObjectPtr<UStaticMeshComponent> ProjectileMesh;
 
@@ -76,15 +104,17 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile")
     bool bUseOverlapAsFallback = true;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile|Collision", meta = (ClampMin = "0.0"))
+    float InitialCollisionDisableTime = 0.03f;
+
 protected:
     UPROPERTY()
-    TWeakObjectPtr<AActor> SourceInstigatorActor;
+    TObjectPtr<AActor> SourceInstigatorActor = nullptr;
+
+    TWeakObjectPtr<UAbilitySystemComponent> SourceASC;
 
     UPROPERTY()
-    TWeakObjectPtr<AWeaponBase> SourceWeapon;
-
-    UPROPERTY()
-    TSubclassOf<UGameplayEffect> BaseDamageEffectClass;
+    TSubclassOf<UGameplayEffect> BaseDamageEffectClass = nullptr;
 
     UPROPERTY()
     float CachedFinalDamage = 0.f;
@@ -93,12 +123,10 @@ protected:
     TArray<FProjectileOnHitGameplayEffectSpec> OnHitTargetEffects;
 
     UPROPERTY()
-    bool bHasImpactProcessed = false;
+    FProjectileImpactFXPayload CachedImpactFX;
 
-    // 수정: 임펄스 모드에서 GravityScale > 1 지원용
-    TWeakObjectPtr<UPrimitiveComponent> ImpulsePhysicsComponent;
-    bool bUseCustomImpulseGravity = false;
-    float ImpulseGravityScale = 0.f;
+    UPROPERTY()
+    bool bHasImpactProcessed = false;
 
 protected:
     UFUNCTION()
@@ -142,9 +170,9 @@ protected:
         float Chance = 1.0f
     ) const;
 
-    bool SpawnWeaponHitImpactFXFromHitResult(const FHitResult& HitResult) const;
+    bool SpawnImpactFXFromHitResult(const FHitResult& HitResult) const;
+
+    void EnableCollisionAfterSpawnDelay();
 
     static FGameplayTag GetDataDamageTag();
-
-    void SetupIgnoredActors();
 };
