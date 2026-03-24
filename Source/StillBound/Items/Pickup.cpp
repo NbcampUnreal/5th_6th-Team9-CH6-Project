@@ -79,6 +79,7 @@ void APickup::InitializeDrop(UItemBase* ItemToDrop, const int32 InQuantity)
 	PickupMesh->SetStaticMesh(ItemToDrop->AssetData.Mesh);
 
 	UpdateInteractableData();
+	ApplyDroppedItemLifeSpan();
 }
 
 void APickup::UpdateInteractableData()
@@ -234,4 +235,15 @@ void APickup::OnAutoPickupSphereBeginOverlap(
 	}
 
 	TakePickup(PlayerCharacter);
+}
+
+void APickup::ApplyDroppedItemLifeSpan()
+{
+	if (!bUseAutoDestroyForDroppedItem || DroppedItemLifeSeconds <= 0.f)
+	{
+		SetLifeSpan(0.f);
+		return;
+	}
+
+	SetLifeSpan(DroppedItemLifeSeconds);
 }
