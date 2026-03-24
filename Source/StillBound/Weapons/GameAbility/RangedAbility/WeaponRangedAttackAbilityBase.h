@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -12,7 +10,6 @@
 class ARangedWeaponBase;
 class UAbilityTask_PlayMontageAndWait;
 class UAbilityTask_WaitGameplayEvent;
-
 
 UCLASS(Abstract)
 class STILLBOUND_API UWeaponRangedAttackAbilityBase : public UWeaponGameplayAbility
@@ -51,29 +48,22 @@ protected:
     FRangedFireProfile CachedProfile;
 
 protected:
-
-    // 총구섬광 추가: 현재 프로파일 기준 총구섬광 스폰 트랜스폼 계산
     bool TryGetMuzzleFlashTransform(
         class ARangedWeaponBase* Weapon,
         FTransform& OutSpawnTransform
     ) const;
 
-    // 총구섬광 추가: 발사 순간 총구섬광 재생
     bool SpawnMuzzleFlash(class ARangedWeaponBase* Weapon) const;
 
-    // 현재 캐시된 프로파일을 실제 발사로 실행하는 공용 진입점
     virtual void FireCurrentProfile(class ARangedWeaponBase* Weapon);
 
-    // //추가: Projectile 발사
     virtual void FireProjectileOnce(class ARangedWeaponBase* Weapon);
 
-    // //추가: Spawn된 Projectile에 Speed / Impulse 적용
     virtual bool ApplyProjectileLaunchSettings(
         AActor* SpawnedProjectile,
         const FVector& ShotDirection
     ) const;
 
-    // 다음 단계 Projectile GA에서 사용할 공용 헬퍼
     virtual bool TryGetProjectileSpawnTransform(
         class ARangedWeaponBase* Weapon,
         FTransform& OutSpawnTransform,
@@ -98,7 +88,6 @@ protected:
 protected:
     bool CacheFireProfileFromWeapon(ARangedWeaponBase* Weapon);
 
-    // //수정: 현재 캐시된 프로파일 기준 최종 데미지 계산
     bool TryGetCachedFinalDamage(
         ARangedWeaponBase* Weapon,
         float& OutFinalDamage
@@ -115,7 +104,6 @@ protected:
         FHitResult& OutHit
     ) const;
 
-    // //추가: ViewLoc / ViewDir 계산 공통화
     bool ResolveViewData(
         const FVector& FallbackLoc,
         const FRotator& FallbackRot,
@@ -125,7 +113,6 @@ protected:
         FVector& OutViewDir
     ) const;
 
-    // //추가: 카메라 기준 AimPoint 계산 공통화
     bool ComputeAimPointFromView(
         const FVector& ViewLoc,
         const FVector& ViewDir,
@@ -137,7 +124,6 @@ protected:
         FHitResult* OutViewHit = nullptr
     ) const;
 
-    // //추가: 총구 -> AimPoint 방향 계산 공통화
     bool ComputeShotDirectionFromAimPoint(
         const FVector& MuzzleLoc,
         const FVector& AimPoint,

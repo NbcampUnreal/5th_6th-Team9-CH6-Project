@@ -1,147 +1,144 @@
 #include "Weapons/RangedWeapon/ProjectileBase.h"
 
-#include "Weapons/WeaponBase.h"
-
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
 
+#include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PrimitiveComponent.h"
 
 #include "GameFramework/ProjectileMovementComponent.h"
-
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+#include "TimerManager.h"
 
 AProjectileBase::AProjectileBase()
 {
-    PrimaryActorTick.bCanEverTick = true;
-    PrimaryActorTick.bStartWithTickEnabled = false;
+    CollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComp"));
+    SetRootComponent(CollisionComp);
 
-    // 수정:
-    // 메쉬 자체를 충돌 주체로 사용
-    // 충돌 채널/프리셋은 BP에서 설정
+    CollisionComp->InitSphereRadius(8.f);
+    CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    CollisionComp->SetCollisionObjectType(ECC_WorldDynamic);
+    CollisionComp->SetCollisionResponseToAllChannels(ECR_Ignore);
+    CollisionComp->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+    CollisionComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
+    CollisionComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+    CollisionComp->SetGenerateOverlapEvents(true);
+    CollisionComp->SetNotifyRigidBodyCollision(true);
+    CollisionComp->SetCanEverAffectNavigation(false);
+
+    // 기본은 물리 off
+    CollisionComp->SetSimulatePhysics(false);
+    CollisionComp->SetEnableGravity(false);
+
     ProjectileMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileMesh"));
-    SetRootComponent(ProjectileMesh);
-
-    // 수정: 생성자 최소화
-    ProjectileMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-    ProjectileMesh->SetNotifyRigidBodyCollision(true);
-    ProjectileMesh->SetGenerateOverlapEvents(true);
+    ProjectileMesh->SetupAttachment(CollisionComp);
+    ProjectileMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    ProjectileMesh->SetGenerateOverlapEvents(false);
     ProjectileMesh->SetCanEverAffectNavigation(false);
 
-    // 수정:
-    // 고속 임펄스 관통 완화용 CCD
-    // 실제 충돌 형태는 메쉬 에셋의 simple collision 사용
-    ProjectileMesh->BodyInstance.SetUseCCD(true);
-
-    // 수정:
-    // 기본은 물리 off
-    // 임펄스 모드에서만 Ability 쪽에서 켠다
-    ProjectileMesh->SetSimulatePhysics(false);
-    ProjectileMesh->SetEnableGravity(false);
-
     ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
-    ProjectileMovement->UpdatedComponent = ProjectileMesh;
+    ProjectileMovement->UpdatedComponent = CollisionComp;
 
-    // 수정: 자동 발사 방지. 발사 시점에 GA가 값 넣는다.
+    // 패키징 수정:
+    // Velocity 직접 대입 제거
     ProjectileMovement->InitialSpeed = 0.f;
     ProjectileMovement->MaxSpeed = 0.f;
     ProjectileMovement->ProjectileGravityScale = 0.f;
-    ProjectileMovement->Velocity = FVector::ZeroVector;
     ProjectileMovement->bAutoActivate = false;
     ProjectileMovement->bRotationFollowsVelocity = true;
     ProjectileMovement->bShouldBounce = false;
 
-    ProjectileMesh->OnComponentHit.AddDynamic(this, &ThisClass::OnProjectileHit);
-    ProjectileMesh->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnProjectileBeginOverlap);
+    CollisionComp->OnComponentHit.AddDynamic(this, &ThisClass::OnProjectileHit);
+    CollisionComp->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnProjectileBeginOverlap);
 }
 
 void AProjectileBase::BeginPlay()
 {
     Super::BeginPlay();
 
-
-    SetActorTickEnabled(false);
-}
-
-void AProjectileBase::Tick(float DeltaTime)
-{
-    Super::Tick(DeltaTime);
-
-    if (!bUseCustomImpulseGravity)
+    // 발사 직후 잠깐 충돌 비활성화
+    if (CollisionComp)
     {
-        return;
+        if (InitialCollisionDisableTime > 0.f)
+        {
+            CollisionComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+            if (UWorld* World = GetWorld())
+            {
+                World->GetTimerManager().SetTimerForNextTick([this]()
+                    {
+                        if (!IsValid(this))
+                        {
+                            return;
+                        }
+
+                        if (InitialCollisionDisableTime <= 0.f)
+                        {
+                            EnableCollisionAfterSpawnDelay();
+                            return;
+                        }
+
+                        if (UWorld* InnerWorld = GetWorld())
+                        {
+                            FTimerHandle TempHandle;
+                            InnerWorld->GetTimerManager().SetTimer(
+                                TempHandle,
+                                this,
+                                &ThisClass::EnableCollisionAfterSpawnDelay,
+                                InitialCollisionDisableTime,
+                                false
+                            );
+                        }
+                    });
+            }
+        }
+        else
+        {
+            EnableCollisionAfterSpawnDelay();
+        }
     }
-
-    UPrimitiveComponent* Prim = ImpulsePhysicsComponent.Get();
-    UWorld* World = GetWorld();
-    if (!Prim || !World || !Prim->IsSimulatingPhysics())
-    {
-        bUseCustomImpulseGravity = false;
-        ImpulsePhysicsComponent = nullptr;
-        SetActorTickEnabled(false);
-        return;
-    }
-
-    // GravityScale <= 0 은 무중력 처리
-    if (ImpulseGravityScale <= 0.f)
-    {
-        return;
-    }
-
-    // 1.0 은 엔진 기본 중력만 사용
-    if (FMath::IsNearlyEqual(ImpulseGravityScale, 1.f))
-    {
-        return;
-    }
-
-    // 엔진 기본 중력 1배 외 추가 배율만 보정
-    const float ExtraGravityScale = ImpulseGravityScale - 1.f;
-    const float GravityZ = World->GetGravityZ(); // 보통 음수
-    const FVector ExtraForce = FVector(0.f, 0.f, Prim->GetMass() * GravityZ * ExtraGravityScale);
-
-    Prim->AddForce(ExtraForce, NAME_None, true);
 }
 
 void AProjectileBase::InitProjectileData(
     AActor* InSourceInstigator,
-    AWeaponBase* InSourceWeapon,
+    UAbilitySystemComponent* InSourceASC,
     TSubclassOf<UGameplayEffect> InBaseDamageEffectClass,
     float InFinalDamage,
-    const TArray<FProjectileOnHitGameplayEffectSpec>& InOnHitTargetEffects
+    const TArray<FProjectileOnHitGameplayEffectSpec>& InOnHitTargetEffects,
+    const FProjectileImpactFXPayload& InImpactFXPayload
 )
 {
     SourceInstigatorActor = InSourceInstigator;
-    SourceWeapon = InSourceWeapon;
+    SourceASC = InSourceASC;
     BaseDamageEffectClass = InBaseDamageEffectClass;
     CachedFinalDamage = InFinalDamage;
     OnHitTargetEffects = InOnHitTargetEffects;
+    CachedImpactFX = InImpactFXPayload;
     bHasImpactProcessed = false;
-    SetupIgnoredActors();
 }
 
-void AProjectileBase::ConfigureImpulsePhysics(UPrimitiveComponent* InPhysicsComponent, float InGravityScale)
+void AProjectileBase::ConfigureImpulsePhysics(UPrimitiveComponent* InPhysicsComponent, bool bEnableGravity)
 {
-    ImpulsePhysicsComponent = InPhysicsComponent;
-    ImpulseGravityScale = FMath::Max(0.f, InGravityScale);
-
     if (!InPhysicsComponent)
     {
-        bUseCustomImpulseGravity = false;
-        SetActorTickEnabled(false);
         return;
     }
 
-    InPhysicsComponent->SetEnableGravity(ImpulseGravityScale > 0.f);
+    InPhysicsComponent->SetEnableGravity(bEnableGravity);
+}
 
-    bUseCustomImpulseGravity =
-        (ImpulseGravityScale > 0.f) &&
-        !FMath::IsNearlyEqual(ImpulseGravityScale, 1.f);
+void AProjectileBase::EnableCollisionAfterSpawnDelay()
+{
+    if (!CollisionComp || bHasImpactProcessed)
+    {
+        return;
+    }
 
-    SetActorTickEnabled(bUseCustomImpulseGravity);
+    CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 }
 
 void AProjectileBase::OnProjectileHit(
@@ -173,9 +170,7 @@ void AProjectileBase::OnProjectileBeginOverlap(
 
     if (!bFromSweep)
     {
-        // 수정:
-        // FHitResult에 Actor 직접 대입하지 않음
-        // 대상 액터는 HandleImpact의 ExplicitOtherActor로 전달
+        HitResult = FHitResult(ForceInit);
         HitResult.Location = GetActorLocation();
         HitResult.ImpactPoint = GetActorLocation();
 
@@ -212,7 +207,7 @@ void AProjectileBase::HandleImpact(const FHitResult& HitResult, AActor* Explicit
 
     bHasImpactProcessed = true;
 
-    SpawnWeaponHitImpactFXFromHitResult(HitResult);
+    SpawnImpactFXFromHitResult(HitResult);
 
     if (TargetActor)
     {
@@ -254,12 +249,7 @@ bool AProjectileBase::ShouldIgnoreActor(AActor* OtherActor) const
         return true;
     }
 
-    if (SourceInstigatorActor.IsValid() && OtherActor == SourceInstigatorActor.Get())
-    {
-        return true;
-    }
-
-    if (SourceWeapon.IsValid() && OtherActor == SourceWeapon.Get())
+    if (SourceInstigatorActor && OtherActor == SourceInstigatorActor)
     {
         return true;
     }
@@ -335,32 +325,30 @@ bool AProjectileBase::ApplyEffectToTargetActor(
         }
     }
 
-    AActor* SourceActor = SourceInstigatorActor.Get();
-    UAbilitySystemComponent* SourceASC =
-        SourceActor ? UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(SourceActor) : nullptr;
-
+    UAbilitySystemComponent* LocalSourceASC = SourceASC.Get();
     UAbilitySystemComponent* TargetASC =
         UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
 
-    if (!SourceASC || !TargetASC)
+    if (!LocalSourceASC || !TargetASC)
     {
         return false;
     }
 
-    AWeaponBase* Weapon = SourceWeapon.Get();
-
-    FGameplayEffectContextHandle Ctx = SourceASC->MakeEffectContext();
-    if (SourceActor)
+    AActor* SourceActor = SourceInstigatorActor.Get();
+    if (!SourceActor)
     {
-        Ctx.AddInstigator(SourceActor, Weapon ? Cast<AActor>(Weapon) : SourceActor);
+        SourceActor = GetOwner();
+    }
+    if (!SourceActor)
+    {
+        SourceActor = const_cast<AProjectileBase*>(this);
     }
 
-    if (Weapon)
-    {
-        Ctx.AddSourceObject(Weapon);
-    }
+    FGameplayEffectContextHandle Ctx = LocalSourceASC->MakeEffectContext();
+    Ctx.AddInstigator(SourceActor, SourceActor);
+    Ctx.AddSourceObject(const_cast<AProjectileBase*>(this));
 
-    FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(EffectClass, Level, Ctx);
+    FGameplayEffectSpecHandle SpecHandle = LocalSourceASC->MakeOutgoingSpec(EffectClass, Level, Ctx);
     if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
     {
         return false;
@@ -374,7 +362,7 @@ bool AProjectileBase::ApplyEffectToTargetActor(
         }
     }
 
-    SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+    LocalSourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
     return true;
 }
 
@@ -413,16 +401,9 @@ bool AProjectileBase::ApplyBaseDamageToTargetActor(
     );
 }
 
-bool AProjectileBase::SpawnWeaponHitImpactFXFromHitResult(const FHitResult& HitResult) const
+bool AProjectileBase::SpawnImpactFXFromHitResult(const FHitResult& HitResult) const
 {
-    const AWeaponBase* Weapon = SourceWeapon.Get();
-    if (!Weapon)
-    {
-        return false;
-    }
-
-    const FWeaponHitImpactFX& FX = Weapon->GetHitImpactFX();
-    if (!FX.NiagaraSystem)
+    if (!CachedImpactFX.IsConfigured())
     {
         return false;
     }
@@ -463,22 +444,22 @@ bool AProjectileBase::SpawnWeaponHitImpactFXFromHitResult(const FHitResult& HitR
     }
 
     FRotator SpawnRotation = FRotator::ZeroRotator;
-    if (FX.bUseImpactNormalRotation)
+    if (CachedImpactFX.bUseImpactNormalRotation)
     {
         SpawnRotation = ImpactNormal.Rotation();
     }
 
     const FVector FinalLocation =
-        SpawnLocation + SpawnRotation.RotateVector(FX.LocationOffset);
+        SpawnLocation + SpawnRotation.RotateVector(CachedImpactFX.LocationOffset);
 
-    const FRotator FinalRotation = SpawnRotation + FX.RotationOffset;
+    const FRotator FinalRotation = SpawnRotation + CachedImpactFX.RotationOffset;
 
     UNiagaraFunctionLibrary::SpawnSystemAtLocation(
         World,
-        FX.NiagaraSystem,
+        CachedImpactFX.NiagaraSystem,
         FinalLocation,
         FinalRotation,
-        FX.Scale,
+        CachedImpactFX.Scale,
         true,
         true
     );
@@ -497,52 +478,4 @@ FGameplayTag AProjectileBase::GetDataDamageTag()
     );
 
     return Tag;
-}
-
-void AProjectileBase::SetupIgnoredActors()
-{
-    if (!ProjectileMesh)
-    {
-        return;
-    }
-
-    TArray<AActor*> ActorsToIgnore;
-
-    if (AActor* OwnerActor = GetOwner())
-    {
-        ActorsToIgnore.AddUnique(OwnerActor);
-    }
-
-    if (SourceInstigatorActor.IsValid())
-    {
-        ActorsToIgnore.AddUnique(SourceInstigatorActor.Get());
-    }
-
-    if (SourceWeapon.IsValid())
-    {
-        ActorsToIgnore.AddUnique(SourceWeapon.Get());
-    }
-
-    for (AActor* ActorToIgnore : ActorsToIgnore)
-    {
-        if (!ActorToIgnore)
-        {
-            continue;
-        }
-
-        // 프로젝타일이 이동할 때 이 액터를 무시
-        ProjectileMesh->IgnoreActorWhenMoving(ActorToIgnore, true);
-
-       
-
-        // 상대쪽 컴포넌트도 가능하면 이 프로젝타일을 무시
-        TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(ActorToIgnore);
-        for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
-        {
-            if (PrimComp)
-            {
-                PrimComp->IgnoreActorWhenMoving(this, true);
-            }
-        }
-    }
 }
