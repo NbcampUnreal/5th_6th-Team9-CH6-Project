@@ -138,4 +138,6 @@ public:
 
     UPROPERTY(BlueprintReadOnly, SaveGame)
     TArray<FSBWorldDroppedItemSaveData> SavedDroppedItems;
+
+
 };

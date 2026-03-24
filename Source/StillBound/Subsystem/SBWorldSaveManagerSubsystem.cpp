@@ -257,13 +257,6 @@ bool USBWorldSaveManagerSubsystem::FillInventoryFromPawn(APawn* Pawn, USBWorldSa
     Save->bHasInventory = true;
     Inv->BuildSaveData(Save->SavedInventorySlots, Save->SavedHotbarSlots);
 
-    FString DebugMsg = FString::Printf(TEXT("Inventory Save - Inv: %d, Hotbar: %d"),
-        Save->SavedInventorySlots.Num(),
-        Save->SavedHotbarSlots.Num());
-
-    // PrintString 실행 (화면 왼쪽 상단에 출력됨)
-    UKismetSystemLibrary::PrintString(GetWorld(), DebugMsg, true, true, FLinearColor::Yellow, 5.f);
-
     return true;
 }
 
