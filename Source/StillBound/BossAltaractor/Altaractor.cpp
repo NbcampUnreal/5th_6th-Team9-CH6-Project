@@ -235,7 +235,7 @@ void AAltaractor::ActivateAltar()
 	SetActorTickEnabled(false);
 }
 
-//아레나 블로킹 벽 원형으로 배치
+//아레나 블로킹 벽 배치
 void AAltaractor::SpawnArenaWalls()
 {
 	if (!ArenaWallClass) return;

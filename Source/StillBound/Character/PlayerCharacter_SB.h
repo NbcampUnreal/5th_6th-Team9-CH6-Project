@@ -56,7 +56,12 @@ public:
 
 	FORCEINLINE UInventoryComponent* GetInventory() const { return PlayerInventory; };
 
+	UFUNCTION(BlueprintCallable, Category = "Drop")
+	TSubclassOf<APickup> GetPickupClass() const { return PickupClass; }
+
 	FORCEINLINE UBuildComponent* GetBuildComponent() const { return BuildComponent; };
+
+
 
 	void UpdateInteractionWidget() const;
 
@@ -212,7 +217,19 @@ public:
 	void NotifyGatherStart(float Duration);
 	void NotifyGatherEnd();
 
-protected:
-		UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gather")
-		TObjectPtr<UAnimMontage> GatherLoopMontage;
+private:
+	//현재 재생 중인 채집 몽타주 캐싱
+	UPROPERTY()
+	TObjectPtr<UAnimMontage> CurrentGatherMontage = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gather")
+	TObjectPtr<UAnimMontage> GatherPickaxeLoopMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gather")
+	TObjectPtr<UAnimMontage> GatherAxeLoopMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gather")
+	TObjectPtr<UAnimMontage> GatherDefaultLoopMontage;
+
+	UAnimMontage* GetGatherMontageForEquippedTool() const;
 };
