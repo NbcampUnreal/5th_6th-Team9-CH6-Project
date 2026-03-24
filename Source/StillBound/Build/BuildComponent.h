@@ -104,7 +104,6 @@ public:
 
 	virtual void BeginPlay() override;
 
-
 	UFUNCTION(BlueprintCallable)
 	void BeginBuildMode(FName InBuildingID);
 

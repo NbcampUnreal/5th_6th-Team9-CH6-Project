@@ -1,5 +1,6 @@
 #include "Items/CraftingStation.h"
 #include "Character/PlayerCharacter_SB.h"
+#include "Character/PlayerController_SB.h"
 
 ACraftingStation::ACraftingStation()
 {
@@ -17,6 +18,15 @@ ACraftingStation::ACraftingStation()
 void ACraftingStation::Interact_Implementation(APlayerCharacter_SB* PlayerCharacter)
 {
 	if (!PlayerCharacter) return;
+
+	APlayerController_SB* PC = Cast<APlayerController_SB>(PlayerCharacter->GetController());
+	if (!PC) return;
+
+	if (PC->GetOverlayInputState() != EOverlayInputState::Gameplay)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CraftingStation] Not in Gameplay state"));
+		return;
+	}
 
 	if (StationTag.IsNone())
 	{

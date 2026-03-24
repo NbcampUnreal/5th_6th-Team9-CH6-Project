@@ -118,6 +118,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void OpenCraftingUI(FName InStationTag, UDataTable* InRecipeTable);
 
+	//UFUNCTION(BlueprintCallable)
+	//void OpenStorageBoxUI(AStorageBox* StorageBox);
+
 	UFUNCTION(BlueprintCallable)
 	void Die();
 
