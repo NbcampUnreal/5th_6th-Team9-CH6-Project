@@ -54,6 +54,7 @@ void UUW_PickupText::StartLifeTimer(float LifeTime)
 
     if (FadeOut)
     {
+        StopAnimation(FadeOut);
         PlayAnimation(FadeOut);
     }
 
@@ -75,8 +76,14 @@ void UUW_PickupText::StartLifeTimer(float LifeTime)
 void UUW_PickupText::AddStack(int32 Amount)
 {
     StackCount += Amount;
-
     UpdateText();
+
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(RemoveTimer);
+    }
+
+    StartLifeTimer(2.f);
 }
 
 void UUW_PickupText::RemoveSelf()
