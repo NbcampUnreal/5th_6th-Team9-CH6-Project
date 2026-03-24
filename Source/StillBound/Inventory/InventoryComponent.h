@@ -243,9 +243,9 @@ private:
     ///===============================================================================
     int32 GetTotalCountByID(FName ItemID) const;
     bool AddByID(FName ItemID, int32 Count);
-    UItemBase* CreateItemInstanceByID(FName ItemID, int32 Quantity) const;
     
 public:
+    UItemBase* CreateItemInstanceByID(FName ItemID, int32 Quantity) const;
     bool ConsumeByID(FName ItemID, int32 Count);
 
 

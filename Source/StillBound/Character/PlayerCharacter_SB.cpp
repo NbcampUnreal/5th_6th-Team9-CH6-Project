@@ -358,11 +358,12 @@ void APlayerCharacter_SB::FoundInteractable(AActor* NewInteractable)
 	if (TargetInteractable.GetObject())
 	{
 		FInteractableData Data = IInteractionInterface::Execute_GetInteractableData(TargetInteractable.GetObject());
-		UI->UpdateInteractionWidget(Data);
-		IInteractionInterface::Execute_BeginFocus(TargetInteractable.GetObject());
-
+		if (PC->GetOverlayInputState() == EOverlayInputState::Gameplay)
+		{
+			UI->UpdateInteractionWidget(Data);
+			IInteractionInterface::Execute_BeginFocus(TargetInteractable.GetObject());
+		}
 	}
-
 }
 
 void APlayerCharacter_SB::NoInteractableFound()
