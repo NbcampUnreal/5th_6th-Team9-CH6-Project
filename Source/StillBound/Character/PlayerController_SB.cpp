@@ -1077,6 +1077,11 @@ void APlayerController_SB::StartGatherProgress(float Duration)
 	if (UIManager)
 	{
 		UIManager->ShowGatherProgress();
+
+		if (UUW_UIHUD* HUD = UIManager->GetHUD())
+		{
+			HUD->SetCrosshairVisible(false);
+		}
 	}
 
 	GetWorldTimerManager().SetTimer(
@@ -1097,6 +1102,11 @@ void APlayerController_SB::EndGatherProgress()
 	if (UIManager)
 	{
 		UIManager->HideGatherProgress();
+
+		if (UUW_UIHUD* HUD = UIManager->GetHUD())
+		{
+			HUD->SetCrosshairVisible(true);
+		}
 	}
 }
 

@@ -5,6 +5,7 @@
 #include "UI/UW_Minimap.h"
 #include "UI/UW_BossHPbar.h"
 #include "UI/UW_PickupText.h"
+#include "UI/UW_Crosshair.h"
 #include "Components/Border.h"
 #include "UI/Inventory/HotbarPanel.h"
 #include "Components/VerticalBox.h"
@@ -159,5 +160,15 @@ void UUW_UIHUD::SetBuildGuideVisibile(bool bVisible)
 	if (BuildGuideImage)
 	{
 		BuildGuideImage->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+}
+
+void UUW_UIHUD::SetCrosshairVisible(bool bVisible)
+{
+	if (Crosshair)
+	{
+		Crosshair->SetVisibility(
+			bVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden
+		);
 	}
 }
