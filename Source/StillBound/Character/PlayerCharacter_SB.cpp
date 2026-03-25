@@ -108,6 +108,12 @@ void APlayerCharacter_SB::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// 핫바 내용이 바뀌면 현재 선택 슬롯 기준으로 장착/해제 다시 판정
+	if (PlayerInventory)
+	{
+		PlayerInventory->OnHotbarUpdated.AddUObject(this, &APlayerCharacter_SB::HandleHotbarSelectionChanged);
+	}
+
 	if (auto* Sub = GetGameInstance() ? GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>() : nullptr)
 	{
 		const bool bAttrOk = Sub->LoadCurrentWorldAttributesToPawn(this);
@@ -142,6 +148,9 @@ void APlayerCharacter_SB::BeginPlay()
 	{
 		BuildComponent->Camera = FollowCamera;
 	}
+
+	// 시작 시 현재 선택 슬롯 기준으로 한 번 동기화
+	HandleHotbarSelectionChanged();
 }
 
 bool APlayerCharacter_SB::EquipWeaponFromItem(UItemBase* Item)
@@ -540,6 +549,12 @@ void APlayerCharacter_SB::HandleHotbarSelectionChanged()
 		UnequipWeapon();
 		return;
 	}
+
+	// [수정] 무기 / 도구 / 투척재료만 장착 유지 대상
+	const bool bIsEquippableItem =
+		(Item->ItemType == EItemType::Weapon) ||
+		(Item->ItemType == EItemType::Tool) ||
+		(Item->ItemType == EItemType::Material && !Item->EquipWeaponClass.IsNull());
 
 	if (Item->ItemType != EItemType::Weapon)
 	{
