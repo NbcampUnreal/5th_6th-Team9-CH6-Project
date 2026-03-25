@@ -186,7 +186,7 @@ private:
 	// 골드 변수
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Gold",
 		meta = (ClampMin = "0", AllowPrivateAccess="true"))
-	int32 CurrentGold = 1000;  // 시작 골드
+	int32 CurrentGold = 0;  // 시작 골드
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Gold", meta = (AllowPrivateAccess = "true"))
 	int32 MaxGold = 999999;
