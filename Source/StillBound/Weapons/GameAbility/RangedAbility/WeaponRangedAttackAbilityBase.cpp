@@ -1,9 +1,7 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "Weapons/GameAbility/RangedAbility/WeaponRangedAttackAbilityBase.h"
 
 #include "Weapons/RangedWeapon/RangedWeaponBase.h"
-#include "Weapons/RangedWeapon/ProjectileBase.h" // 추가: Projectile 전용 초기화/물리 설정 호출용
+#include "Weapons/RangedWeapon/ProjectileBase.h"
 #include "Weapons/WeaponBase.h"
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
@@ -85,10 +83,10 @@ void UWeaponRangedAttackAbilityBase::ActivateAbility(
             return;
         }
 
-        MontageTask->OnCompleted.AddDynamic(this, &ThisClass::OnMontageCompleted);
-        MontageTask->OnCancelled.AddDynamic(this, &ThisClass::OnMontageCancelled);
-        MontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnMontageInterrupted);
-        MontageTask->OnBlendOut.AddDynamic(this, &ThisClass::OnMontageBlendOut);
+        MontageTask->OnCompleted.AddDynamic(this, &UWeaponRangedAttackAbilityBase::OnMontageCompleted);
+        MontageTask->OnCancelled.AddDynamic(this, &UWeaponRangedAttackAbilityBase::OnMontageCancelled);
+        MontageTask->OnInterrupted.AddDynamic(this, &UWeaponRangedAttackAbilityBase::OnMontageInterrupted);
+        MontageTask->OnBlendOut.AddDynamic(this, &UWeaponRangedAttackAbilityBase::OnMontageBlendOut);
         MontageTask->ReadyForActivation();
 
         if (bFireImmediatelyIfNoMontageOrEvent && !FireEventTag.IsValid())
@@ -748,54 +746,59 @@ bool UWeaponRangedAttackAbilityBase::ApplyProjectileLaunchSettings(
         return false;
     }
 
+    if (bHasSpeedMode && bHasImpulseMode)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("[RangedGA] Both Speed and Impulse are valid. Speed will be preferred. Projectile=%s"),
+            *GetNameSafe(SpawnedProjectile));
+    }
+
     if (Projectile.LifeSeconds > 0.f)
     {
         SpawnedProjectile->SetLifeSpan(Projectile.LifeSeconds);
     }
 
-    FVector LaunchDir = ShotDirection.GetSafeNormal();
-    if (LaunchDir.IsNearlyZero())
+    // Speed mode 우선
+    if (bHasSpeedMode)
     {
-        LaunchDir = SpawnedProjectile->GetActorForwardVector().GetSafeNormal();
-    }
+        if (UProjectileMovementComponent* MoveComp =
+            SpawnedProjectile->FindComponentByClass<UProjectileMovementComponent>())
+        {
+            const FVector SafeShotDir = ShotDirection.GetSafeNormal();
 
-    if (LaunchDir.IsNearlyZero())
-    {
+            MoveComp->StopMovementImmediately();
+            MoveComp->InitialSpeed = Projectile.InitialSpeed;
+            MoveComp->MaxSpeed = Projectile.MaxSpeed;
+
+            // 수정:
+            // 중력은 ON/OFF만 사용
+            MoveComp->ProjectileGravityScale = Projectile.bEnableGravity ? 1.f : 0.f;
+
+            MoveComp->SetVelocityInLocalSpace(FVector(Projectile.InitialSpeed, 0.f, 0.f));
+
+            if (!SafeShotDir.IsNearlyZero())
+            {
+                SpawnedProjectile->SetActorRotation(SafeShotDir.Rotation());
+            }
+
+            MoveComp->Activate(true);
+            MoveComp->UpdateComponentVelocity();
+            return true;
+        }
+
         UE_LOG(LogTemp, Warning,
-            TEXT("[RangedGA] Launch direction is invalid. Projectile=%s"),
+            TEXT("[RangedGA] Speed mode requested but ProjectileMovementComponent missing. Projectile=%s"),
             *GetNameSafe(SpawnedProjectile));
         return false;
     }
 
-    UProjectileMovementComponent* MoveComp =
-        SpawnedProjectile->FindComponentByClass<UProjectileMovementComponent>();
-
-    UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(SpawnedProjectile->GetRootComponent());
-    if (!Prim)
-    {
-        Prim = SpawnedProjectile->FindComponentByClass<UPrimitiveComponent>();
-    }
-
-    AProjectileBase* ProjectileActor = Cast<AProjectileBase>(SpawnedProjectile);
-
-    // 수정:
-    // BP에서 Impulse를 체크한 경우 기본 Speed 값이 살아 있어도
-    // 사용자가 의도한 대로 Impulse를 우선 적용한다.
+    // Impulse mode
     if (bHasImpulseMode)
     {
-        if (bHasSpeedMode)
+        UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(SpawnedProjectile->GetRootComponent());
+        if (!Prim)
         {
-            UE_LOG(LogTemp, Warning,
-                TEXT("[RangedGA] Both Speed and Impulse are valid. Impulse will be preferred. Projectile=%s"),
-                *GetNameSafe(SpawnedProjectile));
-        }
-
-        if (MoveComp)
-        {
-            MoveComp->StopMovementImmediately();
-            MoveComp->Deactivate();
-            MoveComp->Velocity = FVector::ZeroVector;
-            MoveComp->ProjectileGravityScale = 0.f;
+            Prim = SpawnedProjectile->FindComponentByClass<UPrimitiveComponent>();
         }
 
         if (!Prim)
@@ -806,62 +809,26 @@ bool UWeaponRangedAttackAbilityBase::ApplyProjectileLaunchSettings(
             return false;
         }
 
-        // 수정: 임펄스 모드는 코드에서 직접 물리 on
-        Prim->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-        Prim->SetSimulatePhysics(true);
-        Prim->SetEnableGravity(Projectile.GravityScale > 0.f);
-        Prim->WakeAllRigidBodies();
-        Prim->SetPhysicsLinearVelocity(FVector::ZeroVector);
-        Prim->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
-
         if (!Prim->IsSimulatingPhysics())
         {
             UE_LOG(LogTemp, Warning,
-                TEXT("[RangedGA] Failed to enable physics for impulse mode. Projectile=%s Component=%s"),
-                *GetNameSafe(SpawnedProjectile),
-                *GetNameSafe(Prim));
+                TEXT("[RangedGA] Impulse mode requested but component is not simulating physics. Projectile=%s Component=%s"),
+                *GetNameSafe(SpawnedProjectile), *GetNameSafe(Prim));
             return false;
         }
 
-        if (ProjectileActor)
+        // 수정:
+        // ProjectileBase에 중력 ON/OFF 적용
+        if (AProjectileBase* ProjectileActor = Cast<AProjectileBase>(SpawnedProjectile))
         {
-            ProjectileActor->ConfigureImpulsePhysics(Prim, Projectile.GravityScale);
+            ProjectileActor->ConfigureImpulsePhysics(Prim, Projectile.bEnableGravity);
+        }
+        else
+        {
+            Prim->SetEnableGravity(Projectile.bEnableGravity);
         }
 
-        Prim->AddImpulse(LaunchDir * Projectile.LaunchImpulse, NAME_None, true);
-        return true;
-    }
-
-    if (bHasSpeedMode)
-    {
-        if (!MoveComp)
-        {
-            UE_LOG(LogTemp, Warning,
-                TEXT("[RangedGA] Speed mode requested but ProjectileMovementComponent missing. Projectile=%s"),
-                *GetNameSafe(SpawnedProjectile));
-            return false;
-        }
-
-        // 수정: speed 모드는 물리 시뮬레이션 off
-        if (Prim && Prim->IsSimulatingPhysics())
-        {
-            Prim->SetPhysicsLinearVelocity(FVector::ZeroVector);
-            Prim->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
-            Prim->SetSimulatePhysics(false);
-        }
-
-        if (ProjectileActor)
-        {
-            ProjectileActor->ConfigureImpulsePhysics(nullptr, 0.f);
-        }
-
-        MoveComp->StopMovementImmediately();
-        MoveComp->Velocity = FVector::ZeroVector;
-        MoveComp->InitialSpeed = Projectile.InitialSpeed;
-        MoveComp->MaxSpeed = Projectile.MaxSpeed;
-        MoveComp->ProjectileGravityScale = Projectile.GravityScale;
-        MoveComp->Velocity = LaunchDir * Projectile.InitialSpeed;
-        MoveComp->Activate(true);
+        Prim->AddImpulse(ShotDirection.GetSafeNormal() * Projectile.LaunchImpulse, NAME_None, true);
         return true;
     }
 
@@ -969,5 +936,4 @@ void UWeaponRangedAttackAbilityBase::OnMontageInterrupted()
 
 void UWeaponRangedAttackAbilityBase::OnMontageBlendOut()
 {
-    EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, false, false);
 }

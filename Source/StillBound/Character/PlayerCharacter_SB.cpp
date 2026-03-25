@@ -123,6 +123,9 @@ void APlayerCharacter_SB::BeginPlay()
 
 		const bool bBuildOk = Sub->LoadCurrentWorldBuildingsToPawn(this);
 		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldBuildingsToPawn -> %d"), bBuildOk);
+
+		const bool bDropOk = Sub->LoadCurrentWorldDroppedItemsToPawn(this);
+		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldDroppedItemsToPawn -> %d"), bDropOk);
 	}
 
 	if (AbilitySystemComponent)
@@ -377,11 +380,12 @@ void APlayerCharacter_SB::FoundInteractable(AActor* NewInteractable)
 	if (TargetInteractable.GetObject())
 	{
 		FInteractableData Data = IInteractionInterface::Execute_GetInteractableData(TargetInteractable.GetObject());
-		UI->UpdateInteractionWidget(Data);
-		IInteractionInterface::Execute_BeginFocus(TargetInteractable.GetObject());
-
+		if (PC->GetOverlayInputState() == EOverlayInputState::Gameplay)
+		{
+			UI->UpdateInteractionWidget(Data);
+			IInteractionInterface::Execute_BeginFocus(TargetInteractable.GetObject());
+		}
 	}
-
 }
 
 void APlayerCharacter_SB::NoInteractableFound()
@@ -456,14 +460,16 @@ void APlayerCharacter_SB::BeginInteract()
 
 void APlayerCharacter_SB::EndInteract()
 {
-	if (InteractionData.CurrentInteractable)
+	//CurrentInteractable유효성 체크 추가.
+	if (InteractionData.CurrentInteractable &&
+		IsValid(InteractionData.CurrentInteractable))
 	{
-		IInteractionInterface::Execute_EndInteract(InteractionData.CurrentInteractable);
+		IInteractionInterface::Execute_EndInteract(
+			InteractionData.CurrentInteractable);
 	}
 
 	InteractionData.bIsInteracting = false;
 	GetWorldTimerManager().ClearTimer(TimerHandle_Interaction);
-
 }
 
 void APlayerCharacter_SB::Interact()
@@ -733,6 +739,7 @@ void APlayerCharacter_SB::DropItemFromSlot(ESlotContainer FromContainer, int32 F
 	if (Pickup)
 	{
 		Pickup->InitializeDrop(DropTemplate, RemovedQuantity);
+		Pickup->Tags.AddUnique(TEXT("SavedWorldDrop"));
 	}
 }
 
@@ -903,6 +910,8 @@ void APlayerCharacter_SB::NotifyGatherStart(float Duration)
 
 	if (UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
 	{
+		//시작 시 몽타주 캐싱
+		CurrentGatherMontage = GetGatherMontageForEquippedTool();
 		if (UAnimMontage* MontageToPlay = GetGatherMontageForEquippedTool())
 		{
 			AnimInstance->Montage_Play(MontageToPlay);
@@ -921,9 +930,11 @@ void APlayerCharacter_SB::NotifyGatherEnd()
 
 	if (UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
 	{
-		if (UAnimMontage* MontageToStop = GetGatherMontageForEquippedTool())
+		// 캐싱된 몽타주를 멈춤. 핫바가 바뀌어도 정확한 몽타주 중지
+		if (CurrentGatherMontage)
 		{
-			AnimInstance->Montage_Stop(0.2f, MontageToStop);
+			AnimInstance->Montage_Stop(0.2f, CurrentGatherMontage);
+			CurrentGatherMontage = nullptr;
 		}
 	}
 

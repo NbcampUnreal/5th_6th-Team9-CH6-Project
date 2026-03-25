@@ -177,6 +177,14 @@ void ARangedWeaponBase::ValidateFireProfiles() const
                     Profile.Projectile.bUseImpulse ? 1 : 0,
                     Profile.Projectile.LaunchImpulse);
             }
+
+            if (Profile.Projectile.HasValidSpeedMode() && Profile.Projectile.HasValidImpulseMode())
+            {
+                UE_LOG(LogTemp, Warning,
+                    TEXT("[RangedWeapon] Both projectile launch modes are valid. Speed will be preferred. Weapon=%s InputTag=%s"),
+                    *GetNameSafe(this),
+                    *InputTag.ToString());
+            }
         }
     }
 }

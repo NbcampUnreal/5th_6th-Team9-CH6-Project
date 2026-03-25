@@ -12,6 +12,7 @@
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
+#include "GameInstance/SBGameInstance.h"
 
 void USBMapListPageWidget::NativeConstruct()
 {
@@ -173,9 +174,13 @@ void USBMapListPageWidget::OnJoinClicked()
         return;
     }
 
+    if (USBGameInstance* GI = GetGameInstance<USBGameInstance>())
+    {
+        GI->RequestLoadingScreenOnce();
+    }
+
     UGameplayStatics::OpenLevel(this, GameplayLevelName);
 }
-
 void USBMapListPageWidget::OnBackClicked()
 {
     //UGameplayStatics::OpenLevel(GetWorld(), TitleLevelName);

@@ -155,6 +155,22 @@ public:
 
     UItemBase* GetItemInContainer(ESlotContainer InContainer, int32 Index) const;
     int32 RemoveAmountInContainer(ESlotContainer InContainer, int32 Index, int32 Quantity);
+
+    bool MoveSlotItem(ESlotContainer FromContainer, int32 FromIndex, ESlotContainer ToContainer, int32 ToIndex, bool bAllowSwap);
+
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Container")
+    void SetUseHotbar(bool bInUseHotbar);
+
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Container")
+    bool TransferItemToInventory(UInventoryComponent* TargetInventory, ESlotContainer FromContainer, int32 FromIndex, int32 TransferQuantity);
+
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Container")
+    bool AddItemByInstance(UItemBase* ItemInstance, bool bAutoHotbarForTarget);
+
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Container")
+    void GetAllItems(TArray<UItemBase*>& OutItems) const;
+
+
     /// getters
     UFUNCTION(Category = "Inventory")
     FORCEINLINE float GetInventoryTotalWeight() const { return InventoryTotalWeight; };
@@ -172,7 +188,8 @@ public:
 
     FORCEINLINE const TArray<TObjectPtr<UItemBase>>& GetHotbarSlots() const { return HotbarContents; };
 
-    bool MoveSlotItem(ESlotContainer FromContainer, int32 FromIndex, ESlotContainer ToContainer, int32 ToIndex, bool bAllowSwap);
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Container")
+    bool GetUseHotbar() const { return bUseHotbar; }
 
     /// setters
     UFUNCTION(Category = "Inventory")
@@ -203,6 +220,9 @@ protected:
     UPROPERTY(EditInstanceOnly, Category = "Hotbar")
     TArray<TObjectPtr<UItemBase>> HotbarContents;
 
+    UPROPERTY(EditAnywhere, Category = "Inventory|Container")
+    bool bUseHotbar = true;
+
     ///===============================================================================
     /// FUNCTIONS
     ///===============================================================================
@@ -223,9 +243,9 @@ private:
     ///===============================================================================
     int32 GetTotalCountByID(FName ItemID) const;
     bool AddByID(FName ItemID, int32 Count);
-    UItemBase* CreateItemInstanceByID(FName ItemID, int32 Quantity) const;
     
 public:
+    UItemBase* CreateItemInstanceByID(FName ItemID, int32 Quantity) const;
     bool ConsumeByID(FName ItemID, int32 Count);
 
 
