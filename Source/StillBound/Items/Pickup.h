@@ -78,6 +78,14 @@ protected:
 	UPROPERTY(EditInstanceOnly, Category = "Pickup|Item Initialization")
 	FDataTableRowHandle ItemRowHandle;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Drop")
+	bool bUseAutoDestroyForDroppedItem = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Pickup|Drop", meta = (ClampMin = "0.0"))
+	float DroppedItemLifeSeconds = 300.f;
+
+	void ApplyDroppedItemLifeSpan();
+
 	///===============================================================================
 	/// FUNCTIONS
 	///===============================================================================

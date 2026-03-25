@@ -26,6 +26,9 @@
 #include "Weapons/GameEffect/GE_RestoreHealth_Instant.h"
 #include "Weapons/GameEffect/GE_RestoreStamina_Instant.h"
 
+#include "NPC/Quest/QuestComponent.h"
+#include "NPC/Quest/QuestWidget.h"
+
 #include "Animation/AnimInstance.h"
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
@@ -62,6 +65,8 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	InteractionCheckDistance = 250.f;
 
 	BuildComponent = CreateDefaultSubobject<UBuildComponent>(TEXT("BuildComponent"));
+
+	QuestComponent = CreateDefaultSubobject<UQuestComponent>(TEXT("QuestComponent"));
 }
 
 FInteractableData APlayerCharacter_SB::GetInteractableData_Implementation()
@@ -137,7 +142,21 @@ void APlayerCharacter_SB::BeginPlay()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[Player] AbilitySystemComponent is null in BeginPlay"));
 	}
-
+	if (QuestWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Player] Creating QuestWidget"));
+		QuestWidget = CreateWidget<UQuestWidget>(GetWorld(), QuestWidgetClass);
+		if (QuestWidget)
+		{
+			QuestWidget->AddToViewport(50);
+			QuestWidget->SetVisibility(ESlateVisibility::Collapsed); // 초기 숨김
+			QuestWidget->SetQuestComponent(QuestComponent);
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Player] QuestWidgetClass is NULL!"));
+	}
 	if (BuildComponent)
 	{
 		BuildComponent->Camera = FollowCamera;
@@ -361,11 +380,12 @@ void APlayerCharacter_SB::FoundInteractable(AActor* NewInteractable)
 	if (TargetInteractable.GetObject())
 	{
 		FInteractableData Data = IInteractionInterface::Execute_GetInteractableData(TargetInteractable.GetObject());
-		UI->UpdateInteractionWidget(Data);
-		IInteractionInterface::Execute_BeginFocus(TargetInteractable.GetObject());
-
+		if (PC->GetOverlayInputState() == EOverlayInputState::Gameplay)
+		{
+			UI->UpdateInteractionWidget(Data);
+			IInteractionInterface::Execute_BeginFocus(TargetInteractable.GetObject());
+		}
 	}
-
 }
 
 void APlayerCharacter_SB::NoInteractableFound()

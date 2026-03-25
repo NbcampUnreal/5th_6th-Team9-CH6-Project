@@ -23,8 +23,16 @@ void UInventoryComponent::BeginPlay()
 	Super::BeginPlay();
 
 	InventorySlots.SetNum(InventorySlotsCapacity);
-	HotbarContents.SetNum(HotbarSlotsCapacity);
 
+	if (bUseHotbar)
+	{
+		HotbarContents.SetNum(HotbarSlotsCapacity);
+	}
+	else
+	{
+		HotbarSlotsCapacity = 0;
+		HotbarContents.Empty();
+	}
 }
 
 UItemBase* UInventoryComponent::FindMatchingItem(UItemBase* ItemIn) const
@@ -963,4 +971,91 @@ void UInventoryComponent::ApplySaveData(const TArray<FSBItemSlotSaveData>& InInv
 
 	OnHotbarUpdated.Broadcast();
 	OnInventoryUpdated.Broadcast();
+}
+
+void UInventoryComponent::SetUseHotbar(bool bInUseHotbar)
+{
+	bUseHotbar = bInUseHotbar;
+
+	if (!bUseHotbar)
+	{
+		HotbarSlotsCapacity = 0;
+		HotbarContents.Empty();
+	}
+}
+
+bool UInventoryComponent::TransferItemToInventory(UInventoryComponent* TargetInventory, ESlotContainer FromContainer, int32 FromIndex, int32 TransferQuantity)
+{
+	if (!TargetInventory || TransferQuantity <= 0) return false;
+
+	UItemBase* SourceItem = GetItemInContainer(FromContainer, FromIndex);
+	if (!SourceItem) return false;
+
+	const int32 ActualTransferQuantity = FMath::Min(TransferQuantity, SourceItem->Quantity);
+	if (ActualTransferQuantity <= 0) return false;
+
+	UItemBase* TransferItem = SourceItem->CreateItemCopy();
+	if (!TransferItem) return false;
+
+	TransferItem->SetQuantity(ActualTransferQuantity);
+	TransferItem->OwningInventory = TargetInventory;
+	TransferItem->ResetItemFlags();
+
+	const bool bTargetWantsHotbar = TargetInventory->GetUseHotbar();
+	const FItemAddResult AddResult = bTargetWantsHotbar ? TargetInventory->HandleAddItem_AutoHotbarFirst(TransferItem) : TargetInventory->HandleAddItem(TransferItem);
+
+	if (AddResult.ActualAmountAdded <= 0) return false;
+
+	const int32 Removed = RemoveAmountInContainer(FromContainer, FromIndex, AddResult.ActualAmountAdded);
+
+	if (Removed != AddResult.ActualAmountAdded)
+	{
+		TargetInventory->ConsumeByID(SourceItem->ID, AddResult.ActualAmountAdded);
+		return false;
+	}
+
+	OnInventoryUpdated.Broadcast();
+	TargetInventory->OnInventoryUpdated.Broadcast();
+
+	if (FromContainer == ESlotContainer::Hotbar)
+	{
+		OnHotbarUpdated.Broadcast();
+	}
+
+	if (bTargetWantsHotbar)
+	{
+		TargetInventory->OnInventoryUpdated.Broadcast();
+	}
+
+	return true;
+}
+
+bool UInventoryComponent::AddItemByInstance(UItemBase* ItemInstance, bool bAutoHotbarForTarget)
+{
+	if (!ItemInstance) return false;
+
+	const FItemAddResult Result = (bAutoHotbarForTarget && bUseHotbar) ? HandleAddItem_AutoHotbarFirst(ItemInstance) : HandleAddItem(ItemInstance);
+
+	return Result.ActualAmountAdded == ItemInstance->Quantity;
+}
+
+void UInventoryComponent::GetAllItems(TArray<UItemBase*>& OutItems) const
+{
+	OutItems.Reset();
+
+	for (const TObjectPtr<UItemBase>& Ptr : InventorySlots)
+	{
+		if (Ptr)
+		{
+			OutItems.Add(Ptr.Get());
+		}
+	}
+
+	for (const TObjectPtr<UItemBase>& Ptr : HotbarContents)
+	{
+		if (Ptr)
+		{
+			OutItems.Add(Ptr.Get());
+		}
+	}
 }
