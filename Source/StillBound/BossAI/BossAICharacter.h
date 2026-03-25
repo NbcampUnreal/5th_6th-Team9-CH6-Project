@@ -18,6 +18,8 @@ public:
 
 	virtual void BeginPlay() override;
 
+	void ShowDamageNumber(float Damage);
+
 	UFUNCTION(BlueprintPure, Category = "Boss|AI")
 	float GetDetectRange() const { return DetectRange; }
 
@@ -57,4 +59,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Boss|Death")
 	bool bIsDead = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<class ADamageNumberActor> DamageNumberClass;
 };

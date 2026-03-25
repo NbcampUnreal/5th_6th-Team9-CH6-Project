@@ -292,7 +292,7 @@ void AEnemyCharacter::SpawnDamageText(float Damage)
 
 	SpawnLocation.X += FMath::RandRange(-40.f, 40.f);
 	SpawnLocation.Y += FMath::RandRange(-40.f, 40.f);
-	SpawnLocation.Z += FMath::RandRange(120.f, 150.f);
+	SpawnLocation.Z += FMath::RandRange(10.f, 30.f);
 
 	ADamageNumberActor* Actor =
 		GetWorld()->SpawnActor<ADamageNumberActor>(
