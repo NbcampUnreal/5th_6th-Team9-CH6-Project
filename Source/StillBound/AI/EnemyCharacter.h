@@ -92,6 +92,18 @@ private:
     UPROPERTY(VisibleAnywhere, Category = "AI")
     bool bIsDead = false;
 
+    UFUNCTION(BlueprintPure, Category = "Enemy|Death")
+    bool IsDead() const { return bIsDead; }
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy|Death")
+    void BeginDeathState();
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy|Death")
+    void HideDeadBody();
+
+    UFUNCTION(BlueprintCallable, Category = "Enemy|Death")
+    float GetDeathMontageLength() const;
+
     UPROPERTY()
     TObjectPtr<AEnemyAIController> AIController;
 
@@ -114,7 +126,7 @@ private:
     bool bUseRespawn = true;
 
     UPROPERTY(EditAnywhere, Category = "Enemy|Respawn", meta = (EditCondition = "bUseRespawn"))
-    float RespawnTime = 10.f;
+    float RespawnTime = 60.f;
 
     UPROPERTY(EditAnywhere, Category = "Enemy|Respawn", meta = (EditCondition = "bUseRespawn"))
     bool bRespawnOnlyPlacedEnemy = true;
@@ -123,6 +135,7 @@ private:
     FRotator InitialSpawnRotation = FRotator::ZeroRotator;
 
     FTimerHandle RespawnTimerHandle;
+    FTimerHandle HideBodyTimerHandle;
 
     void RespawnEnemy();
     void DisableEnemyForRespawn();

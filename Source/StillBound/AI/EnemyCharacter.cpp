@@ -160,6 +160,30 @@ void AEnemyCharacter::ApplyVisualFromDataTable()
 	}
 }
 
+void AEnemyCharacter::BeginDeathState()
+{
+	if (AAIController* AIC = Cast<AAIController>(GetController()))
+	{
+		AIC->StopMovement();
+	}
+
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->DisableMovement();
+		MoveComp->StopMovementImmediately();
+	}
+
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+}
+
 void AEnemyCharacter::SpawnDropItems()
 {
 
@@ -250,24 +274,25 @@ void AEnemyCharacter::HandleDeath()
 	}
 
 	bIsDead = true;
-
+	BeginDeathState();
 	SpawnDropItems();
 
-	const bool bIsPlacedEnemy = !GetOwner();
+	const float DeathHideDelay = FMath::Max(GetDeathMontageLength() - 1.5f, 0.0f);
 
-	if (!bUseRespawn || (bRespawnOnlyPlacedEnemy && !bIsPlacedEnemy))
+	if (DeathHideDelay > 0.f)
 	{
-		if (AAIController* AIC = Cast<AAIController>(GetController()))
-		{
-			AIC->UnPossess();
-		}
-
-		SetActorEnableCollision(false);
-		SetLifeSpan(0.1f);
-		return;
+		GetWorldTimerManager().SetTimer(
+			HideBodyTimerHandle,
+			this,
+			&AEnemyCharacter::HideDeadBody,
+			DeathHideDelay,
+			false
+		);
 	}
-
-	DisableEnemyForRespawn();
+	else
+	{
+		HideDeadBody();
+	}
 
 	GetWorldTimerManager().SetTimer(
 		RespawnTimerHandle,
@@ -391,6 +416,8 @@ void AEnemyCharacter::EnableEnemyAfterRespawn()
 
 void AEnemyCharacter::RespawnEnemy()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyRespawn] RespawnEnemy called: %s"), *GetName());
+
 	SetActorLocationAndRotation(
 		InitialSpawnLocation,
 		InitialSpawnRotation,
@@ -407,6 +434,9 @@ void AEnemyCharacter::RespawnEnemy()
 		AIController = Cast<AEnemyAIController>(GetController());
 		BlackboardComp = AIController ? AIController->GetBlackboardComponent() : nullptr;
 
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRespawn] Controller=%s Blackboard=%s"),
+			*GetNameSafe(AIController), *GetNameSafe(BlackboardComp));
+
 		if (BlackboardComp)
 		{
 			BlackboardComp->SetValueAsBool(TEXT("bIsRangedEnemy"), IsRangedEnemy());
@@ -418,9 +448,41 @@ void AEnemyCharacter::RespawnEnemy()
 	{
 		AbilitySystemComponent->InitAbilityActorInfo(this, this);
 		AbilitySystemComponent->InitStats(AttributeSetClassForInitStats, DefaultAttributeMetaDataTable);
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRespawn] InitStats done"));
+	}
+
+	if (AbilitySystemComponent)
+	{
+		const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Enemy.State.Dead"));
+		AbilitySystemComponent->RemoveLooseGameplayTag(DeadTag);
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyRespawn] Dead tag removed"));
 	}
 
 	bIsDead = false;
 
-	UE_LOG(LogTemp, Warning, TEXT("[EnemyCharacter] Respawned: %s"), *GetName());
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyRespawn] Respawn finished"));
+}
+
+void AEnemyCharacter::HideDeadBody()
+{
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(false);
+
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		MeshComp->SetVisibility(false, true);
+		MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		MeshComp->bPauseAnims = true;
+	}
+}
+
+float AEnemyCharacter::GetDeathMontageLength() const
+{
+	return DeathMontage ? DeathMontage->GetPlayLength() : 0.f;
 }

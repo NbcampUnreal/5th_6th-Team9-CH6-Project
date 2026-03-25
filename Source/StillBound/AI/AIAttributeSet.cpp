@@ -31,6 +31,19 @@ void UAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 
 	if (AffectedAttr == GetDamageAttribute())
 	{
+		AActor* Owner = GetOwningActor();
+		UAbilitySystemComponent* ASC = Owner
+			? UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Owner)
+			: nullptr;
+
+		const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Enemy.State.Dead"));
+
+		if (ASC && ASC->HasMatchingGameplayTag(DeadTag))
+		{
+			SetDamage(0.f);
+			return;
+		}
+
 		const float LocalDamage = GetDamage();
 		SetDamage(0.f);
 
@@ -69,10 +82,8 @@ void UAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 
 			if (Reduced > 0.f && NewHealth > 0.f)
 			{
-				AActor* Owner = GetOwningActor();
 				if (Owner)
 				{
-
 					const FGameplayTag GetHitEventTag = FGameplayTag::RequestGameplayTag(TEXT("Event.Enemy.GetHit"));
 
 					FGameplayEventData HitEvent;
@@ -88,24 +99,20 @@ void UAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 
 			if (NewHealth <= 0.f)
 			{
-
 				UE_LOG(LogTemp, Error, TEXT("[AIAttr][Auth=%d] Health <= 0, calling HandleDeath()"),
 					GetOwningActor() ? GetOwningActor()->HasAuthority() : -1
 				);
 
-				AActor* Owner = GetOwningActor();
 				if (!Owner || !Owner->HasAuthority())
 				{
 					return;
 				}
 
-				UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Owner);
 				if (!ASC)
 				{
 					return;
 				}
 
-				const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Enemy.State.Dead"));
 				const FGameplayTag DeathEventTag = FGameplayTag::RequestGameplayTag(TEXT("Event.Enemy.Death"));
 
 				if (ASC->HasMatchingGameplayTag(DeadTag))
