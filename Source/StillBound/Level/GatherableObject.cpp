@@ -44,6 +44,7 @@ void AGatherableObject::EndPlay(const EEndPlayReason::Type EndPlayReason)
     {
         World->GetTimerManager().ClearTimer(RespawnTimerHandle);
         World->GetTimerManager().ClearTimer(FallTimerHandle);
+        World->GetTimerManager().ClearTimer(HotbarCheckTimerHandle);
     }
     Super::EndPlay(EndPlayReason);
 }
@@ -85,7 +86,7 @@ void AGatherableObject::BeginInteract_Implementation()
 
     if (!CanGather(Player))
     {
-        InteractableData.InteractionDuration = 0.f;
+        InteractableData.InteractionDuration = 9999.f;
         return;
     }
 
@@ -93,11 +94,45 @@ void AGatherableObject::BeginInteract_Implementation()
      // InteractableData의 Duration을 도구 티어에 따라 갱신
      InteractableData.InteractionDuration = CalculateGatherTime(ToolTier);
 
+     //채집 시작 시 현재 핫바 상태 캐싱
+     CachedHotbarIndex = Player->CurrentHotbarIndex;
+     UInventoryComponent* Inventory = Player->GetInventory();
+     if (Inventory)
+     {
+         UItemBase* EquippedItem = Inventory->GetItemInContainer(
+             ESlotContainer::Hotbar, CachedHotbarIndex);
+         CachedToolID = EquippedItem ? EquippedItem->ID : NAME_None;
+     }
+
+     // 핫바 변경 감지 타이머 시작 (0.1초마다 체크)
+     UWorld* World = GetWorld();
+     if (World)
+     {
+         World->GetTimerManager().SetTimer(
+             HotbarCheckTimerHandle,
+             this,
+             &AGatherableObject::CheckHotbarChanged,
+             0.1f,
+             true 
+         );
+     }
+
      Player->NotifyGatherStart(InteractableData.InteractionDuration);
 }
 
 void AGatherableObject::EndInteract_Implementation()
 {
+    // 핫바 체크 타이머 정리
+    UWorld* World = GetWorld();
+    if (World)
+    {
+        World->GetTimerManager().ClearTimer(HotbarCheckTimerHandle);
+    }
+
+    // 캐시 초기화
+    CachedHotbarIndex = -1;
+    CachedToolID = NAME_None;
+
     //채집 종료 알림(취소에도 호출)
     APlayerCharacter_SB* Player = nullptr;
     for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
@@ -181,12 +216,23 @@ FInteractableData AGatherableObject::GetInteractableData_Implementation()
 
     if (Player)
     {
-        int32 ToolTier = GetCharacterToolTier(Player);
-        InteractableData.InteractionDuration = CalculateGatherTime(ToolTier);
+        //채집 불가 상태면 Duration 0으로 표시
+        if (!CanGather(Player))
+        {
+            InteractableData.InteractionDuration = 0.f;
+            InteractableData.Action = FText::FromString(TEXT("Cannot gather"));
+        }
+        else
+        {
+            int32 ToolTier = GetCharacterToolTier(Player);
+            InteractableData.InteractionDuration = CalculateGatherTime(ToolTier);
+            InteractableData.Action = FText::FromString(TEXT("gathering"));
+        }
     }
     else
     {
         InteractableData.InteractionDuration = BaseGatherTime;
+        InteractableData.Action = FText::FromString(TEXT("gathering"));
     }
 
     return InteractableData;
@@ -196,6 +242,32 @@ FInteractableData AGatherableObject::GetInteractableData_Implementation()
 bool AGatherableObject::CanGather(APlayerCharacter_SB* Character) const
 {
     if (!Character) return false;
+
+    UInventoryComponent* Inventory = Character->GetInventory();
+    if (!Inventory) return false;
+
+    UItemBase* EquippedItem = Inventory->GetItemInContainer(
+        ESlotContainer::Hotbar,
+        Character->CurrentHotbarIndex
+    );
+
+    //도구를 들고 있는 경우 종류 체크
+    if (EquippedItem && EquippedItem->ItemType == EItemType::Tool)
+    {
+        EToolKind EquippedKind = EquippedItem->ItemStatistics.ToolKind;
+
+        // 도끼로 돌 채집 불가
+        if (GatherType == EGatherType::Rock && EquippedKind == EToolKind::Axe)
+        {
+            return false;
+        }
+
+        // 곡괭이로 나무 채집 불가
+        if (GatherType == EGatherType::Wood && EquippedKind == EToolKind::Pickaxe)
+        {
+            return false;
+        }
+    }
 
     int32 ToolTier = GetCharacterToolTier(Character);
 
@@ -210,6 +282,62 @@ bool AGatherableObject::CanGather(APlayerCharacter_SB* Character) const
         // 돌: 맨손 불가, 도구 티어 >= ObjectTier
         if (ToolTier == 0) return false;
         return ToolTier >= ObjectTier;
+    }
+}
+
+//핫바 변경 확인
+void AGatherableObject::CheckHotbarChanged()
+{
+    APlayerCharacter_SB* Player = nullptr;
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        if (APlayerController* PC = It->Get())
+        {
+            Player = Cast<APlayerCharacter_SB>(PC->GetPawn());
+            if (Player) { break; }
+        }
+    }
+
+    if (!Player) { return; }
+
+    bool bShouldCancel = false;
+
+    //핫바 인덱스 변경 감지
+    if (Player->CurrentHotbarIndex != CachedHotbarIndex)
+    {
+        bShouldCancel = true;
+    }
+    else
+    {
+        //같은 슬롯이라도 아이템이 바뀐 경우 감지
+        UInventoryComponent* Inventory = Player->GetInventory();
+        if (Inventory)
+        {
+            UItemBase* CurrentItem = Inventory->GetItemInContainer(
+                ESlotContainer::Hotbar, CachedHotbarIndex);
+            FName CurrentID = CurrentItem ? CurrentItem->ID : NAME_None;
+
+            if (CurrentID != CachedToolID)
+            {
+                bShouldCancel = true;
+            }
+        }
+    }
+
+    if (bShouldCancel)
+    {
+        //타이머 먼저 정리후 EndInteract호출
+        UWorld* World = GetWorld();
+        if (World)
+        {
+            World->GetTimerManager().ClearTimer(HotbarCheckTimerHandle);
+        }
+
+        // 캐시 초기화
+        CachedHotbarIndex = -1;
+        CachedToolID = NAME_None;
+        //캐릭터의 EndInteract 호출해서 채집 취소
+        Player->EndInteract();
     }
 }
 

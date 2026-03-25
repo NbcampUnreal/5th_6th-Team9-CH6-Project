@@ -16,6 +16,7 @@ class UHotbarPanel;
 class UInventoryComponent;
 class UBuildPreview_IngredientPanel;
 class UImage;
+class UUW_Crosshair;
 
 /**
  * 
@@ -56,6 +57,8 @@ public:
 
 	void SetBuildGuideVisibile(bool bVisible);
 
+	void SetCrosshairVisible(bool bVisible);
+
 protected:
 	virtual void NativeConstruct() override;
 
@@ -91,5 +94,8 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UImage> BuildGuideImage;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UUW_Crosshair> Crosshair;
 
 };

@@ -26,6 +26,18 @@ protected:
 	UProgressBar* HPBar;
 
 	UPROPERTY(meta = (BindWidget))
+	UProgressBar* HPBar_Delay;
+
+	UPROPERTY(meta = (BindWidget))
 	UTextBlock* BossName;
 
+private:
+	FTimerHandle DelayStartHandle;
+	FTimerHandle DelayMoveHandle;
+
+	float TargetDelayPercent = 1.f;
+
+	void StartDelayBarUpdate();
+	void UpdateDelayHP();
 };
+

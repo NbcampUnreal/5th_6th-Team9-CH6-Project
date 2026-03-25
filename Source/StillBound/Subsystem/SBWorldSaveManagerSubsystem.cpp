@@ -11,7 +11,11 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Build/BuildComponent.h"
 #include "EngineUtils.h"
+#include "Items/Pickup.h"
+#include "Items/ItemBase.h"
+#include "Data/ItemData.h"
 #include "Data/BuildingData.h"
+#include "Engine/DataTable.h"
 
 
 const FString USBWorldSaveManagerSubsystem::IndexSlotName = TEXT("SB_WorldIndex");
@@ -253,13 +257,6 @@ bool USBWorldSaveManagerSubsystem::FillInventoryFromPawn(APawn* Pawn, USBWorldSa
     Save->bHasInventory = true;
     Inv->BuildSaveData(Save->SavedInventorySlots, Save->SavedHotbarSlots);
 
-    FString DebugMsg = FString::Printf(TEXT("Inventory Save - Inv: %d, Hotbar: %d"),
-        Save->SavedInventorySlots.Num(),
-        Save->SavedHotbarSlots.Num());
-
-    // PrintString 실행 (화면 왼쪽 상단에 출력됨)
-    UKismetSystemLibrary::PrintString(GetWorld(), DebugMsg, true, true, FLinearColor::Yellow, 5.f);
-
     return true;
 }
 
@@ -372,6 +369,7 @@ bool USBWorldSaveManagerSubsystem::SaveCurrentWorldFromPawn(APawn* Pawn)
     FillPlayerAttributesFromPawn(Pawn, Save);
     FillInventoryFromPawn(Pawn, Save);
     FillPlacedBuildingsFromPawn(Pawn, Save);
+    FillDroppedItemsFromPawn(Pawn, Save);
 
     if (APlayerCharacter_SB* PC = Cast<APlayerCharacter_SB>(Pawn))
     {
@@ -620,4 +618,167 @@ bool USBWorldSaveManagerSubsystem::LoadCurrentWorldBuildingsToPawn(APawn* Pawn)
     if (!Save) return false;
 
     return ApplyPlacedBuildingsToPawn(Pawn, Save);
+}
+
+bool USBWorldSaveManagerSubsystem::LoadCurrentWorldDroppedItemsToPawn(APawn* Pawn)
+{
+    if (!Pawn) return false;
+    if (CurrentSlotId.IsEmpty()) return false;
+
+    USBWorldSaveGame* Save = LoadOrCreateWorldSave(CurrentSlotId);
+    if (!Save) return false;
+
+    return ApplyDroppedItemsToPawn(Pawn, Save);
+}
+
+bool USBWorldSaveManagerSubsystem::FillDroppedItemsFromPawn(APawn* Pawn, USBWorldSaveGame* Save)
+{
+    if (!Pawn || !Save) return false;
+
+    Save->SavedDroppedItems.Reset();
+
+    UWorld* World = Pawn->GetWorld();
+    if (!World)
+    {
+        Save->bHasDroppedItems = false;
+        return false;
+    }
+
+    for (TActorIterator<APickup> It(World); It; ++It)
+    {
+        APickup* Pickup = *It;
+        if (!Pickup) continue;
+
+        if (!Pickup->ActorHasTag(TEXT("SavedWorldDrop")))
+        {
+            continue;
+        }
+
+        UItemBase* Item = Pickup->GetItemData();
+        if (!Item)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[Save] Pickup has no ItemData: %s"), *GetNameSafe(Pickup));
+            continue;
+        }
+
+        if (Item->ID.IsNone() || Item->Quantity <= 0)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[Save] Invalid dropped item data: %s"), *GetNameSafe(Pickup));
+            continue;
+        }
+
+        FSBWorldDroppedItemSaveData Data;
+        Data.ItemID = Item->ID;
+        Data.Quantity = Item->Quantity;
+        Data.Transform = Pickup->GetActorTransform();
+
+        Save->SavedDroppedItems.Add(Data);
+    }
+
+    Save->bHasDroppedItems = Save->SavedDroppedItems.Num() > 0;
+
+    UE_LOG(LogTemp, Warning, TEXT("[Save] DroppedItems Saved = %d"), Save->SavedDroppedItems.Num());
+    return true;
+}
+
+UItemBase* USBWorldSaveManagerSubsystem::CreateWorldDropItemFromID(
+    UDataTable* ItemDataTable,
+    FName ItemID,
+    int32 Quantity,
+    UObject* Outer
+) const
+{
+    if (!ItemDataTable || ItemID.IsNone() || Quantity <= 0 || !Outer)
+    {
+        return nullptr;
+    }
+
+    const FItemDataRow* ItemData = ItemDataTable->FindRow<FItemDataRow>(ItemID, TEXT("CreateWorldDropItemFromID"));
+    if (!ItemData)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Load] Item row not found: %s"), *ItemID.ToString());
+        return nullptr;
+    }
+
+    UItemBase* NewItem = NewObject<UItemBase>(Outer);
+    if (!NewItem)
+    {
+        return nullptr;
+    }
+
+    NewItem->ID = ItemData->ID;
+    NewItem->ItemType = ItemData->ItemType;
+    NewItem->ItemQuality = ItemData->ItemQuality;
+    NewItem->ItemStatistics = ItemData->ItemStatistics;
+    NewItem->TextData = ItemData->TextData;
+    NewItem->NumericData = ItemData->NumericData;
+    NewItem->AssetData = ItemData->AssetData;
+    NewItem->PickupActorClass = ItemData->PickupActorClass;
+    NewItem->EquipWeaponClass = ItemData->EquipWeaponClass;
+    NewItem->ConsumableEffectClass = ItemData->ConsumableEffectClass;
+    NewItem->ConsumableSetByCallerTag = ItemData->ConsumableSetByCallerTag;
+
+    NewItem->ResetItemFlags();
+    NewItem->OwningInventory = nullptr;
+    NewItem->Quantity = FMath::Clamp(
+        Quantity,
+        1,
+        ItemData->NumericData.bIsStackable ? ItemData->NumericData.MaxStackSize : 1
+    );
+
+    return NewItem;
+}
+
+bool USBWorldSaveManagerSubsystem::ApplyDroppedItemsToPawn(APawn* Pawn, const USBWorldSaveGame* Save)
+{
+    if (!Pawn || !Save) return false;
+    if (!Save->bHasDroppedItems) return true;
+
+    APlayerCharacter_SB* PlayerChar = Cast<APlayerCharacter_SB>(Pawn);
+    if (!PlayerChar) return false;
+
+    TSubclassOf<APickup> WorldPickupClass = PlayerChar->GetPickupClass();
+    if (!WorldPickupClass)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Load] ApplyDroppedItemsToPawn: PickupClass is null"));
+        return false;
+    }
+
+    UInventoryComponent* Inv = PlayerChar->GetInventory();
+    if (!Inv || !Inv->ItemDataTable)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Load] ApplyDroppedItemsToPawn: ItemDataTable is null"));
+        return false;
+    }
+
+    for (const FSBWorldDroppedItemSaveData& Data : Save->SavedDroppedItems)
+    {
+        if (Data.ItemID.IsNone() || Data.Quantity <= 0) continue;
+
+        UItemBase* DropItem = CreateWorldDropItemFromID(
+            Inv->ItemDataTable,
+            Data.ItemID,
+            Data.Quantity,
+            Pawn
+        );
+
+        if (!DropItem) continue;
+
+        FActorSpawnParameters Params;
+        Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+        APickup* Pickup = Pawn->GetWorld()->SpawnActor<APickup>(
+            WorldPickupClass,
+            Data.Transform,
+            Params
+        );
+
+        if (!Pickup) continue;
+
+        Pickup->InitializeDrop(DropItem, Data.Quantity);
+        Pickup->Tags.AddUnique(TEXT("SavedWorldDrop"));
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("[Load] DroppedItems Loaded = %d"), Save->SavedDroppedItems.Num());
+    return true;
 }

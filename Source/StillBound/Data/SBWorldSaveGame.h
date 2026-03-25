@@ -32,6 +32,21 @@ struct FSBPlacedBuildingSaveData
     UPROPERTY(BlueprintReadOnly, SaveGame) FTransform Transform;
 };
 
+USTRUCT(BlueprintType)
+struct FSBWorldDroppedItemSaveData
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    FName ItemID = NAME_None;
+
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    int32 Quantity = 0;
+
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    FTransform Transform;
+};
+
 /// ===============================================================================
 /// SAVE GAME CLASS
 /// ===============================================================================
@@ -116,4 +131,13 @@ public:
 
     UPROPERTY(BlueprintReadOnly, SaveGame)
     TArray<FSBPlacedBuildingSaveData> SavedBuildings;
+
+    // --- Drop Items ---
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    bool bHasDroppedItems = false;
+
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    TArray<FSBWorldDroppedItemSaveData> SavedDroppedItems;
+
+
 };

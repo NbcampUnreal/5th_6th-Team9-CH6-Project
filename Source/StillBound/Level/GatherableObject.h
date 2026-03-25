@@ -94,9 +94,15 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Setup")
     UDataTable* ItemDataTable;
 
-    // ToolStatTable ���� Ƽ�� ��ȸ��, ���� �Ⱦ�
-    //UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Setup")
-    //UDataTable* ToolStatDataTable;
+    // 채집 시작 시 핫바 상태 캐싱
+    int32 CachedHotbarIndex = -1;
+    FName CachedToolID = NAME_None;
+
+    // 핫바 변경 감지용 타이머
+    FTimerHandle HotbarCheckTimerHandle;
+
+    // 핫바 변경 감지 함수
+    void CheckHotbarChanged();
 
     //pickup ���� Ŭ����
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Setup")

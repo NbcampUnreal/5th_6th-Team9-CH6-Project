@@ -60,7 +60,11 @@ public:
 	TObjectPtr<UMaterialInterface> InvalidPreviewMaterial;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
-	FHitResult LastPreviewHit;
+	FHitResult LastPreviewHit;  // 에임 맞춘 액터
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	FHitResult LastGroundHit;   //바닥 판정용
+	
 
 	UPROPERTY()
 	FText LastBuildPreviewStateMessage;
@@ -100,7 +104,6 @@ public:
 
 	virtual void BeginPlay() override;
 
-
 	UFUNCTION(BlueprintCallable)
 	void BeginBuildMode(FName InBuildingID);
 
@@ -125,6 +128,7 @@ public:
 	bool CheckCanPlace(const FBuildingDataRow& Row);
 	bool CheckGroundOnlyPlacement(const FBuildingDataRow& Row);
 	bool CheckOverlapAtPreview(const FBuildingDataRow& Row) const;
+	bool CheckFreePlaceOnGround(const FBuildingDataRow& Row);
 	void ApplyPreviewMaterial(bool bInCanPlace);
 
 	bool HasEnoughBuildCost(const FBuildingDataRow& Row) const;
@@ -143,4 +147,6 @@ public:
 
 	bool CheckRoofPlacement(const FBuildingDataRow& Row);
 	bool TrySnapRoof(const FBuildingDataRow& Row, FVector& InOutLocation, FRotator& OutRotation);
+
+	void AddIgnoredBuildActorsForGroundTrace(FCollisionQueryParams& Params) const;
 };

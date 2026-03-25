@@ -91,6 +91,11 @@ void UShopWidget::InitializeShop(ANPCCharacter* InNPCCharacter)
         UE_LOG(LogTemp, Error, TEXT("[ShopWidget] Failed to get Player!"));
         return;
     }
+    if (PlayerInventory)
+    {
+        PlayerInventory->OnInventoryUpdated.RemoveAll(this);
+        PlayerInventory->OnHotbarUpdated.RemoveAll(this);
+    }
 
     PlayerInventory = Player->GetInventory();
     if (!PlayerInventory)

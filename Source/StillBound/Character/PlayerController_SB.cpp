@@ -26,6 +26,7 @@
 #include "Camera/CameraShakeBase.h"
 #include "Build/BuildComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Items/StorageBox.h"
 
 void APlayerController_SB::SetupInputComponent()
 {
@@ -673,7 +674,22 @@ void APlayerController_SB::HandleDestroyBuild()
 	}
 }
 
+
 #pragma endregion
+
+void APlayerController_SB::OpenStorageBoxUI(AStorageBox* StorageBox)
+{
+	if (!StorageBox) return;
+
+	APlayerCharacter_SB* Char = Cast<APlayerCharacter_SB>(GetPawn());
+	if (!Char || !UIManager) return;
+
+	UInventoryComponent* PlayerInv = Char->GetInventory();
+	UInventoryComponent* BoxInv = StorageBox->GetContainerInventory();
+
+	//UIManager->OpenStorageBoxUI(PlayerInv, BoxInv, StorageBox);
+
+}
 
 #pragma region ========================= UI =========================
 void APlayerController_SB::BeginPlay()
@@ -1077,6 +1093,11 @@ void APlayerController_SB::StartGatherProgress(float Duration)
 	if (UIManager)
 	{
 		UIManager->ShowGatherProgress();
+
+		if (UUW_UIHUD* HUD = UIManager->GetHUD())
+		{
+			HUD->SetCrosshairVisible(false);
+		}
 	}
 
 	GetWorldTimerManager().SetTimer(
@@ -1097,6 +1118,11 @@ void APlayerController_SB::EndGatherProgress()
 	if (UIManager)
 	{
 		UIManager->HideGatherProgress();
+
+		if (UUW_UIHUD* HUD = UIManager->GetHUD())
+		{
+			HUD->SetCrosshairVisible(true);
+		}
 	}
 }
 

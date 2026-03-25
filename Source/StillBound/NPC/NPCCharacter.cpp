@@ -2,6 +2,7 @@
 
 
 #include "NPC/NPCCharacter.h"
+#include "NPC/NPCCharacter_Quest.h"
 #include "NPC/NPCAIController.h"
 #include "NPC/DialogueComponent.h"
 #include "NPC/DialogueWidget.h"
@@ -46,8 +47,11 @@ void ANPCCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 상점 아이템 초기화
-	InitializeShopItems();
+	// 거래 NPC일 때만 상점 초기화
+	if (!Cast<ANPCCharacter_Quest>(this))
+	{
+		InitializeShopItems();
+	}
 
 	ANPCAIController* AIController = GetNPCAIController();
 	if (AIController)

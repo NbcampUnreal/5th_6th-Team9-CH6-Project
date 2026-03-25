@@ -9,6 +9,9 @@
 #include "SBWorldSaveManagerSubsystem.generated.h"
 
 class UAbilitySystemComponent;
+class UItemBase;
+class UDataTable;
+
 
 UCLASS()
 class STILLBOUND_API USBWorldSaveManagerSubsystem : public UGameInstanceSubsystem
@@ -81,7 +84,20 @@ private:
     bool FillPlacedBuildingsFromPawn(APawn* Pawn, USBWorldSaveGame* Save);
     bool ApplyPlacedBuildingsToPawn(APawn* Pawn, const USBWorldSaveGame* Save);
 
+    bool FillDroppedItemsFromPawn(APawn* Pawn, USBWorldSaveGame* Save);
+    bool ApplyDroppedItemsToPawn(APawn* Pawn, const USBWorldSaveGame* Save);
+
+    UItemBase* CreateWorldDropItemFromID(
+        UDataTable* ItemDataTable,
+        FName ItemID,
+        int32 Quantity,
+        UObject* Outer
+    ) const;
+
 public:
     UFUNCTION(BlueprintCallable)
     bool LoadCurrentWorldBuildingsToPawn(APawn* Pawn);
+
+    UFUNCTION(BlueprintCallable)
+    bool LoadCurrentWorldDroppedItemsToPawn(APawn* Pawn);
 };

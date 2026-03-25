@@ -7,12 +7,11 @@
 #include "Weapons/WeaponBase.h"
 #include "Character/PlayerCharacter_SB.h"
 
+#include "AbilitySystemComponent.h"
 #include "GameplayTagContainer.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 
-// 수정: RangedWeaponBase의 OnHit spec -> Projectile 전용 spec 변환을
-// 수정: Projectile 전용 GA 안으로 내림
 namespace
 {
     static TArray<FProjectileOnHitGameplayEffectSpec> ConvertToProjectileOnHitSpecs(
@@ -32,6 +31,25 @@ namespace
         }
 
         return OutSpecs;
+    }
+
+    static FProjectileImpactFXPayload ConvertToProjectileImpactFXPayload(const AWeaponBase* Weapon)
+    {
+        FProjectileImpactFXPayload OutPayload;
+
+        if (!Weapon)
+        {
+            return OutPayload;
+        }
+
+        const FWeaponHitImpactFX& WeaponFX = Weapon->GetHitImpactFX();
+        OutPayload.NiagaraSystem = WeaponFX.NiagaraSystem;
+        OutPayload.Scale = WeaponFX.Scale;
+        OutPayload.LocationOffset = WeaponFX.LocationOffset;
+        OutPayload.RotationOffset = WeaponFX.RotationOffset;
+        OutPayload.bUseImpactNormalRotation = WeaponFX.bUseImpactNormalRotation;
+
+        return OutPayload;
     }
 }
 
@@ -59,8 +77,7 @@ void UGA_Projectile::FireCurrentProfile(ARangedWeaponBase* Weapon)
         return;
     }
 
-    // 안전장치:
-    // 이 GA를 썼는데 FireProfile이 Hitscan으로 설정돼 있으면 projectile 발사를 막는다.
+    // 이 GA인데 FireProfile이 Hitscan이면 projectile 발사를 막는다.
     if (!CachedProfile.IsProjectileMode())
     {
         UE_LOG(LogTemp, Warning,
@@ -70,10 +87,10 @@ void UGA_Projectile::FireCurrentProfile(ARangedWeaponBase* Weapon)
         return;
     }
 
-    // 수정: 발사 직전 총구섬광은 그대로 공용 베이스 함수 사용
+    // 발사 직전 총구섬광
     SpawnMuzzleFlash(Weapon);
 
-    // 수정: Projectile 전용 발사는 이 GA에서 처리
+    // Projectile 전용 발사 처리
     FireProjectileOnce(Weapon);
 }
 
@@ -110,26 +127,6 @@ void UGA_Projectile::FireProjectileOnce(ARangedWeaponBase* Weapon)
         return;
     }
 
-    FActorSpawnParameters Params;
-    Params.Owner = GetAvatarActorFromActorInfo();
-    Params.Instigator = Cast<APawn>(GetAvatarActorFromActorInfo());
-    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-    AActor* SpawnedProjectile = World->SpawnActor<AActor>(
-        Projectile.ProjectileClass,
-        SpawnTransform,
-        Params
-    );
-
-    if (!SpawnedProjectile)
-    {
-        UE_LOG(LogTemp, Warning,
-            TEXT("[GA_Projectile] Projectile spawn failed. Class=%s Weapon=%s"),
-            *GetNameSafe(Projectile.ProjectileClass),
-            *GetNameSafe(Weapon));
-        return;
-    }
-
     float FinalDamage = 0.f;
     if (!TryGetCachedFinalDamage(Weapon, FinalDamage))
     {
@@ -140,26 +137,56 @@ void UGA_Projectile::FireProjectileOnce(ARangedWeaponBase* Weapon)
         return;
     }
 
-    // 수정: 무기 프로파일의 OnHit spec을 Projectile 전용 payload로 변환
     const TArray<FProjectileOnHitGameplayEffectSpec> ProjectileOnHitSpecs =
         ConvertToProjectileOnHitSpecs(CachedProfile.OnHitTargetEffects);
 
-    if (AProjectileBase* WeaponProjectile = Cast<AProjectileBase>(SpawnedProjectile))
-    {
-        WeaponProjectile->InitProjectileData(
-            GetAvatarActorFromActorInfo(),
-            Weapon,
-            BaseDamageEffectClass,
-            FinalDamage,
-            ProjectileOnHitSpecs
-        );
-    }
-    else
+    const FProjectileImpactFXPayload ImpactFXPayload =
+        ConvertToProjectileImpactFXPayload(Weapon);
+
+    FActorSpawnParameters Params;
+    Params.Owner = GetAvatarActorFromActorInfo();
+    Params.Instigator = Cast<APawn>(GetAvatarActorFromActorInfo());
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    AActor* SpawnedActor = World->SpawnActor<AActor>(
+        Projectile.ProjectileClass,
+        SpawnTransform,
+        Params
+    );
+
+    if (!SpawnedActor)
     {
         UE_LOG(LogTemp, Warning,
-            TEXT("[GA_Projectile] Spawned projectile is not AProjectileBase. Damage/FX init skipped. Projectile=%s"),
-            *GetNameSafe(SpawnedProjectile));
+            TEXT("[GA_Projectile] Projectile spawn failed. Class=%s Weapon=%s"),
+            *GetNameSafe(Projectile.ProjectileClass),
+            *GetNameSafe(Weapon));
+        return;
     }
+
+
+    AProjectileBase* SpawnedProjectile = Cast<AProjectileBase>(SpawnedActor);
+    if (!SpawnedProjectile)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("[GA_Projectile] Spawned actor is not AProjectileBase. Class=%s Actor=%s"),
+            *GetNameSafe(Projectile.ProjectileClass),
+            *GetNameSafe(SpawnedActor));
+
+        SpawnedActor->Destroy();
+        return;
+    }
+
+    UAbilitySystemComponent* SourceASC =
+        CurrentActorInfo ? CurrentActorInfo->AbilitySystemComponent.Get() : nullptr;
+
+    SpawnedProjectile->InitProjectileData(
+        GetAvatarActorFromActorInfo(),
+        SourceASC,
+        BaseDamageEffectClass,
+        FinalDamage,
+        ProjectileOnHitSpecs,
+        ImpactFXPayload
+    );
 
     if (!ApplyProjectileLaunchSettings(SpawnedProjectile, ShotDirection))
     {
@@ -167,10 +194,12 @@ void UGA_Projectile::FireProjectileOnce(ARangedWeaponBase* Weapon)
             TEXT("[GA_Projectile] Projectile launch setup failed. Projectile=%s Weapon=%s"),
             *GetNameSafe(SpawnedProjectile),
             *GetNameSafe(Weapon));
-            return; // 수정: 발사 세팅 실패 시 소모하지 않음
+
+        SpawnedProjectile->Destroy(); // 수정: 발사 세팅 실패 시 남겨두지 않음
+        return;
     }
 
-    // 수정: 실제 발사 성공 후 투척 아이템 1개 소모
+    // 실제 발사 성공 후 투척 아이템 1개 소모
     if (APlayerCharacter_SB* PlayerCharacter = Cast<APlayerCharacter_SB>(GetAvatarActorFromActorInfo()))
     {
         const bool bConsumed = PlayerCharacter->ConsumeSelectedThrowableAfterThrow();
