@@ -13,6 +13,7 @@
 #include "Items/ItemBase.h"
 #include "Data/ItemData.h"
 #include "UI/DamageNumberActor.h"
+#include "AbilitySystemComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
 AEnemyCharacter::AEnemyCharacter()
@@ -41,6 +42,8 @@ void AEnemyCharacter::BeginPlay()
 {
     Super::BeginPlay();
 
+	InitialSpawnLocation = GetActorLocation();
+	InitialSpawnRotation = GetActorRotation();
 
 	ApplyVisualFromDataTable();
 
@@ -241,18 +244,38 @@ void AEnemyCharacter::SpawnDropItems()
 
 void AEnemyCharacter::HandleDeath()
 {
-	if (bIsDead) return;
+	if (bIsDead)
+	{
+		return;
+	}
+
 	bIsDead = true;
 
 	SpawnDropItems();
 
-	if (AAIController* AIC = Cast<AAIController>(GetController()))
+	const bool bIsPlacedEnemy = !GetOwner();
+
+	if (!bUseRespawn || (bRespawnOnlyPlacedEnemy && !bIsPlacedEnemy))
 	{
-		AIC->UnPossess();
+		if (AAIController* AIC = Cast<AAIController>(GetController()))
+		{
+			AIC->UnPossess();
+		}
+
+		SetActorEnableCollision(false);
+		SetLifeSpan(0.1f);
+		return;
 	}
 
-	SetActorEnableCollision(false);
-	SetLifeSpan(0.1f);
+	DisableEnemyForRespawn();
+
+	GetWorldTimerManager().SetTimer(
+		RespawnTimerHandle,
+		this,
+		&AEnemyCharacter::RespawnEnemy,
+		RespawnTime,
+		false
+	);
 }
 
 void AEnemyCharacter::SetEnemyId(int32 NewId)
@@ -308,4 +331,96 @@ void AEnemyCharacter::HideAlert()
 	{
 		AlertWidgetComponent->SetVisibility(false);
 	}
+}
+
+void AEnemyCharacter::DisableEnemyForRespawn()
+{
+	if (AAIController* AIC = Cast<AAIController>(GetController()))
+	{
+		AIC->StopMovement();
+		AIC->UnPossess();
+	}
+
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(false);
+
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		MeshComp->SetVisibility(false, true);
+		MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		MeshComp->Stop();
+		MeshComp->bPauseAnims = true;
+	}
+
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->DisableMovement();
+		MoveComp->StopMovementImmediately();
+	}
+}
+
+void AEnemyCharacter::EnableEnemyAfterRespawn()
+{
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
+	SetActorTickEnabled(true);
+
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	}
+
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		MeshComp->SetVisibility(true, true);
+		MeshComp->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		MeshComp->bPauseAnims = false;
+	}
+
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->SetMovementMode(MOVE_Walking);
+	}
+}
+
+void AEnemyCharacter::RespawnEnemy()
+{
+	SetActorLocationAndRotation(
+		InitialSpawnLocation,
+		InitialSpawnRotation,
+		false,
+		nullptr,
+		ETeleportType::TeleportPhysics
+	);
+
+	EnableEnemyAfterRespawn();
+
+	if (AIControllerClass)
+	{
+		SpawnDefaultController();
+		AIController = Cast<AEnemyAIController>(GetController());
+		BlackboardComp = AIController ? AIController->GetBlackboardComponent() : nullptr;
+
+		if (BlackboardComp)
+		{
+			BlackboardComp->SetValueAsBool(TEXT("bIsRangedEnemy"), IsRangedEnemy());
+			BlackboardComp->SetValueAsFloat(TEXT("AttackRange"), GetPreferredAttackRange());
+		}
+	}
+
+	if (AbilitySystemComponent && DefaultAttributeMetaDataTable && AttributeSetClassForInitStats)
+	{
+		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+		AbilitySystemComponent->InitStats(AttributeSetClassForInitStats, DefaultAttributeMetaDataTable);
+	}
+
+	bIsDead = false;
+
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyCharacter] Respawned: %s"), *GetName());
 }

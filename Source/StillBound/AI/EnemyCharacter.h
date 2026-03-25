@@ -109,6 +109,25 @@ private:
 
     void SpawnDropItems();
 
+private:
+    UPROPERTY(EditAnywhere, Category = "Enemy|Respawn")
+    bool bUseRespawn = true;
+
+    UPROPERTY(EditAnywhere, Category = "Enemy|Respawn", meta = (EditCondition = "bUseRespawn"))
+    float RespawnTime = 10.f;
+
+    UPROPERTY(EditAnywhere, Category = "Enemy|Respawn", meta = (EditCondition = "bUseRespawn"))
+    bool bRespawnOnlyPlacedEnemy = true;
+
+    FVector InitialSpawnLocation = FVector::ZeroVector;
+    FRotator InitialSpawnRotation = FRotator::ZeroRotator;
+
+    FTimerHandle RespawnTimerHandle;
+
+    void RespawnEnemy();
+    void DisableEnemyForRespawn();
+    void EnableEnemyAfterRespawn();
+
 public:
     UFUNCTION(BlueprintCallable, Category = "Enemy|Data")
     void SetEnemyId(int32 NewId);
