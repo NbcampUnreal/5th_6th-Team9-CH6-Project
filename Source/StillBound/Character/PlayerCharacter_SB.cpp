@@ -928,7 +928,7 @@ UAnimMontage* APlayerCharacter_SB::GetGatherMontageForEquippedTool() const
 
 	if (!Item)
 	{
-		return GatherDefaultLoopMontage;
+		return GatherBareHandLoopMontage ? GatherBareHandLoopMontage : GatherDefaultLoopMontage;
 	}
 
 	if (Item->ItemType != EItemType::Tool)
