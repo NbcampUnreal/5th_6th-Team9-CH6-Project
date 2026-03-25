@@ -4,6 +4,7 @@
 #include "Character/PlayerController_SB.h"
 #include "Inventory/InventoryComponent.h"
 #include "Components/SphereComponent.h"
+#include "NPC/Quest/QuestComponent.h"
 //#include "Public/Data/ItemData.h"
 
 APickup::APickup()
@@ -79,6 +80,7 @@ void APickup::InitializeDrop(UItemBase* ItemToDrop, const int32 InQuantity)
 	PickupMesh->SetStaticMesh(ItemToDrop->AssetData.Mesh);
 
 	UpdateInteractableData();
+	ApplyDroppedItemLifeSpan();
 }
 
 void APickup::UpdateInteractableData()
@@ -131,6 +133,12 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 					break;
 				case EItemAddResult::IAR_PartialAmountItemAdded:
 				{
+					// 퀘스트 진행도 업데이트 (부분 추가된 수량)
+					if (UQuestComponent* QuestComp = Taker->FindComponentByClass<UQuestComponent>())
+					{
+						QuestComp->OnItemCollected(ItemReference->ID, AddResult.ActualAmountAdded);
+					}
+
 					UpdateInteractableData();
 					Taker->UpdateInteractionWidget();
 
@@ -153,6 +161,12 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 				
 				case EItemAddResult::IAR_AllItemAdded:
 				{
+					// 퀘스트 진행도 업데이트 (전체 수량)
+					if (UQuestComponent* QuestComp = Taker->FindComponentByClass<UQuestComponent>())
+					{
+						QuestComp->OnItemCollected(ItemReference->ID, AddResult.ActualAmountAdded);
+					}
+
 					if (APlayerController_SB* PC = Cast<APlayerController_SB>(Taker->GetController()))
 					{
 						if (PC->UIManager)
@@ -166,7 +180,6 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 							);
 						}
 					}
-
 					Destroy();
 					break;
 				}
@@ -234,4 +247,15 @@ void APickup::OnAutoPickupSphereBeginOverlap(
 	}
 
 	TakePickup(PlayerCharacter);
+}
+
+void APickup::ApplyDroppedItemLifeSpan()
+{
+	if (!bUseAutoDestroyForDroppedItem || DroppedItemLifeSeconds <= 0.f)
+	{
+		SetLifeSpan(0.f);
+		return;
+	}
+
+	SetLifeSpan(DroppedItemLifeSeconds);
 }

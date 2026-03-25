@@ -43,6 +43,8 @@ class AWeaponBase;
 class APickup;
 class UBuildComponent;
 class UAnimMontage;
+class UQuestComponent;
+class UQuestWidget;
 
 UCLASS()
 class STILLBOUND_API APlayerCharacter_SB : public ABaseCharacter_SB, public IInteractionInterface
@@ -118,6 +120,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void OpenCraftingUI(FName InStationTag, UDataTable* InRecipeTable);
 
+	//UFUNCTION(BlueprintCallable)
+	//void OpenStorageBoxUI(AStorageBox* StorageBox);
+
 	UFUNCTION(BlueprintCallable)
 	void Die();
 
@@ -189,7 +194,7 @@ private:
 	// 골드 변수
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Gold",
 		meta = (ClampMin = "0", AllowPrivateAccess="true"))
-	int32 CurrentGold = 1000;  // 시작 골드
+	int32 CurrentGold = 0;  // 시작 골드
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Gold", meta = (AllowPrivateAccess = "true"))
 	int32 MaxGold = 999999;
@@ -217,6 +222,21 @@ public:
 	void NotifyGatherStart(float Duration);
 	void NotifyGatherEnd();
 
+protected:
+		UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gather")
+		TObjectPtr<UAnimMontage> GatherLoopMontage;
+
+// 퀘스트 NPC
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Quest")
+	UQuestComponent* QuestComponent;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Quest")
+	TSubclassOf<UQuestWidget> QuestWidgetClass;
+
+	UPROPERTY()
+	UQuestWidget* QuestWidget;
+
 private:
 	//현재 재생 중인 채집 몽타주 캐싱
 	UPROPERTY()
@@ -230,6 +250,9 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Gather")
 	TObjectPtr<UAnimMontage> GatherDefaultLoopMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gather")
+	TObjectPtr<UAnimMontage> GatherBareHandLoopMontage;
 
 	UAnimMontage* GetGatherMontageForEquippedTool() const;
 };

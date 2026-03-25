@@ -19,14 +19,12 @@ public:
 
 	void SetGameClear(bool bBossKilled);
 
-	UFUNCTION(BlueprintCallable)
-	void GoToTitleMenu();
-
 protected:
 
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* ResultText;
 
-	UPROPERTY(meta = (BindWidget))
-	UButton* TitleButton;
+	UPROPERTY(meta = (BindWidgetAnim), Transient)
+	UWidgetAnimation* GameClearMove;
+
 };

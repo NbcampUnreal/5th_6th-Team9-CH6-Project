@@ -8,7 +8,8 @@ UENUM(BlueprintType)
 enum class EBuildCategory : uint8
 {
     Production UMETA(DisplayName = "Production"),
-    Structure UMETA(DisplayName = "Structure")
+    Structure  UMETA(DisplayName = "Structure"),
+    Tool       UMETA(DisplayName = "Tool")
 };
 
 UENUM(BlueprintType)
@@ -19,7 +20,7 @@ enum class EBuildType : uint8
     Roof       UMETA(DisplayName = "Roof"),
     Door       UMETA(DisplayName = "Door"),
     Workbench  UMETA(DisplayName = "Workbench"),
-    Furnace    UMETA(DisplayName = "Furnace")
+    Furnace    UMETA(DisplayName = "Furnace"),
 };
 
 UENUM(BlueprintType)
@@ -91,4 +92,5 @@ struct FBuildingDataRow : public FTableRowBase
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
     FVector PreviewLocationOffset = FVector::ZeroVector;
+
 };

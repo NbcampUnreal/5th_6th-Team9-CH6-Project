@@ -9,6 +9,7 @@
 #include "UI/Build/BuildPreview_IngredientPanel.h"
 #include "Landscape.h"
 #include "Kismet/GameplayStatics.h"
+#include "Items/ItemBase.h"
 
 #pragma region Helpers
 
@@ -894,5 +895,4 @@ bool UBuildComponent::TrySnapRoof(const FBuildingDataRow& Row, FVector& InOutLoc
 
 	return true;
 }
-
 

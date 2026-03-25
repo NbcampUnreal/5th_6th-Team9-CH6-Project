@@ -14,6 +14,7 @@ class USB_UIManager;
 class AMapWorldManager;
 class UCameraShakeBase;
 struct FInputActionValue;
+class AStorageBox;
 
 UENUM(BlueprintType)
 enum class EOverlayInputState : uint8
@@ -222,6 +223,8 @@ private:
 	void HandleBuildRotate(const FInputActionValue& Value);
 	void HandleDestroyBuild();
 
+	void OpenStorageBoxUI(AStorageBox* StorageBox);
+
 ///------------------------Input Manager--------------------
 public:
 	void SetOverlayInputState(EOverlayInputState NewState);
@@ -362,4 +365,5 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SB|Save")
 	bool BP_SaveWorldAndQuitToTitle();
 
+	EOverlayInputState GetOverlayInputState() { return OverlayState; }
 };
