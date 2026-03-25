@@ -1,5 +1,6 @@
 
 #include "BossAI/BosAIAttributeSet.h"
+#include "BossAI/BossAICharacter.h"
 #include "GameplayEffectExtension.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
@@ -36,14 +37,19 @@ void UBosAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 			const float NewHealth = FMath::Clamp(GetHealth() - Reduced, 0.f, GetMaxHealth());
 			SetHealth(NewHealth);
 
+			AActor* Owner = GetOwningActor();
+			if (!Owner) return;
+
+			if (ABossAICharacter* Boss = Cast<ABossAICharacter>(Owner))
+			{
+				Boss->ShowDamageNumber(Reduced);
+			}
+
 			APlayerController_SB* PC = Cast<APlayerController_SB>(GetWorld()->GetFirstPlayerController());
 			if (PC && PC->UIManager)
 			{
 				PC->UIManager->UpdateBossHP(NewHealth, GetMaxHealth());
 			}
-
-			AActor* Owner = GetOwningActor();
-			if (!Owner) return;
 
 			if (Reduced > 0.f && NewHealth > 0.f)
 			{
