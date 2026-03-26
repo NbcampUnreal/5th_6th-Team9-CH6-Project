@@ -33,7 +33,7 @@ UWeaponRangedAttackAbilityBase::UWeaponRangedAttackAbilityBase()
 
     bFireImmediatelyIfNoMontageOrEvent = true;
 
-    bDebugTrace = true;
+    bDebugTrace = false;
     DebugLifeTime = 1.0f;
     DebugLineThickness = 1.5f;
 }
@@ -758,7 +758,6 @@ bool UWeaponRangedAttackAbilityBase::ApplyProjectileLaunchSettings(
         SpawnedProjectile->SetLifeSpan(Projectile.LifeSeconds);
     }
 
-    // Speed mode 우선
     if (bHasSpeedMode)
     {
         if (UProjectileMovementComponent* MoveComp =
@@ -769,11 +768,7 @@ bool UWeaponRangedAttackAbilityBase::ApplyProjectileLaunchSettings(
             MoveComp->StopMovementImmediately();
             MoveComp->InitialSpeed = Projectile.InitialSpeed;
             MoveComp->MaxSpeed = Projectile.MaxSpeed;
-
-            // 수정:
-            // 중력은 ON/OFF만 사용
             MoveComp->ProjectileGravityScale = Projectile.bEnableGravity ? 1.f : 0.f;
-
             MoveComp->SetVelocityInLocalSpace(FVector(Projectile.InitialSpeed, 0.f, 0.f));
 
             if (!SafeShotDir.IsNearlyZero())
@@ -792,7 +787,6 @@ bool UWeaponRangedAttackAbilityBase::ApplyProjectileLaunchSettings(
         return false;
     }
 
-    // Impulse mode
     if (bHasImpulseMode)
     {
         UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(SpawnedProjectile->GetRootComponent());
@@ -811,14 +805,19 @@ bool UWeaponRangedAttackAbilityBase::ApplyProjectileLaunchSettings(
 
         if (!Prim->IsSimulatingPhysics())
         {
+            Prim->SetSimulatePhysics(true);
+            Prim->WakeAllRigidBodies();
+        }
+
+        if (!Prim->IsSimulatingPhysics())
+        {
             UE_LOG(LogTemp, Warning,
-                TEXT("[RangedGA] Impulse mode requested but component is not simulating physics. Projectile=%s Component=%s"),
-                *GetNameSafe(SpawnedProjectile), *GetNameSafe(Prim));
+                TEXT("[RangedGA] Failed to enable physics for impulse projectile. Projectile=%s Component=%s"),
+                *GetNameSafe(SpawnedProjectile),
+                *GetNameSafe(Prim));
             return false;
         }
 
-        // 수정:
-        // ProjectileBase에 중력 ON/OFF 적용
         if (AProjectileBase* ProjectileActor = Cast<AProjectileBase>(SpawnedProjectile))
         {
             ProjectileActor->ConfigureImpulsePhysics(Prim, Projectile.bEnableGravity);
@@ -828,7 +827,17 @@ bool UWeaponRangedAttackAbilityBase::ApplyProjectileLaunchSettings(
             Prim->SetEnableGravity(Projectile.bEnableGravity);
         }
 
-        Prim->AddImpulse(ShotDirection.GetSafeNormal() * Projectile.LaunchImpulse, NAME_None, true);
+        Prim->SetPhysicsLinearVelocity(FVector::ZeroVector);
+        Prim->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+
+        const FVector SafeShotDir = ShotDirection.GetSafeNormal();
+        if (!SafeShotDir.IsNearlyZero())
+        {
+            SpawnedProjectile->SetActorRotation(SafeShotDir.Rotation());
+        }
+
+        Prim->WakeAllRigidBodies();
+        Prim->AddImpulse(SafeShotDir * Projectile.LaunchImpulse, NAME_None, true);
         return true;
     }
 

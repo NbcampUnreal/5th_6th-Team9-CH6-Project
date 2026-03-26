@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "Weapons/GameAbility/RangedAbility/GA_Projectile.h"
 
 #include "Weapons/RangedWeapon/RangedWeaponBase.h"
@@ -62,7 +60,7 @@ UGA_Projectile::UGA_Projectile()
     bFireImmediatelyIfNoMontageOrEvent = true;
 
     // 디버그
-    bDebugTrace = true;
+    bDebugTrace = false;
     DebugLifeTime = 1.0f;
     DebugLineThickness = 1.5f;
 
@@ -163,7 +161,6 @@ void UGA_Projectile::FireProjectileOnce(ARangedWeaponBase* Weapon)
         return;
     }
 
-
     AProjectileBase* SpawnedProjectile = Cast<AProjectileBase>(SpawnedActor);
     if (!SpawnedProjectile)
     {
@@ -195,7 +192,7 @@ void UGA_Projectile::FireProjectileOnce(ARangedWeaponBase* Weapon)
             *GetNameSafe(SpawnedProjectile),
             *GetNameSafe(Weapon));
 
-        SpawnedProjectile->Destroy(); // 수정: 발사 세팅 실패 시 남겨두지 않음
+        SpawnedProjectile->Destroy();
         return;
     }
 

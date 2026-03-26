@@ -152,6 +152,7 @@ void UInventoryComponent::RemoveSingleInstanceOfItem(UItemBase* ItemToRemove)
 		{
 			HotbarContents[i] = nullptr;
 			OnHotbarUpdated.Broadcast();
+			OnInventoryUpdated.Broadcast();
 			return;
 		}
 	}
@@ -595,6 +596,7 @@ int32 UInventoryComponent::RemoveAmountInContainer(ESlotContainer InContainer, i
 	else
 	{
 		OnHotbarUpdated.Broadcast();
+		OnInventoryUpdated.Broadcast();
 	}
 
 	return Removed;

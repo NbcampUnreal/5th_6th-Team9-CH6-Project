@@ -236,20 +236,14 @@ void UShopWidget::DisplayPlayerInventory()
 // ============================================
 void UShopWidget::UpdateGoldDisplay()
 {
-    if (!TXT_PlayerGold)
-    {
-        return;
-    }
+    if (!TXT_PlayerGold || !PlayerInventory) return;
 
-    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
-    if (Player)
-    {
-        FText GoldText = FText::Format(
-            FText::FromString(TEXT("Gold: {0}")),
-            FText::AsNumber(Player->GetGold())
-        );
-        TXT_PlayerGold->SetText(GoldText);
-    }
+    int32 GoldAmount = PlayerInventory->GetTotalCountByID(FName(TEXT("700001")));
+
+    TXT_PlayerGold->SetText(FText::Format(
+        FText::FromString(TEXT("Gold: {0}")),
+        FText::AsNumber(GoldAmount)
+    ));
 }
 
 // ============================================
@@ -257,35 +251,18 @@ void UShopWidget::UpdateGoldDisplay()
 // ============================================
 void UShopWidget::BuyItem(FName ItemRowName, int32 Quantity)
 {
-    if (!NPCCharacter)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[ShopWidget] BuyItem: NPCCharacter is NULL"));
-        return;
-    }
+    if (!NPCCharacter || !PlayerInventory) return;
 
     // 아이템 데이터 조회
     const FItemDataRow* ItemData = NPCCharacter->GetItemData(ItemRowName);
-    if (!ItemData)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[ShopWidget] Item not found: %s"), *ItemRowName.ToString());
-        return;
-    }
+    if (!ItemData) return;
 
-    const int32 UnitPrice = ItemData->ItemStatistics.SellValue;
-    const int32 TotalPrice = UnitPrice * Quantity;
-
-    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
-    if (!Player)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[ShopWidget] Player not found"));
-        return;
-    }
+    const int32 TotalPrice = ItemData->ItemStatistics.SellValue * Quantity;
 
     // 골드 체크
     if (Player->GetGold() < TotalPrice)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] Not enough gold! Need %dG, have %dG"),
-            TotalPrice, Player->GetGold());
+        UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] Not enough gold!"));
         return;
     }
 

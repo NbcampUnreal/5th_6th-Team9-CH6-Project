@@ -5,13 +5,17 @@
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
 
+#include "Components/PrimitiveComponent.h"
+#include "Components/SceneComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Components/PrimitiveComponent.h"
 
 #include "GameFramework/ProjectileMovementComponent.h"
+
+#include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+
 #include "TimerManager.h"
 
 AProjectileBase::AProjectileBase()
@@ -23,14 +27,14 @@ AProjectileBase::AProjectileBase()
     CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     CollisionComp->SetCollisionObjectType(ECC_WorldDynamic);
     CollisionComp->SetCollisionResponseToAllChannels(ECR_Ignore);
-    CollisionComp->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
-    CollisionComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
-    CollisionComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+    CollisionComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+    CollisionComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
+    CollisionComp->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Overlap);
+    CollisionComp->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Overlap);
     CollisionComp->SetGenerateOverlapEvents(true);
-    CollisionComp->SetNotifyRigidBodyCollision(true);
+    CollisionComp->SetNotifyRigidBodyCollision(false);
     CollisionComp->SetCanEverAffectNavigation(false);
 
-    // 기본은 물리 off
     CollisionComp->SetSimulatePhysics(false);
     CollisionComp->SetEnableGravity(false);
 
@@ -42,9 +46,6 @@ AProjectileBase::AProjectileBase()
 
     ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
     ProjectileMovement->UpdatedComponent = CollisionComp;
-
-    // 패키징 수정:
-    // Velocity 직접 대입 제거
     ProjectileMovement->InitialSpeed = 0.f;
     ProjectileMovement->MaxSpeed = 0.f;
     ProjectileMovement->ProjectileGravityScale = 0.f;
@@ -52,7 +53,6 @@ AProjectileBase::AProjectileBase()
     ProjectileMovement->bRotationFollowsVelocity = true;
     ProjectileMovement->bShouldBounce = false;
 
-    CollisionComp->OnComponentHit.AddDynamic(this, &ThisClass::OnProjectileHit);
     CollisionComp->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnProjectileBeginOverlap);
 }
 
@@ -60,47 +60,37 @@ void AProjectileBase::BeginPlay()
 {
     Super::BeginPlay();
 
-    // 발사 직후 잠깐 충돌 비활성화
     if (CollisionComp)
     {
         if (InitialCollisionDisableTime > 0.f)
         {
-            CollisionComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            DisableCollisionResponsesTemporarily();
 
             if (UWorld* World = GetWorld())
             {
-                World->GetTimerManager().SetTimerForNextTick([this]()
-                    {
-                        if (!IsValid(this))
-                        {
-                            return;
-                        }
-
-                        if (InitialCollisionDisableTime <= 0.f)
-                        {
-                            EnableCollisionAfterSpawnDelay();
-                            return;
-                        }
-
-                        if (UWorld* InnerWorld = GetWorld())
-                        {
-                            FTimerHandle TempHandle;
-                            InnerWorld->GetTimerManager().SetTimer(
-                                TempHandle,
-                                this,
-                                &ThisClass::EnableCollisionAfterSpawnDelay,
-                                InitialCollisionDisableTime,
-                                false
-                            );
-                        }
-                    });
+                FTimerHandle TempHandle;
+                World->GetTimerManager().SetTimer(
+                    TempHandle,
+                    this,
+                    &ThisClass::RestoreCollisionResponsesAfterSpawnDelay,
+                    InitialCollisionDisableTime,
+                    false
+                );
             }
         }
         else
         {
-            EnableCollisionAfterSpawnDelay();
+            RestoreCollisionResponsesAfterSpawnDelay();
         }
     }
+
+    StartTrailFX();
+}
+
+void AProjectileBase::Destroyed()
+{
+    StopTrailFX(true);
+    Super::Destroyed();
 }
 
 void AProjectileBase::InitProjectileData(
@@ -119,6 +109,7 @@ void AProjectileBase::InitProjectileData(
     OnHitTargetEffects = InOnHitTargetEffects;
     CachedImpactFX = InImpactFXPayload;
     bHasImpactProcessed = false;
+    bDeferredCollisionRestorePending = false;
 }
 
 void AProjectileBase::ConfigureImpulsePhysics(UPrimitiveComponent* InPhysicsComponent, bool bEnableGravity)
@@ -129,27 +120,42 @@ void AProjectileBase::ConfigureImpulsePhysics(UPrimitiveComponent* InPhysicsComp
     }
 
     InPhysicsComponent->SetEnableGravity(bEnableGravity);
+
+    if (InPhysicsComponent->IsSimulatingPhysics())
+    {
+        InPhysicsComponent->WakeAllRigidBodies();
+    }
 }
 
-void AProjectileBase::EnableCollisionAfterSpawnDelay()
+void AProjectileBase::DisableCollisionResponsesTemporarily()
 {
     if (!CollisionComp || bHasImpactProcessed)
     {
         return;
     }
 
+    bDeferredCollisionRestorePending = true;
+
+    // QueryAndPhysics 유지 + 응답만 잠깐 Ignore
     CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    CollisionComp->SetCollisionResponseToAllChannels(ECR_Ignore);
 }
 
-void AProjectileBase::OnProjectileHit(
-    UPrimitiveComponent* HitComponent,
-    AActor* OtherActor,
-    UPrimitiveComponent* OtherComp,
-    FVector NormalImpulse,
-    const FHitResult& Hit
-)
+void AProjectileBase::RestoreCollisionResponsesAfterSpawnDelay()
 {
-    HandleImpact(Hit, OtherActor);
+    if (!CollisionComp || bHasImpactProcessed)
+    {
+        return;
+    }
+
+    bDeferredCollisionRestorePending = false;
+
+    CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    CollisionComp->SetCollisionResponseToAllChannels(ECR_Ignore);
+    CollisionComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+    CollisionComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
+    CollisionComp->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Overlap);
+    CollisionComp->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Overlap);
 }
 
 void AProjectileBase::OnProjectileBeginOverlap(
@@ -166,25 +172,44 @@ void AProjectileBase::OnProjectileBeginOverlap(
         return;
     }
 
+    if (!OtherActor || ShouldIgnoreActor(OtherActor))
+    {
+        return;
+    }
+
     FHitResult HitResult = SweepResult;
 
     if (!bFromSweep)
     {
         HitResult = FHitResult(ForceInit);
-        HitResult.Location = GetActorLocation();
-        HitResult.ImpactPoint = GetActorLocation();
 
-        if (OtherActor)
+        const FVector SelfLoc = GetActorLocation();
+        const FVector OtherLoc = OtherComp ? OtherComp->GetComponentLocation() : OtherActor->GetActorLocation();
+
+        HitResult.Location = SelfLoc;
+        HitResult.ImpactPoint = OtherLoc;
+        HitResult.TraceStart = SelfLoc;
+        HitResult.TraceEnd = OtherLoc;
+
+        const FVector Dir = (OtherLoc - SelfLoc).GetSafeNormal();
+        HitResult.Normal = Dir.IsNearlyZero() ? FVector::UpVector : -Dir;
+        HitResult.ImpactNormal = Dir.IsNearlyZero() ? FVector::UpVector : -Dir;
+    }
+    else
+    {
+        if (HitResult.ImpactPoint.IsNearlyZero())
         {
-            HitResult.TraceEnd = OtherActor->GetActorLocation();
-            HitResult.Normal = (GetActorLocation() - OtherActor->GetActorLocation()).GetSafeNormal();
-            HitResult.ImpactNormal = HitResult.Normal;
+            HitResult.ImpactPoint = OtherComp ? OtherComp->GetComponentLocation() : OtherActor->GetActorLocation();
         }
-        else
+
+        if (HitResult.Location.IsNearlyZero())
         {
-            HitResult.TraceEnd = GetActorLocation();
-            HitResult.Normal = FVector::UpVector;
-            HitResult.ImpactNormal = FVector::UpVector;
+            HitResult.Location = GetActorLocation();
+        }
+
+        if (HitResult.ImpactNormal.IsNearlyZero() && !HitResult.Normal.IsNearlyZero())
+        {
+            HitResult.ImpactNormal = HitResult.Normal;
         }
     }
 
@@ -206,6 +231,9 @@ void AProjectileBase::HandleImpact(const FHitResult& HitResult, AActor* Explicit
     }
 
     bHasImpactProcessed = true;
+    bDeferredCollisionRestorePending = false;
+
+    StopTrailFX(TrailFX.bDestroyOnImpact);
 
     SpawnImpactFXFromHitResult(HitResult);
 
@@ -465,6 +493,88 @@ bool AProjectileBase::SpawnImpactFXFromHitResult(const FHitResult& HitResult) co
     );
 
     return true;
+}
+
+void AProjectileBase::StartTrailFX()
+{
+    if (ActiveTrailComponent || !TrailFX.IsConfigured())
+    {
+        return;
+    }
+
+    USceneComponent* AttachParent = nullptr;
+
+    if (TrailFX.bAttachToProjectile)
+    {
+        if (ProjectileMesh)
+        {
+            AttachParent = ProjectileMesh;
+        }
+        else
+        {
+            AttachParent = Cast<USceneComponent>(GetRootComponent());
+        }
+    }
+
+    if (AttachParent)
+    {
+        ActiveTrailComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+            TrailFX.NiagaraSystem,
+            AttachParent,
+            NAME_None,
+            TrailFX.LocationOffset,
+            TrailFX.RotationOffset,
+            EAttachLocation::KeepRelativeOffset,
+            false,
+            true
+        );
+
+        if (ActiveTrailComponent)
+        {
+            ActiveTrailComponent->SetWorldScale3D(TrailFX.Scale);
+        }
+
+        return;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    const FRotator BaseRotation = GetActorRotation();
+    const FVector SpawnLocation =
+        GetActorLocation() + BaseRotation.RotateVector(TrailFX.LocationOffset);
+    const FRotator SpawnRotation = BaseRotation + TrailFX.RotationOffset;
+
+    ActiveTrailComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+        World,
+        TrailFX.NiagaraSystem,
+        SpawnLocation,
+        SpawnRotation,
+        TrailFX.Scale,
+        false,
+        true
+    );
+}
+
+void AProjectileBase::StopTrailFX(bool bDestroyImmediately)
+{
+    if (!ActiveTrailComponent)
+    {
+        return;
+    }
+
+    if (bDestroyImmediately)
+    {
+        ActiveTrailComponent->DestroyComponent();
+        ActiveTrailComponent = nullptr;
+        return;
+    }
+
+    ActiveTrailComponent->Deactivate();
+    ActiveTrailComponent = nullptr;
 }
 
 FGameplayTag AProjectileBase::GetDataDamageTag()

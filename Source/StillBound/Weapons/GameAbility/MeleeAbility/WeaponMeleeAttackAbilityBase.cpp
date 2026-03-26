@@ -183,7 +183,7 @@ void UWeaponMeleeAttackAbilityBase::OnHitWindowOnEventReceived(FGameplayEventDat
     Weapon->SetHitBoxEnabled(true);
 
     // 공격 시작 시 히트박스 모양 디버그 표시
-    DrawHitBoxDebug(Weapon, FColor::Green, 0.25f);
+    //DrawHitBoxDebug(Weapon, FColor::Green, 0.25f);
 }
 
 void UWeaponMeleeAttackAbilityBase::OnHitWindowOffEventReceived(FGameplayEventData Payload)
@@ -192,7 +192,7 @@ void UWeaponMeleeAttackAbilityBase::OnHitWindowOffEventReceived(FGameplayEventDa
     if (!Weapon) return;
 
     // 공격 끝 시 히트박스 모양 디버그 표시
-    DrawHitBoxDebug(Weapon, FColor::Green, 0.25f);
+    //DrawHitBoxDebug(Weapon, FColor::Green, 0.25f);
 
     Weapon->SetHitBoxEnabled(false);
 }
@@ -223,10 +223,28 @@ void UWeaponMeleeAttackAbilityBase::OnHitBoxBeginOverlap(
         return;
     }
 
-    const FVector SpawnLoc =
-        OtherComp ? OtherComp->GetComponentLocation() : OtherActor->GetActorLocation();
+    // 상대 컴포넌트 원점 대신 최근접 타격지점 기준으로 FX 스폰
+    FVector ImpactPoint = FVector::ZeroVector;
+    FVector ImpactNormal = FVector::UpVector;
 
-    SpawnWeaponHitImpactFXAtLocation(SpawnLoc, FVector::UpVector);
+    if (TryGetMeleeImpactPointFromOverlap(
+        OverlappedComponent,
+        OtherComp,
+        bFromSweep,
+        SweepResult,
+        ImpactPoint,
+        ImpactNormal))
+    {
+        SpawnWeaponHitImpactFXAtLocation(ImpactPoint, ImpactNormal);
+    }
+    else
+    {
+        // 최근접점 계산 실패 시에만 예전 방식 fallback
+        const FVector FallbackLoc =
+            OtherComp ? OtherComp->GetComponentLocation() : OtherActor->GetActorLocation();
+
+        SpawnWeaponHitImpactFXAtLocation(FallbackLoc, FVector::UpVector);
+    }
 
 
     HitActors.Add(OtherActor);
@@ -263,6 +281,90 @@ bool UWeaponMeleeAttackAbilityBase::ApplyOnHitEffects(AActor* TargetActor)
     }
 
     return bAnyApplied;
+}
+
+// [추가] 히트박스와 상대 콜리전의 최근접점 기반으로 FX 위치 계산
+bool UWeaponMeleeAttackAbilityBase::TryGetMeleeImpactPointFromOverlap(
+    UPrimitiveComponent* OverlappedComponent,
+    UPrimitiveComponent* OtherComp,
+    bool bFromSweep,
+    const FHitResult& SweepResult,
+    FVector& OutImpactPoint,
+    FVector& OutImpactNormal
+) const
+{
+    OutImpactPoint = FVector::ZeroVector;
+    OutImpactNormal = FVector::UpVector;
+
+    // 1) 스윕으로 들어온 유효한 HitResult가 있으면 우선 사용
+    if (bFromSweep)
+    {
+        if (!SweepResult.ImpactPoint.IsNearlyZero())
+        {
+            OutImpactPoint = SweepResult.ImpactPoint;
+        }
+        else if (!SweepResult.Location.IsNearlyZero())
+        {
+            OutImpactPoint = SweepResult.Location;
+        }
+
+        if (!OutImpactPoint.IsNearlyZero())
+        {
+            if (!SweepResult.ImpactNormal.IsNearlyZero())
+            {
+                OutImpactNormal = SweepResult.ImpactNormal;
+            }
+            else if (!SweepResult.Normal.IsNearlyZero())
+            {
+                OutImpactNormal = SweepResult.Normal;
+            }
+
+            return true;
+        }
+    }
+
+    if (!OverlappedComponent || !OtherComp)
+    {
+        return false;
+    }
+
+    // 2) 히트박스 중심에서 상대 콜리전의 최근접 표면점 구하기
+    const FVector HitBoxCenter = OverlappedComponent->Bounds.Origin;
+
+    FVector OtherSurfacePoint = FVector::ZeroVector;
+    const float OtherDistance = OtherComp->GetClosestPointOnCollision(HitBoxCenter, OtherSurfacePoint);
+    if (OtherDistance < 0.f)
+    {
+        return false;
+    }
+
+    // 3) 히트박스 쪽 표면점도 구해지면 두 표면의 중간점 사용
+    FVector WeaponSurfacePoint = FVector::ZeroVector;
+    const float WeaponDistance = OverlappedComponent->GetClosestPointOnCollision(OtherSurfacePoint, WeaponSurfacePoint);
+
+    if (WeaponDistance >= 0.f)
+    {
+        OutImpactPoint = (WeaponSurfacePoint + OtherSurfacePoint) * 0.5f;
+
+        const FVector SurfaceDir = (OtherSurfacePoint - WeaponSurfacePoint);
+        if (!SurfaceDir.IsNearlyZero())
+        {
+            OutImpactNormal = SurfaceDir.GetSafeNormal();
+        }
+
+        return true;
+    }
+
+    // 4) 히트박스 표면점은 못 구하면 상대 표면점만 사용
+    OutImpactPoint = OtherSurfacePoint;
+
+    const FVector FallbackDir = (OtherSurfacePoint - HitBoxCenter);
+    if (!FallbackDir.IsNearlyZero())
+    {
+        OutImpactNormal = FallbackDir.GetSafeNormal();
+    }
+
+    return true;
 }
 
 void UWeaponMeleeAttackAbilityBase::OnMontageCompleted()
