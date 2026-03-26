@@ -1,4 +1,4 @@
-#include "Subsystem/SBWorldSaveManagerSubsystem.h"
+ï»¿#include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/Guid.h"
 #include "GameFramework/Pawn.h"
@@ -15,6 +15,7 @@
 #include "Items/ItemBase.h"
 #include "Data/ItemData.h"
 #include "Data/BuildingData.h"
+#include "GuideQuest/GuideQuestSubsystem.h"
 #include "Engine/DataTable.h"
 
 
@@ -98,7 +99,7 @@ bool USBWorldSaveManagerSubsystem::DeleteWorld(const FString& SlotId)
     {
         SaveIndex(Index);
 
-        // SlotId·Î WorldSaveµµ ÀúÀåÇÑ´Ù¸é °°ÀÌ »èÁ¦ °¡´É
+        // SlotIdë¡œ WorldSaveë„ ì €ì¥í•œë‹¤ë©´ ê°™ì´ ì‚­ì œ ê°€ëŠ¥
         UGameplayStatics::DeleteGameInSlot(SlotId, 0);
 
         if (CurrentSlotId == SlotId)
@@ -146,7 +147,7 @@ bool USBWorldSaveManagerSubsystem::TouchCurrentWorldLastPlayed()
     return false;
 }
 
-// World Save (SlotIdº° ½ÇÁ¦ ¿ùµå ÀúÀå/·Îµå)
+// World Save (SlotIdë³„ ì‹¤ì œ ì›”ë“œ ì €ì¥/ë¡œë“œ)
 USBWorldSaveGame* USBWorldSaveManagerSubsystem::LoadOrCreateWorldSave(const FString& SlotId)
 {
     if (SlotId.IsEmpty()) return nullptr;
@@ -297,7 +298,7 @@ bool USBWorldSaveManagerSubsystem::ApplyPlayerAttributesToPawn(APawn* Pawn, cons
     }
 
 
-    // Max -> Current ¼ø¼­ (Clamp ¾ÈÁ¤)
+    // Max -> Current ìˆœì„œ (Clamp ì•ˆì •)
     ASC->SetNumericAttributeBase(UPlayerAttributeSet::GetMaxHealthAttribute(), Save->SavedMaxHealth);
     ASC->SetNumericAttributeBase(UPlayerAttributeSet::GetHealthAttribute(), Save->SavedHealth);
 
@@ -353,7 +354,7 @@ bool USBWorldSaveManagerSubsystem::SaveCurrentWorldFromPawn(APawn* Pawn)
     Save->PlayerLocation = Pawn->GetActorLocation();
     Save->PlayerRotation = Pawn->GetActorRotation();
 
-    // Ä«¸Ş¶ó ¹æÇâ
+    // ì¹´ë©”ë¼ ë°©í–¥
     if (APlayerController* PC = Cast<APlayerController>(Pawn->GetController()))
     {
         Save->bHasControlRotation = true;
@@ -377,6 +378,13 @@ bool USBWorldSaveManagerSubsystem::SaveCurrentWorldFromPawn(APawn* Pawn)
         Save->SavedGold = PC->GetGold();
     }
 
+    //ê°€ì´ë“œìš© í€˜ìŠ¤íŠ¸ ë‚´ë¶€ ì €ì¥ ë¡œì§
+    if (UGameInstance* GI = GetGameInstance()) {
+        if (UGuideQuestSubsystem* QuestSys = GI->GetSubsystem<UGuideQuestSubsystem>()) {
+            QuestSys->ExportToSaveGame(Save);
+        }
+    }
+    //===============
     const bool bOk = SaveWorldSave(CurrentSlotId, Save);
     if (bOk)
     {
@@ -405,7 +413,7 @@ bool USBWorldSaveManagerSubsystem::LoadCurrentWorldTransformToPawn(APawn* Pawn)
         );
     }
 
-    // Ä«¸Ş¶ó ¹æÇâ
+    // ì¹´ë©”ë¼ ë°©í–¥
     if (Save->bHasControlRotation)
     {
         if (APlayerController* PC = Cast<APlayerController>(Pawn->GetController()))
@@ -449,7 +457,7 @@ bool USBWorldSaveManagerSubsystem::LoadCurrentWorldToPawn(APawn* Pawn)
         );
     }
 
-    // ControlRotation (ÀÌ°Å ÀÛµ¿ ¾ÈÇÏ´Â°Å °°À½ ¼öÁ¤ÇÒ ¿¹Á¤)
+    // ControlRotation (ì´ê±° ì‘ë™ ì•ˆí•˜ëŠ”ê±° ê°™ìŒ ìˆ˜ì •í•  ì˜ˆì •)
     if (Save->bHasControlRotation)
     {
         if (APlayerController* PC = Cast<APlayerController>(Pawn->GetController()))
@@ -461,9 +469,15 @@ bool USBWorldSaveManagerSubsystem::LoadCurrentWorldToPawn(APawn* Pawn)
     // Attributes
     bOk = ApplyPlayerAttributesToPawn(Pawn, Save) && bOk;
     bOk = ApplyInventoryToPawn(Pawn, Save) && bOk;
+
+    //ê°€ì´ë“œ í€˜ìŠ¤íŠ¸ ë‚´ë¶€ ë¡œë“œ ë¡œì§
+    if (UGameInstance* GI = GetGameInstance()) {
+        if (UGuideQuestSubsystem* QuestSys = GI->GetSubsystem<UGuideQuestSubsystem>()) {
+            QuestSys->ImportFromSaveGame(Save);
+        }
+    }
+    //===============
     return bOk;
-
-
 }
 
 bool USBWorldSaveManagerSubsystem::FillPlacedBuildingsFromPawn(APawn* Pawn, USBWorldSaveGame* Save)
@@ -549,7 +563,7 @@ bool USBWorldSaveManagerSubsystem::ApplyPlacedBuildingsToPawn(APawn* Pawn, const
     UWorld* World = Pawn->GetWorld();
     if (!World) return false;
 
-    // È¤½Ã ±âÁ¸ ¹èÄ¡ °ÇÃà¹°ÀÌ ÀÖÀ¸¸é Á¦°Å
+    // í˜¹ì‹œ ê¸°ì¡´ ë°°ì¹˜ ê±´ì¶•ë¬¼ì´ ìˆìœ¼ë©´ ì œê±°
     TArray<AActor*> ToDestroy;
     for (TActorIterator<AActor> It(World); It; ++It)
     {
@@ -568,7 +582,7 @@ bool USBWorldSaveManagerSubsystem::ApplyPlacedBuildingsToPawn(APawn* Pawn, const
         }
     }
 
-    // ÀúÀåµÈ °ÇÃà¹° º¹¿ø
+    // ì €ì¥ëœ ê±´ì¶•ë¬¼ ë³µì›
     for (const FSBPlacedBuildingSaveData& Data : Save->SavedBuildings)
     {
         if (Data.BuildingID.IsNone())

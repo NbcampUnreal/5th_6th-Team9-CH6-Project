@@ -1,4 +1,4 @@
-#include "Build/BuildComponent.h"
+﻿#include "Build/BuildComponent.h"
 #include "Character/PlayerCharacter_SB.h"
 #include "Character/PlayerController_SB.h"
 #include "Camera/CameraComponent.h"
@@ -10,6 +10,7 @@
 #include "Landscape.h"
 #include "Kismet/GameplayStatics.h"
 #include "Items/ItemBase.h"
+#include "GuideQuest/GuideQuestSubsystem.h"
 
 #pragma region Helpers
 
@@ -595,6 +596,16 @@ bool UBuildComponent::ConfirmBuild(EBuildFailReason& OutFailReason)
 
 	Spawned->Tags.AddUnique(TEXT("PlacedBuild"));
 	Spawned->Tags.AddUnique(CurrentBuildingID);
+
+	//가이드 퀘스트
+	if (UGameInstance* GI = GetWorld()->GetGameInstance())
+	{
+		if (UGuideQuestSubsystem* QuestSys = GI->GetSubsystem<UGuideQuestSubsystem>())
+		{
+			QuestSys->ReportBuildPlaced(CurrentBuildingID, 1);
+		}
+	}
+	//===============
 
 	//만약 한번 설치하고 프리뷰유지하고싶지않으면 false;
 	return true;

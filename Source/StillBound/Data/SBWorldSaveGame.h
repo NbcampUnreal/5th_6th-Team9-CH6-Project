@@ -1,11 +1,12 @@
-#pragma once
+Ôªø#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
+#include "UObject/SoftObjectPath.h"
 #include "SBWorldSaveGame.generated.h"
 
 /// ===============================================================================
-/// SAVE DATA STRUCTURES (≈¨∑°Ω∫ π€, ¿ß¬ ø° πËƒ°)
+/// SAVE DATA STRUCTURES (ÌÅ¥ÎûòÏä§ Î∞ñ, ÏúÑÏ™ΩÏóê Î∞∞Ïπò)
 /// ===============================================================================
 
 USTRUCT(BlueprintType)
@@ -46,7 +47,30 @@ struct FSBWorldDroppedItemSaveData
     UPROPERTY(BlueprintReadOnly, SaveGame)
     FTransform Transform;
 };
+/// ===============================================================================
+/// Guide Quest Save Data (Ï∂îÍ∞Ä)
+/// ===============================================================================
 
+USTRUCT(BlueprintType)
+struct FSBGuideQuestSaveData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, SaveGame)
+	int32 SaveVersion = 1;
+
+	UPROPERTY(BlueprintReadOnly, SaveGame)
+	bool bHasActiveQuest = false;
+
+	UPROPERTY(BlueprintReadOnly, SaveGame)
+	FName ActiveQuestId = NAME_None;
+
+	UPROPERTY(BlueprintReadOnly, SaveGame)
+	TArray<int32> ActiveObjectiveCounts;
+
+	UPROPERTY(BlueprintReadOnly, SaveGame)
+	TArray<FName> CompletedQuestIds;
+};
 /// ===============================================================================
 /// SAVE GAME CLASS
 /// ===============================================================================
@@ -139,5 +163,13 @@ public:
     UPROPERTY(BlueprintReadOnly, SaveGame)
     TArray<FSBWorldDroppedItemSaveData> SavedDroppedItems;
 
+    /// ===================================================================
+    /// Guide Quest Save Data (ÌÅ¥ÎûòÏä§ ÎÇ¥Î∂Ä Ï∂îÍ∞Ä)
+    /// ===================================================================
 
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    bool bHasGuideQuest = false;
+
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    FSBGuideQuestSaveData SavedGuideQuest;
 };

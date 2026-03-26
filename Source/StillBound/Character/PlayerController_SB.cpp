@@ -1,4 +1,4 @@
-
+﻿
 #include "Character/PlayerController_SB.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
@@ -24,6 +24,8 @@
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Inventory/InventoryComponent.h"
 #include "Camera/CameraShakeBase.h"
+#include "GameInstance/SBGameInstance.h"
+#include "GuideQuest/GuideQuestSubsystem.h"
 #include "Build/BuildComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Items/StorageBox.h"
@@ -751,6 +753,18 @@ void APlayerController_SB::BeginPlay()
 
 	OverlayState = EOverlayInputState::Gameplay;
 	ApplyOverlayInputState();
+
+	//가이드 퀘스트
+	if (USBGameInstance* SBGI = GetGameInstance<USBGameInstance>())
+	{
+		if (UGuideQuestSubsystem* GuideQuestSubsystem = GetGameInstance()->GetSubsystem<UGuideQuestSubsystem>())
+		{
+			GuideQuestSubsystem->InitializeQuestTables(SBGI->GuideQuestMasterTable, SBGI->GuideQuestObjectiveTable);
+			GuideQuestSubsystem->AttachWidget(this, SBGI->GuideQuestWidgetClass);
+			GuideQuestSubsystem->EnsureStarted(SBGI->FirstGuideQuestId);
+		}
+	}
+	//===============
 }
 
 void APlayerController_SB::OnPossess(APawn* InPawn)

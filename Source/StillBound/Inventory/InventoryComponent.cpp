@@ -1,6 +1,7 @@
-#include "Inventory/InventoryComponent.h"
+﻿#include "Inventory/InventoryComponent.h"
 #include "Data/ItemData.h"
 #include "Items/ItemBase.h"
+#include "GuideQuest/GuideQuestSubsystem.h"
 
 static bool GetRecipeRow(UDataTable* Table, FName RecipeID, FCraftingRecipeRow& OutRow)
 {
@@ -1059,3 +1060,16 @@ void UInventoryComponent::GetAllItems(TArray<UItemBase*>& OutItems) const
 		}
 	}
 }
+
+//가이드 퀘스트
+void UInventoryComponent::NotifyGuideQuestItemCollected(FName ItemID, int32 AddedAmount) const {
+	if (UGuideQuestSubsystem* QuestSys = GetWorld()->GetGameInstance()->GetSubsystem<UGuideQuestSubsystem>()) {
+		QuestSys->ReportCollectItem(ItemID, AddedAmount);
+	}
+}
+void UInventoryComponent::NotifyGuideQuestCrafted(FName ItemID, int32 CraftedAmount) const {
+	if (UGuideQuestSubsystem* QuestSys = GetWorld()->GetGameInstance()->GetSubsystem<UGuideQuestSubsystem>()) {
+		QuestSys->ReportCraftItem(ItemID, CraftedAmount);
+	}
+}
+//===============

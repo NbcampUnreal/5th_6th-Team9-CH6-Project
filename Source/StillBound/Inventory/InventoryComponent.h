@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
@@ -243,7 +243,13 @@ private:
     ///===============================================================================
     int32 GetTotalCountByID(FName ItemID) const;
     bool AddByID(FName ItemID, int32 Count);
-    
+
+    ///===============================================================================
+    /// 가이드 퀘스트
+    void NotifyGuideQuestItemCollected(FName ItemID, int32 AddedAmount) const;
+    void NotifyGuideQuestCrafted(FName ItemID, int32 CraftedAmount) const;
+    ///===============================================================================
+
 public:
     UItemBase* CreateItemInstanceByID(FName ItemID, int32 Quantity) const;
     bool ConsumeByID(FName ItemID, int32 Count);
