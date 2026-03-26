@@ -251,7 +251,7 @@ bool AGatherableObject::CanGather(APlayerCharacter_SB* Character) const
         Character->CurrentHotbarIndex
     );
 
-    //아이템 들고 있는 경우 타입 체크
+    //아이템을 들고 있는 경우 타입 체크
     if (EquippedItem)
     {
         // Tool이 아닌 다른 아이템(무기, 소비템 등)을 들고 있으면 채집 불가
