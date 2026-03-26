@@ -1,6 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-#include "Weapons/GameAbility/WeaponGameplayAbility.h"
+﻿#include "Weapons/GameAbility/WeaponGameplayAbility.h"
 
 #include "Weapons/WeaponBase.h"
 #include "AbilitySystemComponent.h"
@@ -13,8 +11,6 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 
-// 현재 무기의 HitBox 모양 그대로 디버그 박스를 그린다.
-
 UWeaponGameplayAbility::UWeaponGameplayAbility()
 {
     // 싱글플레이 기준: LocalOnly
@@ -25,6 +21,128 @@ UWeaponGameplayAbility::UWeaponGameplayAbility()
 
     // 기본 데미지 GE (BP에서 교체 가능)
     BaseDamageEffectClass = UGE_WeaponDamage_Instant::StaticClass();
+
+    //  기본 공격 중 몸회전 태그
+    FaceAimStateTag = FGameplayTag::RequestGameplayTag(
+        TEXT("State.Attack.FaceAim"),
+        /*ErrorIfNotFound*/ false
+    );
+}
+
+void UWeaponGameplayAbility::ActivateAbility(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayAbilityActivationInfo ActivationInfo,
+    const FGameplayEventData* TriggerEventData
+)
+{
+    Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+    //  이번 활성화 기준으로 초기화
+    bAddedFaceAimStateTagThisActivation = false;
+
+    //  공격 중 상태 태그 부여
+    AddFaceAimStateTag();
+}
+
+void UWeaponGameplayAbility::EndAbility(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayAbilityActivationInfo ActivationInfo,
+    bool bReplicateEndAbility,
+    bool bWasCancelled
+)
+{
+    //  공격 종료 시 상태 태그 제거
+    RemoveFaceAimStateTag();
+
+    Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void UWeaponGameplayAbility::AddFaceAimStateTag()
+{
+    if (!bUseFaceAimStateTag)
+    {
+        return;
+    }
+
+    if (bAddedFaceAimStateTagThisActivation)
+    {
+        return;
+    }
+
+    if (!FaceAimStateTag.IsValid())
+    {
+        if (bDebugStateTag)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("[WeaponGA] FaceAimStateTag is invalid. Register tag and set it in defaults."));
+        }
+        return;
+    }
+
+    UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+    if (!ASC)
+    {
+        if (bDebugStateTag)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[WeaponGA] AddFaceAimStateTag failed: ASC is null"));
+        }
+        return;
+    }
+
+    ASC->AddLooseGameplayTag(FaceAimStateTag);
+    bAddedFaceAimStateTagThisActivation = true;
+
+    if (bDebugStateTag)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[WeaponGA] Add StateTag=%s Ability=%s Weapon=%s"),
+            *FaceAimStateTag.ToString(),
+            *GetNameSafe(this),
+            *GetNameSafe(GetWeaponFromSourceObject()));
+    }
+}
+
+void UWeaponGameplayAbility::RemoveFaceAimStateTag()
+{
+    if (!bUseFaceAimStateTag)
+    {
+        return;
+    }
+
+    if (!bAddedFaceAimStateTagThisActivation)
+    {
+        return;
+    }
+
+    if (!FaceAimStateTag.IsValid())
+    {
+        bAddedFaceAimStateTagThisActivation = false;
+        return;
+    }
+
+    UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+    if (!ASC)
+    {
+        bAddedFaceAimStateTagThisActivation = false;
+
+        if (bDebugStateTag)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[WeaponGA] RemoveFaceAimStateTag failed: ASC is null"));
+        }
+        return;
+    }
+
+    ASC->RemoveLooseGameplayTag(FaceAimStateTag);
+    bAddedFaceAimStateTagThisActivation = false;
+
+    if (bDebugStateTag)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[WeaponGA] Remove StateTag=%s Ability=%s Weapon=%s"),
+            *FaceAimStateTag.ToString(),
+            *GetNameSafe(this),
+            *GetNameSafe(GetWeaponFromSourceObject()));
+    }
 }
 
 FGameplayTag UWeaponGameplayAbility::GetDataDamageTag()
@@ -68,7 +186,6 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
         return false;
     }
 
-    // 확률 발동
     if (Chance < 1.0f)
     {
         const float Roll = FMath::FRand();
@@ -102,7 +219,6 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     AActor* Avatar = GetAvatarActorFromActorInfo();
     AWeaponBase* Weapon = GetWeaponFromSourceObject();
 
-    // 컨텍스트: instigator / source object 세팅
     FGameplayEffectContextHandle Ctx = SourceASC->MakeEffectContext();
     if (Avatar)
     {
@@ -123,7 +239,6 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
         return false;
     }
 
-    // SetByCaller 주입
     for (const auto& KVP : SetByCallerMagnitudes)
     {
         if (KVP.Key.IsValid())
@@ -193,13 +308,19 @@ bool UWeaponGameplayAbility::ApplyWeaponDamageToTargetActor(
     float FallbackDamage
 ) const
 {
-    if (!TargetActor) return false;
+    if (!TargetActor)
+    {
+        return false;
+    }
 
     const float Base = GetDamageFromWeaponOrFallback(FallbackDamage);
     const float Mult = FMath::Max(0.f, DamageMultiplier);
     const float FinalDamage = Base * Mult;
 
-    if (FinalDamage <= 0.f) return false;
+    if (FinalDamage <= 0.f)
+    {
+        return false;
+    }
 
     if (bDebugGE)
     {
@@ -211,7 +332,6 @@ bool UWeaponGameplayAbility::ApplyWeaponDamageToTargetActor(
     return ApplyBaseDamageToTargetActor(TargetActor, FinalDamage, Level, Chance);
 }
 
-// //수정: 공통 히트 FX 스폰 (위치/노멀 직접 전달)
 bool UWeaponGameplayAbility::SpawnWeaponHitImpactFXAtLocation(
     const FVector& SpawnLocation,
     const FVector& ImpactNormal
@@ -247,7 +367,6 @@ bool UWeaponGameplayAbility::SpawnWeaponHitImpactFXAtLocation(
         SpawnRotation = FinalNormal.Rotation();
     }
 
-    // 로컬 오프셋을 현재 회전 기준으로 적용
     const FVector FinalLocation =
         SpawnLocation + SpawnRotation.RotateVector(FX.LocationOffset);
 
@@ -266,7 +385,6 @@ bool UWeaponGameplayAbility::SpawnWeaponHitImpactFXAtLocation(
     return true;
 }
 
-// //수정: FHitResult 기반 공통 히트 FX 스폰
 bool UWeaponGameplayAbility::SpawnWeaponHitImpactFXFromHitResult(const FHitResult& HitResult) const
 {
     FVector SpawnLocation = FVector::ZeroVector;
@@ -292,7 +410,6 @@ bool UWeaponGameplayAbility::SpawnWeaponHitImpactFXFromHitResult(const FHitResul
                 *GetNameSafe(HitResult.GetActor()));
         }
         return false;
-       
     }
 
     if (!HitResult.ImpactNormal.IsNearlyZero())
@@ -328,7 +445,6 @@ bool UWeaponGameplayAbility::TryGetInputTagFromCurrentSpec(FGameplayTag& OutInpu
         return false;
     }
 
-    // 1) 정석: InputTag 루트 기반 매칭
     const FGameplayTag InputRoot = FGameplayTag::RequestGameplayTag(TEXT("InputTag"), /*ErrorIfNotFound*/ false);
     if (InputRoot.IsValid())
     {
@@ -342,7 +458,6 @@ bool UWeaponGameplayAbility::TryGetInputTagFromCurrentSpec(FGameplayTag& OutInpu
         }
     }
 
-    // 2) 안전장치: 루트 태그가 등록 안 된 경우 대비 prefix 매칭
     for (const FGameplayTag& Tag : Spec->DynamicAbilityTags)
     {
         if (Tag.IsValid() && Tag.ToString().StartsWith(TEXT("InputTag.")))

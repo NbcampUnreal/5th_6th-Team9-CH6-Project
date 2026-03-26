@@ -1,10 +1,9 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
 #include "GameplayTagContainer.h"
+#include "Engine/EngineTypes.h"  
 #include "WeaponGameplayAbility.generated.h"
 
 class AWeaponBase;
@@ -18,6 +17,27 @@ class STILLBOUND_API UWeaponGameplayAbility : public UGameplayAbility
 
 public:
     UWeaponGameplayAbility();
+
+protected:
+    // 공격 시작 시 공통 상태 태그 부여, 종료 시 제거
+    virtual void ActivateAbility(
+        const FGameplayAbilitySpecHandle Handle,
+        const FGameplayAbilityActorInfo* ActorInfo,
+        const FGameplayAbilityActivationInfo ActivationInfo,
+        const FGameplayEventData* TriggerEventData
+    ) override;
+
+    virtual void EndAbility(
+        const FGameplayAbilitySpecHandle Handle,
+        const FGameplayAbilityActorInfo* ActorInfo,
+        const FGameplayAbilityActivationInfo ActivationInfo,
+        bool bReplicateEndAbility,
+        bool bWasCancelled
+    ) override;
+
+    // 공격 중 에임 방향 몸회전용 상태 태그 관리
+    void AddFaceAimStateTag();
+    void RemoveFaceAimStateTag();
 
 protected:
     /** 현재 AbilitySpec의 SourceObject에서 무기(AWeaponBase)를 가져온다 */
@@ -59,12 +79,28 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Weapon|GA|Debug")
     bool bDebugHitFX = true;
 
-    // ✅ (추가) SourceObject(Weapon)에서 데미지를 가져온다.
+    //  공격 중 카메라/에임 방향 몸회전용 태그 사용 여부
+    UPROPERTY(EditDefaultsOnly, Category = "Weapon|GA|State")
+    bool bUseFaceAimStateTag = true;
+
+    //  공격 중 캐릭터가 감지할 상태 태그
+    UPROPERTY(EditDefaultsOnly, Category = "Weapon|GA|State")
+    FGameplayTag FaceAimStateTag;
+
+    //  상태 태그 디버그 로그
+    UPROPERTY(EditDefaultsOnly, Category = "Weapon|GA|Debug")
+    bool bDebugStateTag = true;
+
+    //  이번 활성화에서 직접 태그를 넣었는지 기억
+    UPROPERTY(Transient)
+    bool bAddedFaceAimStateTagThisActivation = false;
+
+    // ✅ SourceObject(Weapon)에서 데미지를 가져온다.
     // WeaponDamage가 0이면 FallbackDamage(예: BaseDamage)를 사용.
     UFUNCTION(BlueprintPure, Category = "Weapon|Damage")
     float GetDamageFromWeaponOrFallback(float FallbackDamage = 0.f) const;
 
-    // ✅ (추가) "무기 데미지"를 기본 데미지 GE(Data.EnemyDamage)로 적용한다.
+    // ✅ "무기 데미지"를 기본 데미지 GE(Data.EnemyDamage)로 적용한다.
     // DamageMultiplier로 공격 유형별 배율(예: Light=1.0, Heavy=1.6)도 지원.
     UFUNCTION(BlueprintCallable, Category = "Weapon|Damage")
     bool ApplyWeaponDamageToTargetActor(
@@ -75,10 +111,10 @@ protected:
         float FallbackDamage = 0.f
     ) const;
 
-    // //수정: 히트 결과 기준으로 공통 히트 FX 스폰
+    // 수정: 히트 결과 기준으로 공통 히트 FX 스폰
     bool SpawnWeaponHitImpactFXFromHitResult(const FHitResult& HitResult) const;
 
-    // //수정: 위치/노멀만 있을 때도 공통 히트 FX 스폰 가능
+    // 수정: 위치/노멀만 있을 때도 공통 히트 FX 스폰 가능
     bool SpawnWeaponHitImpactFXAtLocation(
         const FVector& SpawnLocation,
         const FVector& ImpactNormal = FVector::UpVector

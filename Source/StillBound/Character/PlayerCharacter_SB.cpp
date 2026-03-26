@@ -67,6 +67,12 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	BuildComponent = CreateDefaultSubobject<UBuildComponent>(TEXT("BuildComponent"));
 
 	QuestComponent = CreateDefaultSubobject<UQuestComponent>(TEXT("QuestComponent"));
+
+	// WeaponGameplayAbility와 맞춰서 기본 공격 중 회전 태그 설정
+	FaceAimStateTag = FGameplayTag::RequestGameplayTag(
+		TEXT("State.Attack.FaceAim"),
+		/*ErrorIfNotFound*/ false
+	);
 }
 
 FInteractableData APlayerCharacter_SB::GetInteractableData_Implementation()
@@ -143,6 +149,22 @@ void APlayerCharacter_SB::BeginPlay()
 		const float MH = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 
 		UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
+
+		// 공격 중 몸 회전 태그 감지 등록
+		if (FaceAimStateTag.IsValid())
+		{
+			AbilitySystemComponent
+				->RegisterGameplayTagEvent(FaceAimStateTag, EGameplayTagEventType::NewOrRemoved)
+				.AddUObject(this, &APlayerCharacter_SB::OnFaceAimStateTagChanged);
+		}
+		else if (bDebugFaceAimState)
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("[FaceAim] FaceAimStateTag invalid. Register tag and set it in defaults."));
+		}
+
+		// BeginPlay 시점 태그 상태와 회전 모드 동기화
+		RefreshAttackFacingFromASC();
 	}
 	else
 	{
@@ -1010,4 +1032,49 @@ void APlayerCharacter_SB::EnableRagdoll()
 	MeshComp->SetAllBodiesSimulatePhysics(true);
 	MeshComp->WakeAllRigidBodies();
 	MeshComp->bPauseAnims = true;
+}
+
+// [추가] WeaponGameplayAbility가 붙이는 State.Attack.FaceAim 태그 변화 감지
+void APlayerCharacter_SB::OnFaceAimStateTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	const bool bFaceAimActive = (NewCount > 0);
+
+	// 공격 중: 몸이 컨트롤러(Yaw) 방향을 따름
+	bUseControllerRotationYaw = bFaceAimActive;
+	GetCharacterMovement()->bOrientRotationToMovement = !bFaceAimActive;
+
+	if (bDebugFaceAimState)
+	{
+		UE_LOG(LogTemp, Log,
+			TEXT("[FaceAim] Tag=%s NewCount=%d -> bUseControllerRotationYaw=%d bOrientRotationToMovement=%d"),
+			*Tag.ToString(),
+			NewCount,
+			(int32)bUseControllerRotationYaw,
+			(int32)GetCharacterMovement()->bOrientRotationToMovement);
+	}
+}
+
+// [추가] ASC 현재 태그 상태로 회전 모드 강제 동기화
+void APlayerCharacter_SB::RefreshAttackFacingFromASC()
+{
+	if (!AbilitySystemComponent || !GetCharacterMovement())
+	{
+		return;
+	}
+
+	const bool bFaceAimActive =
+		FaceAimStateTag.IsValid() &&
+		AbilitySystemComponent->HasMatchingGameplayTag(FaceAimStateTag);
+
+	bUseControllerRotationYaw = bFaceAimActive;
+	GetCharacterMovement()->bOrientRotationToMovement = !bFaceAimActive;
+
+	if (bDebugFaceAimState)
+	{
+		UE_LOG(LogTemp, Log,
+			TEXT("[FaceAim] Refresh -> Active=%d bUseControllerRotationYaw=%d bOrientRotationToMovement=%d"),
+			(int32)bFaceAimActive,
+			(int32)bUseControllerRotationYaw,
+			(int32)GetCharacterMovement()->bOrientRotationToMovement);
+	}
 }
