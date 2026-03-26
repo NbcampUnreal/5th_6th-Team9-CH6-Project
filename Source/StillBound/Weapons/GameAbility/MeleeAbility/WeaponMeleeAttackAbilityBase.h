@@ -61,6 +61,16 @@ protected:
         bool bWasCancelled
     ) override;
 
+    // 근접 오버랩에서 FX용 타격 지점/노멀 계산
+    bool TryGetMeleeImpactPointFromOverlap(
+        UPrimitiveComponent* OverlappedComponent,
+        UPrimitiveComponent* OtherComp,
+        bool bFromSweep,
+        const FHitResult& SweepResult,
+        FVector& OutImpactPoint,
+        FVector& OutImpactNormal
+    ) const;
+
     bool CacheProfileFromWeapon(AMeleeWeaponBase* Weapon);
 
     void BindHitBoxOverlap(AMeleeWeaponBase* Weapon);
