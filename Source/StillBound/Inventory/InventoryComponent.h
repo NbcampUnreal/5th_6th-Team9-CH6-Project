@@ -241,12 +241,13 @@ private:
     ///===============================================================================
     /// FUNCTIONS
     ///===============================================================================
-    int32 GetTotalCountByID(FName ItemID) const;
+   
     bool AddByID(FName ItemID, int32 Count);
     
 public:
     UItemBase* CreateItemInstanceByID(FName ItemID, int32 Quantity) const;
     bool ConsumeByID(FName ItemID, int32 Count);
+    int32 GetTotalCountByID(FName ItemID) const;
 
 
     ///===============================================================================

@@ -419,12 +419,38 @@ bool ANPCCharacter::BuyItemFromPlayer(APlayerCharacter_SB* Player, UItemBase* It
 	const int32 SellPrice = FMath::FloorToInt(Item->ItemStatistics.SellValue * 0.8f);
 	const int32 TotalGold = SellPrice * ActualRemoved;
 
-	UE_LOG(LogTemp, Log, TEXT("[%s] Bought %dx %s from player for %dG"),
-		*NPCName,
-		ActualRemoved,
-		*Item->TextData.Name.ToString(),
-		TotalGold);
+	if (!ItemDataTable)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] ItemDataTable is NULL!"), *NPCName);
+		return false;
+	}
 
+	// 기존 ModifyGold 대신 골드 아이템으로 지급
+	FName GoldItemRowName = FName(TEXT("700001"));
+	FString ContextString;
+	const FItemDataRow* GoldItemData = ItemDataTable->FindRow<FItemDataRow>(GoldItemRowName, ContextString);
+
+	if (GoldItemData)
+	{
+		UItemBase* GoldItem = NewObject<UItemBase>(PlayerInventory, UItemBase::StaticClass());
+		GoldItem->ID = GoldItemData->ID;
+		GoldItem->ItemType = GoldItemData->ItemType;
+		GoldItem->ItemQuality = GoldItemData->ItemQuality;
+		GoldItem->NumericData = GoldItemData->NumericData;
+		GoldItem->TextData = GoldItemData->TextData;
+		GoldItem->AssetData = GoldItemData->AssetData;
+		GoldItem->ItemStatistics = GoldItemData->ItemStatistics;
+		GoldItem->Quantity = TotalGold;
+
+		PlayerInventory->HandleAddItem_AutoHotbarFirst(GoldItem);
+
+		UE_LOG(LogTemp, Log, TEXT("[%s] Gave %dx Gold item to player"), *NPCName, TotalGold);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s] Gold item 700001 not found in DataTable!"), *NPCName);
+		return false;
+	}
 	return true;
 }
 
@@ -553,15 +579,13 @@ void ANPCCharacter::OnDialogueEnd()
 
 	if (!bShopIsOpen)
 	{
-		if (PreviousInteractor)
+		APlayerController* PC = GetWorld()->GetFirstPlayerController();
+		if (PC)
 		{
-			if (APlayerController* PC = Cast<APlayerController>(PreviousInteractor->GetInstigatorController()))
-			{
-				PC->SetShowMouseCursor(false);
-				FInputModeGameOnly InputMode;
-				PC->SetInputMode(InputMode);
-				UE_LOG(LogTemp, Log, TEXT("[%s] Player input mode restored"), *NPCName);
-			}
+			PC->SetShowMouseCursor(false);
+			FInputModeGameOnly InputMode;
+			PC->SetInputMode(InputMode);
+			UE_LOG(LogTemp, Log, TEXT("[%s] Player input mode restored"), *NPCName);
 		}
 	}
 	else
