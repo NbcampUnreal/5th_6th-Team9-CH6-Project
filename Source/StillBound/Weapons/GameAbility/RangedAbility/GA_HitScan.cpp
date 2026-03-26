@@ -16,7 +16,7 @@ UGA_HitScan::UGA_HitScan()
     bFireImmediatelyIfNoMontageOrEvent = true;
 
     // µð¹ö±×
-    bDebugTrace = true;
+    bDebugTrace = false;
     DebugLifeTime = 1.0f;
     DebugLineThickness = 1.5f;
 
