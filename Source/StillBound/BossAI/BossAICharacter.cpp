@@ -4,6 +4,7 @@
 #include "BossAI/BossAIController.h"
 #include "AIController.h"
 #include "UI/USB_UIManager.h"
+#include "UI/DamageNumberActor.h"
 #include "Character/PlayerController_SB.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -38,6 +39,39 @@ void ABossAICharacter::BeginPlay()
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[Boss] After InitStats H=%.1f / %.1f"), H, MH);
+}
+
+void ABossAICharacter::ShowDamageNumber(float Damage)
+{
+	if (!DamageNumberClass) return;
+
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (!PC) return;
+
+	FVector CamLocation;
+	FRotator CamRotation;
+	PC->GetPlayerViewPoint(CamLocation, CamRotation);
+
+	FVector Forward = CamRotation.Vector();
+	FVector Right = FRotationMatrix(CamRotation).GetUnitAxis(EAxis::Y);
+	FVector Up = FRotationMatrix(CamRotation).GetUnitAxis(EAxis::Z);
+
+	FVector SpawnLocation = CamLocation + Forward * FMath::RandRange(350.f, 450.f);
+
+	SpawnLocation += Right * FMath::RandRange(-70.f, 70.f);
+	SpawnLocation += Up * FMath::RandRange(-40.f, 40.f);
+
+	ADamageNumberActor* Actor =
+		GetWorld()->SpawnActor<ADamageNumberActor>(
+			DamageNumberClass,
+			SpawnLocation,
+			FRotator::ZeroRotator
+		);
+
+	if (Actor)
+	{
+		Actor->InitDamage(Damage);
+	}
 }
 
 void ABossAICharacter::HandleDeath()

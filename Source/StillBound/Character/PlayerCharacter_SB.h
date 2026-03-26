@@ -251,5 +251,8 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Gather")
 	TObjectPtr<UAnimMontage> GatherDefaultLoopMontage;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Gather")
+	TObjectPtr<UAnimMontage> GatherBareHandLoopMontage;
+
 	UAnimMontage* GetGatherMontageForEquippedTool() const;
 };
