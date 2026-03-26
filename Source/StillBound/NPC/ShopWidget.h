@@ -23,9 +23,14 @@ struct FSoldItemRecord
 {
     GENERATED_BODY()
 
-    FName ItemRowName;
-    int32 Quantity;
-    int32 GoldEarned;
+    UPROPERTY()
+    FName ItemRowName = NAME_None;
+
+    UPROPERTY()
+    int32 Quantity = 0;
+
+    UPROPERTY()
+    int32 GoldEarned = 0;
 };
 
 UCLASS()
