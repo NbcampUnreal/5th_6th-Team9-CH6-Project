@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -17,9 +15,9 @@ public:
     UGA_Projectile();
 
 protected:
-    // 수정: Projectile 전용 모드 검증 + 발사 진입점 override
+    // [수정] Projectile 전용 모드 검증 + 발사 진입점 override
     virtual void FireCurrentProfile(ARangedWeaponBase* Weapon) override;
 
-    // 수정: Projectile 스폰 / 초기화 / 발사 설정을 이 GA에서 처리
+    // [수정] Projectile 스폰 / 초기화 / 발사 설정을 이 GA에서 처리
     virtual void FireProjectileOnce(ARangedWeaponBase* Weapon) override;
 };

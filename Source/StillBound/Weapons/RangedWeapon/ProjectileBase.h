@@ -12,6 +12,7 @@ class UPrimitiveComponent;
 class UGameplayEffect;
 class UAbilitySystemComponent;
 class UNiagaraSystem;
+class UNiagaraComponent;
 
 USTRUCT(BlueprintType)
 struct FProjectileOnHitGameplayEffectSpec
@@ -57,6 +58,35 @@ struct FProjectileImpactFXPayload
     }
 };
 
+USTRUCT(BlueprintType)
+struct FProjectileTrailFXConfig
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile|TrailFX")
+    TObjectPtr<UNiagaraSystem> NiagaraSystem = nullptr;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile|TrailFX")
+    bool bAttachToProjectile = true;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile|TrailFX")
+    FVector LocationOffset = FVector::ZeroVector;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile|TrailFX")
+    FRotator RotationOffset = FRotator::ZeroRotator;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile|TrailFX")
+    FVector Scale = FVector(1.f, 1.f, 1.f);
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile|TrailFX")
+    bool bDestroyOnImpact = false;
+
+    bool IsConfigured() const
+    {
+        return NiagaraSystem != nullptr;
+    }
+};
+
 UCLASS(Abstract, Blueprintable)
 class STILLBOUND_API AProjectileBase : public AActor
 {
@@ -81,12 +111,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Weapon|Projectile")
     UProjectileMovementComponent* GetProjectileMovement() const { return ProjectileMovement; }
 
-    // 수정:
-    // impulse mode에서는 중력 ON/OFF만 처리
     void ConfigureImpulsePhysics(UPrimitiveComponent* InPhysicsComponent, bool bEnableGravity);
 
 protected:
     virtual void BeginPlay() override;
+    virtual void Destroyed() override;
 
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Projectile")
@@ -101,11 +130,15 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile")
     bool bDestroyOnImpact = true;
 
+    // 이름은 유지해서 BP 깨짐 최소화
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile")
     bool bUseOverlapAsFallback = true;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile|Collision", meta = (ClampMin = "0.0"))
-    float InitialCollisionDisableTime = 0.03f;
+    float InitialCollisionDisableTime = 0.1f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile|TrailFX")
+    FProjectileTrailFXConfig TrailFX;
 
 protected:
     UPROPERTY()
@@ -128,16 +161,13 @@ protected:
     UPROPERTY()
     bool bHasImpactProcessed = false;
 
-protected:
-    UFUNCTION()
-    void OnProjectileHit(
-        UPrimitiveComponent* HitComponent,
-        AActor* OtherActor,
-        UPrimitiveComponent* OtherComp,
-        FVector NormalImpulse,
-        const FHitResult& Hit
-    );
+    UPROPERTY(Transient)
+    bool bDeferredCollisionRestorePending = false;
 
+    UPROPERTY(Transient)
+    TObjectPtr<UNiagaraComponent> ActiveTrailComponent = nullptr;
+
+protected:
     UFUNCTION()
     void OnProjectileBeginOverlap(
         UPrimitiveComponent* OverlappedComponent,
@@ -172,7 +202,11 @@ protected:
 
     bool SpawnImpactFXFromHitResult(const FHitResult& HitResult) const;
 
-    void EnableCollisionAfterSpawnDelay();
+    void DisableCollisionResponsesTemporarily();
+    void RestoreCollisionResponsesAfterSpawnDelay();
+
+    void StartTrailFX();
+    void StopTrailFX(bool bDestroyImmediately);
 
     static FGameplayTag GetDataDamageTag();
 };
