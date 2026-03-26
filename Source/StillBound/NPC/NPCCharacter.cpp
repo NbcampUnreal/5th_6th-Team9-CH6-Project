@@ -42,6 +42,22 @@ ANPCCharacter::ANPCCharacter()
 	float RestockTime = 600.f;
 }
 
+void ANPCCharacter::ReduceShopItemStock(FName ItemRowName, int32 Amount)
+{
+	for (FShopItemData& ShopItem : ShopItemList)
+	{
+		if (ShopItem.ItemRowName == ItemRowName)
+		{
+			if (ShopItem.CurrentStock > 0)
+			{
+				ShopItem.CurrentStock = FMath::Max(0, ShopItem.CurrentStock - Amount);
+			}
+			// CurrentStock < 0 이면 무한재고라 차감 안 함
+			return;
+		}
+	}
+}
+
 // Called when the game starts or when spawned
 void ANPCCharacter::BeginPlay()
 {
