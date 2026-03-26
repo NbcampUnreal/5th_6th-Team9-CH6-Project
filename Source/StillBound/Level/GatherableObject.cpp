@@ -251,9 +251,16 @@ bool AGatherableObject::CanGather(APlayerCharacter_SB* Character) const
         Character->CurrentHotbarIndex
     );
 
-    //도구를 들고 있는 경우 종류 체크
-    if (EquippedItem && EquippedItem->ItemType == EItemType::Tool)
+    //아이템 들고 있는 경우 타입 체크
+    if (EquippedItem)
     {
+        // Tool이 아닌 다른 아이템(무기, 소비템 등)을 들고 있으면 채집 불가
+        if (EquippedItem->ItemType != EItemType::Tool)
+        {
+            return false;
+        }
+
+        // Tool인 경우 종류 체크
         EToolKind EquippedKind = EquippedItem->ItemStatistics.ToolKind;
 
         // 도끼로 돌 채집 불가
