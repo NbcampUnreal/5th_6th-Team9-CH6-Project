@@ -284,14 +284,14 @@ void AEnemyCharacter::HandleDeath()
 		GetWorldTimerManager().SetTimer(
 			HideBodyTimerHandle,
 			this,
-			&AEnemyCharacter::HideDeadBody,
+			&AEnemyCharacter::DisableEnemyForRespawn,
 			DeathHideDelay,
 			false
 		);
 	}
 	else
 	{
-		HideDeadBody();
+		DisableEnemyForRespawn();
 	}
 
 	GetWorldTimerManager().SetTimer(
@@ -461,25 +461,6 @@ void AEnemyCharacter::RespawnEnemy()
 	bIsDead = false;
 
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyRespawn] Respawn finished"));
-}
-
-void AEnemyCharacter::HideDeadBody()
-{
-	SetActorHiddenInGame(true);
-	SetActorEnableCollision(false);
-	SetActorTickEnabled(false);
-
-	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
-	{
-		Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
-
-	if (USkeletalMeshComponent* MeshComp = GetMesh())
-	{
-		MeshComp->SetVisibility(false, true);
-		MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		MeshComp->bPauseAnims = true;
-	}
 }
 
 float AEnemyCharacter::GetDeathMontageLength() const

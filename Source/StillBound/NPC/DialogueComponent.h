@@ -12,7 +12,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDialogueEnded);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDialogueUpdated, const FDialogueRow&, NewDialogueData);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMenuChanged, EMenuType, NewMenuType);
 
-//´ëÈ­ ½Ã½ºÅÛ ÄÄÆ÷³ÍÆ®
+//ï¿½ï¿½È­ ï¿½Ã½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class STILLBOUND_API UDialogueComponent : public UActorComponent
@@ -28,7 +28,7 @@ protected:
 	virtual void BeginPlay() override;
 
 public:	
-    // °¢ ¸Þ´ºº° DataTable
+    // ï¿½ï¿½ ï¿½Þ´ï¿½ï¿½ï¿½ DataTable
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dialogue")
     UDataTable* MainMenuDataTable;
 
@@ -41,11 +41,11 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dialogue")
     UDataTable* TradeDataTable;
 
-	// ½ÃÀÛ ´ëÈ­ ID
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È­ ID
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
 	int32 StartDialogueID = 1;
 
-    // === ´ëÈ­ Á¦¾î ===
+    // === ï¿½ï¿½È­ ï¿½ï¿½ï¿½ï¿½ ===
     UFUNCTION(BlueprintCallable, Category = "Dialogue")
     bool StartDialogue(AActor* Interactor);
 
@@ -58,18 +58,18 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Dialogue")
     void GoToDialogue(int32 DialogueID);
 
-    // ¸Þ´º ÀüÈ¯
+    // ï¿½Þ´ï¿½ ï¿½ï¿½È¯
     UFUNCTION(BlueprintCallable, Category = "Dialogue")
     void SwitchToMenu(EMenuType MenuType);
 
-    // ¸ÞÀÎ ¸Þ´º·Î µ¹¾Æ°¡±â
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½Þ´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Æ°ï¿½ï¿½ï¿½
     UFUNCTION(BlueprintCallable, Category = "Dialogue")
     void ReturnToMainMenu();
 
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Dialogue")
     bool CheckCondition(const FDialogueCondition& Condition);
 
-    // === »óÅÂ Á¶È¸ ===
+    // === ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¸ ===
     UFUNCTION(BlueprintPure, Category = "Dialogue")
     bool IsDialogueActive() const { return bIsDialogueActive; }
 
@@ -79,7 +79,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "Dialogue")
     EMenuType GetCurrentMenuType() const { return CurrentMenuType; }
 
-    // === ÀÌº¥Æ® ===
+    // === ï¿½Ìºï¿½Æ® ===
     UPROPERTY(BlueprintAssignable, Category = "Dialogue")
     FOnDialogueStarted OnDialogueStarted;
 
@@ -99,10 +99,10 @@ private:
 
     EMenuType CurrentMenuType = EMenuType::None;
     UDataTable* CurrentDataTable = nullptr;
-    //´ëÈ­ÀÌ·Â
+    //ï¿½ï¿½È­ï¿½Ì·ï¿½
     TArray<int32> DialogueHistory;
 
-    // ´ëÈ­ µ¥ÀÌÅÍ ·Îµå
+    // ï¿½ï¿½È­ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½
     FDialogueRow* LoadDialogueByID(int32 DialogueID);
     UDataTable* GetDataTableForMenu(EMenuType MenuType);
 };

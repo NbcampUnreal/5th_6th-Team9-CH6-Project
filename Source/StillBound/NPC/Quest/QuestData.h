@@ -4,7 +4,7 @@
 #include "Engine/DataTable.h"
 #include "QuestData.generated.h"
 
-// Äù½ºÆ® Å¸ÀÔ
+// ï¿½ï¿½ï¿½ï¿½Æ® Å¸ï¿½ï¿½
 UENUM(BlueprintType)
 enum class EQuestType : uint8
 {
@@ -13,69 +13,70 @@ enum class EQuestType : uint8
     Talk        UMETA(DisplayName = "Dialogue"),
 };
 
-// Äù½ºÆ® »óÅÂ
+// ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
 UENUM(BlueprintType)
 enum class EQuestState : uint8
 {
-    None        UMETA(DisplayName = "¾øÀ½"),
-    Available   UMETA(DisplayName = "¼ö¶ô °¡´É"),
-    Active      UMETA(DisplayName = "ÁøÇà Áß"),
-    Completed   UMETA(DisplayName = "¿Ï·á °¡´É"),
-    Rewarded    UMETA(DisplayName = "º¸»ó ¼ö·É ¿Ï·á"),
+    None        UMETA(DisplayName = "ï¿½ï¿½ï¿½ï¿½"),
+    Available   UMETA(DisplayName = "ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½"),
+    Active      UMETA(DisplayName = "ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½"),
+    Completed   UMETA(DisplayName = "ï¿½Ï·ï¿½ ï¿½ï¿½ï¿½ï¿½"),
+    Rewarded    UMETA(DisplayName = "ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ï·ï¿½"),
 };
 
-// DataTable Çà ±¸Á¶Ã¼
+// DataTable ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼
 USTRUCT(BlueprintType)
 struct FQuestDataRow : public FTableRowBase
 {
     GENERATED_BODY()
 
-    // Äù½ºÆ® ID
+    // ï¿½ï¿½ï¿½ï¿½Æ® ID
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
     int32 QuestID = 0;
 
-    // Äù½ºÆ® ÀÌ¸§
+    // ï¿½ï¿½ï¿½ï¿½Æ® ï¿½Ì¸ï¿½
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
+
     FText QuestName = FText::GetEmpty();
 
-    // Äù½ºÆ® ¼³¸í
+    // ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
     FText Description = FText::GetEmpty();
 
-    // ÁøÇà Áß Ç¥½Ã ÅØ½ºÆ® (¸ñÇ¥ UI¿¡ Ç¥½Ã)
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ Ç¥ï¿½ï¿½ ï¿½Ø½ï¿½Æ® (ï¿½ï¿½Ç¥ UIï¿½ï¿½ Ç¥ï¿½ï¿½)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
     FText ObjectiveText= FText ::GetEmpty();
 
-    // Äù½ºÆ® Å¸ÀÔ
+    // ï¿½ï¿½ï¿½ï¿½Æ® Å¸ï¿½ï¿½
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
     EQuestType QuestType = EQuestType::None;
 
-    // ¸ñÇ¥ ¾ÆÀÌÅÛ ID (¼öÁý Äù½ºÆ®)
+    // ï¿½ï¿½Ç¥ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ID (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ®)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
     FName TargetItemID = NAME_None;
 
-    // ¸ñÇ¥ ¼ö·®
+    // ï¿½ï¿½Ç¥ ï¿½ï¿½ï¿½ï¿½
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
     int32 TargetCount = 0;
 
-    // º¸»ó °ñµå
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
     int32 RewardGold = 0;
 
-    // ´ÙÀ½ Äù½ºÆ® ID (¿¬°è Äù½ºÆ®, 0ÀÌ¸é ¾øÀ½)
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ® ID (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ®, 0ï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
     int32 NextQuestID = 0;
 
-    // ¼ö¶ô ½Ã NPC ´ëÈ­ ID
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ NPC ï¿½ï¿½È­ ID
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
     int32 AcceptDialogueID = 0;
 
-    // ¿Ï·á ½Ã NPC ´ëÈ­ ID
+    // ï¿½Ï·ï¿½ ï¿½ï¿½ NPC ï¿½ï¿½È­ ID
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
     int32 CompleteDialogueID = 0;
 };
 
-// ÇÃ·¹ÀÌ¾î°¡ º¸À¯ÇÑ Äù½ºÆ® ÁøÇà Á¤º¸
+// ï¿½Ã·ï¿½ï¿½Ì¾î°¡ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 USTRUCT(BlueprintType)
 struct FQuestProgress
 {
@@ -88,5 +89,5 @@ struct FQuestProgress
     EQuestState State = EQuestState::None;
 
     UPROPERTY(BlueprintReadWrite)
-    int32 CurrentCount = 0;  // ÇöÀç ¼öÁý/Å³ ¼ö·®
+    int32 CurrentCount = 0;  // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½/Å³ ï¿½ï¿½ï¿½ï¿½
 };

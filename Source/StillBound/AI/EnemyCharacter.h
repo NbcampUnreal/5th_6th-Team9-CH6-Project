@@ -99,9 +99,6 @@ private:
     void BeginDeathState();
 
     UFUNCTION(BlueprintCallable, Category = "Enemy|Death")
-    void HideDeadBody();
-
-    UFUNCTION(BlueprintCallable, Category = "Enemy|Death")
     float GetDeathMontageLength() const;
 
     UPROPERTY()
