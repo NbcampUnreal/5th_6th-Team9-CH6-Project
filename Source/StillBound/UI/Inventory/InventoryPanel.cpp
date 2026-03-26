@@ -30,9 +30,11 @@ void UInventoryPanel::NativeOnInitialized()
 
 void UInventoryPanel::SetInfoText() const
 {
-	const FString WeightInfoValue{ FString::SanitizeFloat(InventoryReference->GetInventoryTotalWeight()) + "/" + FString::SanitizeFloat(InventoryReference->GetWeightCapacity()) };
+	const float CurrentWeight = FMath::RoundToFloat(InventoryReference->GetInventoryTotalWeight() * 10.f) / 10.f;
+	const float MaxWeight = FMath::RoundToFloat(InventoryReference->GetWeightCapacity() * 10.f) / 10.f;
 
-	const FString CapacityInfoValue{ FString::FromInt(InventoryReference->GetOccupiedSlotCount()) + "/" + FString::FromInt(InventoryReference->GetSlotCapacity()) };
+	const FString WeightInfoValue = FString::Printf(TEXT("%.1f / %.1f"), CurrentWeight, MaxWeight);
+	const FString CapacityInfoValue = FString::Printf(TEXT("%d / %d"), InventoryReference->GetOccupiedSlotCount(), InventoryReference->GetSlotCapacity());
 
 	WeightInfo->SetText(FText::FromString(WeightInfoValue));
 	CapacityInfo->SetText(FText::FromStringView(CapacityInfoValue));
