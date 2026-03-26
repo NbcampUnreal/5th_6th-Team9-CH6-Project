@@ -155,7 +155,7 @@ void APlayerCharacter_SB::BeginPlay()
 		if (QuestWidget)
 		{
 			QuestWidget->AddToViewport(50);
-			QuestWidget->SetVisibility(ESlateVisibility::Collapsed); // 초기 숨김
+			QuestWidget->SetVisibility(ESlateVisibility::HitTestInvisible); // 초기 숨김
 			QuestWidget->SetQuestComponent(QuestComponent);
 		}
 	}
