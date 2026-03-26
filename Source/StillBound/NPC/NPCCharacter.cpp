@@ -42,6 +42,22 @@ ANPCCharacter::ANPCCharacter()
 	float RestockTime = 600.f;
 }
 
+void ANPCCharacter::ReduceShopItemStock(FName ItemRowName, int32 Amount)
+{
+	for (FShopItemData& ShopItem : ShopItemList)
+	{
+		if (ShopItem.ItemRowName == ItemRowName)
+		{
+			if (ShopItem.CurrentStock > 0)
+			{
+				ShopItem.CurrentStock = FMath::Max(0, ShopItem.CurrentStock - Amount);
+			}
+			// CurrentStock < 0 이면 무한재고라 차감 안 함
+			return;
+		}
+	}
+}
+
 // Called when the game starts or when spawned
 void ANPCCharacter::BeginPlay()
 {
@@ -520,7 +536,6 @@ void ANPCCharacter::OpenShop()
 	UE_LOG(LogTemp, Log, TEXT("[%s] Shop opened"), *NPCName);
 }
 
-
 ANPCAIController* ANPCCharacter::GetNPCAIController() const
 {
 	return Cast<ANPCAIController>(GetController());
@@ -565,11 +580,18 @@ void ANPCCharacter::OnDialogueUpdate(const FDialogueRow& DialogueData)
 void ANPCCharacter::OnDialogueEnd()
 {
 	bool bShopIsOpen = (ShopWidget && ShopWidget->IsInViewport());
-	// Widget 정리
+	// 퀘스트 완료 팝업 떠있는지 체크
+	bool bQuestPopupOpen = false;
+	ANPCCharacter_Quest* QuestNPC = Cast<ANPCCharacter_Quest>(this);
+	if (QuestNPC && QuestNPC->ActiveQuestCompleteWidget
+		&& QuestNPC->ActiveQuestCompleteWidget->IsInViewport())
+	{
+		bQuestPopupOpen = true;
+	}
+
 	if (DialogueWidget && DialogueWidget->IsInViewport())
 	{
 		DialogueWidget->RemoveFromParent();
-		// Widget은 재사용을 위해 유지 (nullptr 안 함)
 	}
 
 	// 상태 정리
@@ -577,7 +599,7 @@ void ANPCCharacter::OnDialogueEnd()
 	AActor* PreviousInteractor = CurrentInteractor;
 	CurrentInteractor = nullptr;
 
-	if (!bShopIsOpen)
+	if (!bShopIsOpen && !bQuestPopupOpen)
 	{
 		APlayerController* PC = GetWorld()->GetFirstPlayerController();
 		if (PC)
@@ -585,14 +607,8 @@ void ANPCCharacter::OnDialogueEnd()
 			PC->SetShowMouseCursor(false);
 			FInputModeGameOnly InputMode;
 			PC->SetInputMode(InputMode);
-			UE_LOG(LogTemp, Log, TEXT("[%s] Player input mode restored"), *NPCName);
 		}
 	}
-	else
-	{
-		UE_LOG(LogTemp, Log, TEXT("[%s] Shop is open, skipping input mode restore"), *NPCName);
-	}
-
 	// AI 상태 복구 (상점 열릴 때는 스킵)
 	if (!bShopIsOpen)
 	{
@@ -609,11 +625,9 @@ void ANPCCharacter::OnDialogueEnd()
 				AIController->SetNPCState(ENPCMode::Idle);
 			}
 		}
-
 		// 블루프린트 이벤트
 		OnInteractionEnded(PreviousInteractor);
 	}
-
 	UE_LOG(LogTemp, Log, TEXT("[%s] Dialogue ended"), *NPCName);
 }
 

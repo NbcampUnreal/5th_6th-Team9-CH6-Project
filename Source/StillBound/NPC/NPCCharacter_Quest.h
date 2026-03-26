@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "NPC/NPCCharacter.h"
 #include "Quest/QuestData.h"
+#include "Quest/QuestCompleteWidget.h"
 #include "NPCCharacter_Quest.generated.h"
 
 UCLASS()
@@ -43,4 +44,11 @@ public:
 
     UFUNCTION(BlueprintNativeEvent, Category = "Quest")
     void OnQuestCompleted(int32 QuestID);
+
+    UPROPERTY(EditDefaultsOnly, Category = "Quest")
+    TSubclassOf<UQuestCompleteWidget> QuestCompleteWidgetClass;
+
+    // ÄÄÇÃ¸´ À§Á¬ Æ÷ÀÎÅÍ
+    UPROPERTY()
+    UQuestCompleteWidget* ActiveQuestCompleteWidget;
 };

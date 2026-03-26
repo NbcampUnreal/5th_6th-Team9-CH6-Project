@@ -60,7 +60,7 @@ void UQuestWidget::RefreshQuestObjectives()
     }
 
     // 퀘스트 있을 경우
-    SetVisibility(ESlateVisibility::Visible);
+    SetVisibility(ESlateVisibility::HitTestInvisible);
 
     if (TXT_NoQuest)
     {
