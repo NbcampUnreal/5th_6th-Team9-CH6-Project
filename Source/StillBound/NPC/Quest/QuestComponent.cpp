@@ -1,5 +1,6 @@
 #include "QuestComponent.h"
 #include "Character/PlayerCharacter_SB.h"
+#include "Inventory/InventoryComponent.h"
 
 UQuestComponent::UQuestComponent()
 {
@@ -68,8 +69,32 @@ bool UQuestComponent::CompleteQuest(int32 QuestID)
     APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwner());
     if (Player && QuestData->RewardGold > 0)
     {
-        Player->ModifyGold(QuestData->RewardGold);
-        UE_LOG(LogTemp, Log, TEXT("[QuestComponent] Quest reward: %dG"), QuestData->RewardGold);
+        UInventoryComponent* Inventory = Player->GetInventory();
+        if (Inventory)
+        {
+            UItemBase* GoldItem = Inventory->CreateItemInstanceByID(
+                FName(TEXT("700001")), QuestData->RewardGold);
+            if (GoldItem)
+            {
+                Inventory->HandleAddItem_AutoHotbarFirst(GoldItem);
+                UE_LOG(LogTemp, Log, TEXT("[QuestComponent] Quest reward: %dG"),
+                    QuestData->RewardGold);
+            }
+        }
+    }
+
+    // 퀘스트 아이템 차감
+    if (Player && QuestData->QuestType == EQuestType::Collect
+        && !QuestData->TargetItemID.IsNone()
+        && QuestData->TargetCount > 0)
+    {
+        UInventoryComponent* Inventory = Player->GetInventory();
+        if (Inventory)
+        {
+            Inventory->ConsumeByID(QuestData->TargetItemID, QuestData->TargetCount);
+            UE_LOG(LogTemp, Log, TEXT("[QuestComponent] Consumed %dx %s"),
+                QuestData->TargetCount, *QuestData->TargetItemID.ToString());
+        }
     }
 
     // 상태 변경
@@ -82,13 +107,6 @@ bool UQuestComponent::CompleteQuest(int32 QuestID)
     OnQuestUpdated.Broadcast(QuestID, EQuestState::Rewarded);
 
     UE_LOG(LogTemp, Log, TEXT("[QuestComponent] Quest completed: %d"), QuestID);
-
-    // 연계 퀘스트 자동 수락
-    if (QuestData->NextQuestID != 0)
-    {
-        AcceptQuest(QuestData->NextQuestID);
-        UE_LOG(LogTemp, Log, TEXT("[QuestComponent] Next quest started: %d"), QuestData->NextQuestID);
-    }
 
     return true;
 }

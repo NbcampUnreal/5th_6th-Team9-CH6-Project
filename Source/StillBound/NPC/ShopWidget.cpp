@@ -272,6 +272,9 @@ void UShopWidget::BuyItem(FName ItemRowName, int32 Quantity)
         // 골드 아이템 차감
         PlayerInventory->ConsumeByID(FName(TEXT("700001")), TotalPrice);
 
+        // 재고 차감
+        NPCCharacter->ReduceShopItemStock(ItemRowName, Quantity);
+
         UpdateGoldDisplay();
         RefreshShop();
     }
