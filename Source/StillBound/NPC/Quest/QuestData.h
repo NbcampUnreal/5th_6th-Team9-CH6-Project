@@ -36,11 +36,11 @@ struct FQuestDataRow : public FTableRowBase
 
     // 퀘스트 이름
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
-    FText QuestName = QuestName;
+    FText QuestName = FText::GetEmpty();
 
     // 퀘스트 설명
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
-    FText Description = FText::FromString(TEXT("QuestDescription"));
+    FText Description = FText::GetEmpty();
 
     // 진행 중 표시 텍스트 (목표 UI에 표시)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
