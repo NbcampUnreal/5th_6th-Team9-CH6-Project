@@ -185,26 +185,34 @@ bool UDialogueComponent::SelectOption(int32 OptionIndex)
 		{
 			// 거래 NPC면 퀘스트 불가
 			ANPCCharacter_Quest* QuestNPC = Cast<ANPCCharacter_Quest>(GetOwner());
-			if (!QuestNPC)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("Merchant NPC cannot give quests"));
-				return false;
-			}
+			if (!QuestNPC) return false;
+
 			// 플레이어 가져오기
 			APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(CurrentInteractor);
-			if (!Player)
-			{
-				UE_LOG(LogTemp, Error, TEXT("CurrentInteractor is not a player"));
-				return false;
-			}
+			if (!Player) return false;
 
 			// 완료 가능한 퀘스트 먼저 체크
 			int32 CompletableID = QuestNPC->GetCompletableQuestID(Player);
 			if (CompletableID != 0)
 			{
-				// 완료 처리 후 퀘스트 메뉴로
-				QuestNPC->TryCompleteQuest(Player, CompletableID);
-				//SwitchToMenu(EMenuType::Quest);
+				// 퀘스트 데이터 미리 완료 전에 가져오기
+				UQuestComponent* QuestComp = Player->FindComponentByClass<UQuestComponent>();
+				FQuestDataRow* QuestData = QuestComp ? QuestComp->GetQuestData(CompletableID) : nullptr;
+
+				bool bSuccess = QuestNPC->TryCompleteQuest(Player, CompletableID);
+
+				if (bSuccess && QuestData && QuestNPC->QuestCompleteWidgetClass)
+				{
+					UQuestCompleteWidget* Popup = CreateWidget<UQuestCompleteWidget>(
+						GetWorld(), QuestNPC->QuestCompleteWidgetClass
+					);
+					if (Popup)
+					{
+						QuestNPC->ActiveQuestCompleteWidget = Popup;
+						Popup->AddToViewport(200);
+						Popup->InitializePopup(QuestData->QuestName, QuestData->RewardGold);
+					}
+				}
 				EndDialogue();
 				return true;
 			}
