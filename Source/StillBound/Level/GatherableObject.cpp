@@ -9,6 +9,7 @@
 #include "Components/SphereComponent.h"
 #include "Engine/World.h"
 #include "Engine/DataTable.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 AGatherableObject::AGatherableObject()
 {
@@ -45,6 +46,7 @@ void AGatherableObject::EndPlay(const EEndPlayReason::Type EndPlayReason)
         World->GetTimerManager().ClearTimer(RespawnTimerHandle);
         World->GetTimerManager().ClearTimer(FallTimerHandle);
         World->GetTimerManager().ClearTimer(HotbarCheckTimerHandle);
+        World->GetTimerManager().ClearTimer(MovementCheckTimerHandle);
     }
     Super::EndPlay(EndPlayReason);
 }
@@ -115,6 +117,14 @@ void AGatherableObject::BeginInteract_Implementation()
              0.1f,
              true 
          );
+         //이동 입력 감지
+         World->GetTimerManager().SetTimer(
+             MovementCheckTimerHandle,
+             this,
+             &AGatherableObject::CheckMovementInput,
+             0.05f, // 0.05초마다 체크
+             true
+         );
      }
 
      Player->NotifyGatherStart(InteractableData.InteractionDuration);
@@ -127,6 +137,7 @@ void AGatherableObject::EndInteract_Implementation()
     if (World)
     {
         World->GetTimerManager().ClearTimer(HotbarCheckTimerHandle);
+        World->GetTimerManager().ClearTimer(MovementCheckTimerHandle);
     }
 
     // 캐시 초기화
@@ -344,6 +355,50 @@ void AGatherableObject::CheckHotbarChanged()
         CachedHotbarIndex = -1;
         CachedToolID = NAME_None;
         //캐릭터의 EndInteract 호출해서 채집 취소
+        Player->EndInteract();
+    }
+}
+
+void AGatherableObject::CheckMovementInput()
+{
+    APlayerCharacter_SB* Player = nullptr;
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        if (APlayerController* PC = It->Get())
+        {
+            Player = Cast<APlayerCharacter_SB>(PC->GetPawn());
+            if (Player) { break; }
+        }
+    }
+
+    if (!Player) { return; }
+
+    bool bShouldCancel = false;
+    //캐릭터의 이동 입력값 확인
+    //FVector InputVector = Player->GetPendingMovementInputVector();
+    UCharacterMovementComponent* MoveComp = Player->GetCharacterMovement();
+    if (MoveComp)
+    {
+        //LastInputVector - 직전 프레임 입력값
+        FVector LastInput = MoveComp->GetLastInputVector();
+        if (!LastInput.IsNearlyZero(0.1f))
+        {
+            bShouldCancel = true;
+        }
+    }
+
+    if (bShouldCancel)
+    {
+        UWorld* World = GetWorld();
+        if (World)
+        {
+            World->GetTimerManager().ClearTimer(MovementCheckTimerHandle);
+            World->GetTimerManager().ClearTimer(HotbarCheckTimerHandle);
+        }
+
+        CachedHotbarIndex = -1;
+        CachedToolID = NAME_None;
+
         Player->EndInteract();
     }
 }
