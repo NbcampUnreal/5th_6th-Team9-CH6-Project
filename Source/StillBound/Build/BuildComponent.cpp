@@ -598,11 +598,15 @@ bool UBuildComponent::ConfirmBuild(EBuildFailReason& OutFailReason)
 	Spawned->Tags.AddUnique(CurrentBuildingID);
 
 	//가이드 퀘스트
-	if (UGameInstance* GI = GetWorld()->GetGameInstance())
+	if (UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr)
 	{
 		if (UGuideQuestSubsystem* QuestSys = GI->GetSubsystem<UGuideQuestSubsystem>())
 		{
-			QuestSys->ReportBuildPlaced(CurrentBuildingID, 1);
+			//디버깅용 코드
+			UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] ReportKillEnemy called with None-target quest support"));
+
+			QuestSys->ReportKillEnemy(NAME_None, 1);
+			// 또는 실제 몬스터 ID가 있으면 그 ID 전달
 		}
 	}
 	//===============

@@ -5,6 +5,8 @@
 #include "GameInstance/SBGameInstance.h"
 #include "Inventory/InventoryComponent.h"
 #include "Data/SBWorldSaveGame.h"
+#include "Items/ItemBase.h"
+#include "Data/ItemData.h"
 
 DEFINE_LOG_CATEGORY(LogGuideQuest);
 
@@ -50,37 +52,6 @@ void UGuideQuestSubsystem::InitializeQuestTables(UDataTable* InMasterTable, UDat
 		GuideQuestObjectiveTable ? TEXT("Valid") : TEXT("Null"));
 }
 
-bool UGuideQuestSubsystem::BuildObjectivesForQuest(FName QuestId, TArray<FGuideQuestRuntimeObjective>& OutObjectives) const
-{
-	OutObjectives.Reset();
-
-	if (!IsValid(GuideQuestObjectiveTable) || QuestId.IsNone())
-	{
-		return false;
-	}
-
-	TArray<FGuideQuestObjectiveRow*> ObjectiveRows;
-	GuideQuestObjectiveTable->GetAllRows(TEXT("GuideQuestObjectiveLoad"), ObjectiveRows);
-
-	for (const FGuideQuestObjectiveRow* Row : ObjectiveRows)
-	{
-		if (!Row || Row->QuestId != QuestId)
-		{
-			continue;
-		}
-
-		FGuideQuestRuntimeObjective RuntimeObjective;
-		RuntimeObjective.EventType = Row->EventType;
-		RuntimeObjective.TargetId = Row->TargetId;
-		RuntimeObjective.RequiredCount = Row->RequiredCount;
-		RuntimeObjective.CurrentCount = 0;
-		RuntimeObjective.Description = Row->Description;
-		OutObjectives.Add(RuntimeObjective);
-	}
-
-	return OutObjectives.Num() > 0;
-}
-
 bool UGuideQuestSubsystem::StartQuest(FName QuestId, bool bResetProgress)
 {
 	//디버깅용 코드
@@ -114,13 +85,16 @@ bool UGuideQuestSubsystem::StartQuest(FName QuestId, bool bResetProgress)
 		return false;
 	}
 
-	ActiveQuestId = QuestId;
+	const FName PreviousQuestId = ActiveQuestId;
+
 	ActiveQuestRow = FoundMasterRow;
 
-	if (bResetProgress || ActiveQuestId != QuestId || ActiveObjectives.Num() != LoadedObjectives.Num())
+	if (bResetProgress || PreviousQuestId != QuestId || ActiveObjectives.Num() != LoadedObjectives.Num())
 	{
 		ActiveObjectives = MoveTemp(LoadedObjectives);
 	}
+
+	ActiveQuestId = QuestId;
 
 	//디버깅용 코드
 	UE_LOG(LogTemp, Warning, TEXT("[GuideQuestSubsystem] StartQuest success: %s"), *ActiveQuestId.ToString());
@@ -129,6 +103,87 @@ bool UGuideQuestSubsystem::StartQuest(FName QuestId, bool bResetProgress)
 	return true;
 }
 
+bool UGuideQuestSubsystem::BuildObjectivesForQuest(FName QuestId, TArray<FGuideQuestRuntimeObjective>& OutObjectives) const
+{
+	OutObjectives.Reset();
+
+	if (!IsValid(GuideQuestObjectiveTable) || QuestId.IsNone())
+	{
+		return false;
+	}
+
+	TArray<FGuideQuestObjectiveRow*> ObjectiveRows;
+	GuideQuestObjectiveTable->GetAllRows(TEXT("GuideQuestObjectiveLoad"), ObjectiveRows);
+
+	for (const FGuideQuestObjectiveRow* Row : ObjectiveRows)
+	{
+		if (!Row || Row->QuestId != QuestId)
+		{
+			continue;
+		}
+
+		FGuideQuestRuntimeObjective RuntimeObjective;
+		RuntimeObjective.EventType = Row->EventType;
+		RuntimeObjective.TargetId = Row->TargetId;
+		RuntimeObjective.RequiredCount = Row->RequiredCount;
+		RuntimeObjective.CurrentCount = 0;
+		RuntimeObjective.Description = Row->Description;
+		OutObjectives.Add(RuntimeObjective);
+	}
+
+	return OutObjectives.Num() > 0;
+}
+
+bool UGuideQuestSubsystem::GiveReward(APlayerCharacter_SB* PlayerCharacter)
+{
+	if (!PlayerCharacter || !ActiveQuestRow)
+	{
+		return false;
+	}
+
+	// 골드 보상
+	if (ActiveQuestRow->RewardType == EGuideQuestRewardType::Gold)
+	{
+		if (ActiveQuestRow->RewardGold <= 0)
+		{
+			return false;
+		}
+
+		PlayerCharacter->ModifyGold(ActiveQuestRow->RewardGold);
+		return true;
+	}
+
+	// 아이템 보상
+	if (ActiveQuestRow->RewardType == EGuideQuestRewardType::Item)
+	{
+		if (ActiveQuestRow->RewardItemId.IsNone() || ActiveQuestRow->RewardItemCount <= 0)
+		{
+			return false;
+		}
+
+		UInventoryComponent* Inventory = PlayerCharacter->GetInventory();
+		if (!Inventory)
+		{
+			return false;
+		}
+
+		UItemBase* RewardItem = Inventory->CreateItemInstanceByID(
+			ActiveQuestRow->RewardItemId,
+			ActiveQuestRow->RewardItemCount
+		);
+
+		if (!RewardItem)
+		{
+			return false;
+		}
+
+		const FItemAddResult AddResult = Inventory->HandleAddItem_AutoHotbarFirst(RewardItem);
+		return AddResult.ActualAmountAdded > 0;
+	}
+
+	// None 보상
+	return true;
+}
 void UGuideQuestSubsystem::EnsureStarted(FName FirstQuestId)
 {
 	//디버깅용 코드
@@ -281,29 +336,29 @@ void UGuideQuestSubsystem::CompleteActiveQuest()
 		CompletedQuestIds.Add(CompletedQuestId);
 	}
 
-	// [수정] 보상 지급
+	//보상 지급
 	const bool bRewardSuccess = GiveReward(GetPlayerCharacter());
 	if (!bRewardSuccess)
 	{
 		UE_LOG(LogGuideQuest, Warning, TEXT("[GuideQuest] Reward failed for quest %s"), *CompletedQuestId.ToString());
 	}
 
-	// [수정] 다음 퀘스트 ID는 초기화 전에 미리 백업
+	//다음 퀘스트 ID는 초기화 전에 미리 백업
 	const FName NextQuestId = ActiveQuestRow->NextQuestId;
 
 	//디버깅용 코드
 	UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] CompletedQuestId = %s"), *CompletedQuestId.ToString());
 	UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] NextQuestId = %s"), *NextQuestId.ToString());
 
-	// [수정] 현재 퀘스트 상태 정리
+	//현재 퀘스트 상태 정리
 	ActiveQuestId = NAME_None;
 	ActiveQuestRow = nullptr;
 	ActiveObjectives.Reset();
 
-	// [수정] 완료 이벤트 먼저 브로드캐스트
+	//완료 이벤트 먼저 브로드캐스트
 	OnGuideQuestCompleted.Broadcast(CompletedQuestId);
 
-	// [수정] 다음 퀘스트가 있으면 바로 시작
+	//다음 퀘스트가 있으면 바로 시작
 	// StartQuest 내부에서 OnGuideQuestUpdated.Broadcast()가 호출되므로
 	// 여기서 중복으로 Updated를 호출하지 않음
 	if (!NextQuestId.IsNone())
@@ -315,19 +370,8 @@ void UGuideQuestSubsystem::CompleteActiveQuest()
 		return;
 	}
 
-	// [수정] 다음 퀘스트가 없을 때만 UI 갱신
+	//다음 퀘스트가 없을 때만 UI 갱신
 	OnGuideQuestUpdated.Broadcast();
-}
-
-// [수정] 구현부가 누락되었던 GiveReward 함수 추가
-bool UGuideQuestSubsystem::GiveReward(APlayerCharacter_SB* PlayerCharacter)
-{
-	if (!PlayerCharacter) return false;
-
-	// TODO: 실제 아이템/골드 지급 로직 작성 (예전 DataAsset 방식에서 쓰셨던 로직 복구 필요)
-	// 예: PlayerCharacter->ModifyGold(ActiveQuestRow->RewardGold); 등
-
-	return true;
 }
 
 void UGuideQuestSubsystem::ExportToSaveGame(USBWorldSaveGame* SaveGameObject) const
@@ -468,14 +512,43 @@ FText UGuideQuestSubsystem::BuildObjectiveProgressText() const
 
 FText UGuideQuestSubsystem::BuildRewardText() const
 {
-	if (!ActiveQuestRow) return FText::GetEmpty();
+	if (!ActiveQuestRow)
+	{
+		return FText::GetEmpty();
+	}
 
 	switch (ActiveQuestRow->RewardType)
 	{
 	case EGuideQuestRewardType::Gold:
 		return FText::FromString(FString::Printf(TEXT("보상: 골드 %d"), ActiveQuestRow->RewardGold));
+
 	case EGuideQuestRewardType::Item:
-		return FText::FromString(FString::Printf(TEXT("보상: 아이템 %s x%d"), *ActiveQuestRow->RewardItemId.ToString(), ActiveQuestRow->RewardItemCount));
+	{
+		FText RewardItemName = FText::FromName(ActiveQuestRow->RewardItemId);
+
+		// 플레이어 인벤토리의 ItemDataTable을 이용해 표시 이름 찾기
+		if (APlayerCharacter_SB* PlayerCharacter = GetPlayerCharacter())
+		{
+			if (UInventoryComponent* Inventory = PlayerCharacter->GetInventory())
+			{
+				if (IsValid(Inventory->ItemDataTable))
+				{
+					if (const FItemDataRow* ItemRow =
+						Inventory->ItemDataTable->FindRow<FItemDataRow>(ActiveQuestRow->RewardItemId, TEXT("GuideQuestRewardLookup")))
+					{
+						RewardItemName = ItemRow->TextData.Name;
+					}
+				}
+			}
+		}
+
+		return FText::Format(
+			FText::FromString(TEXT("보상: 아이템 {0} x{1}")),
+			RewardItemName,
+			FText::AsNumber(ActiveQuestRow->RewardItemCount)
+		);
+	}
+
 	default:
 		return FText::FromString(TEXT("보상: 없음"));
 	}

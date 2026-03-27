@@ -1106,11 +1106,10 @@ void UInventoryComponent::NotifyGuideQuestItemCollected(FName ItemID, int32 Adde
 	if (UGuideQuestSubsystem* QuestSys = GetWorld()->GetGameInstance()->GetSubsystem<UGuideQuestSubsystem>())
 	{
 		////디버깅용 코드
-		//UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] NotifyGuideQuestItemCollected called: ItemID=%s AddedAmount=%d"),
-		//	*ItemID.ToString(), AddedAmount);
+		UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] NotifyGuideQuestItemCollected called: ItemID=%s AddedAmount=%d"),
+			*ItemID.ToString(), AddedAmount);
 
-		//QuestSys->ReportCollectItem(ItemID, AddedAmount);
-		return;
+		QuestSys->ReportCollectItem(ItemID, AddedAmount);
 	}
 }
 
