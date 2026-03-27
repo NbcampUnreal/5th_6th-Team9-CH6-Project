@@ -5,6 +5,7 @@
 #include "Character/BaseCharacter_SB.h"
 #include "Interface/InteractionInterface.h"
 #include "Data/InventoryTypes.h"
+#include "GameplayTagContainer.h"
 #include "PlayerCharacter_SB.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGoldChanged, int32, NewGold);
@@ -74,6 +75,13 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+
+	//  WeaponGameplayAbility가 붙이는 태그 변화를 감지
+	UFUNCTION()
+	void OnFaceAimStateTagChanged(const FGameplayTag Tag, int32 NewCount);
+
+	//  ASC의 현재 태그 상태 기준으로 회전 모드 즉시 동기화
+	void RefreshAttackFacingFromASC();
 
 	UPROPERTY(VisibleAnywhere, Category = "Inventory")
 	TObjectPtr<UInventoryComponent> PlayerInventory;
@@ -190,6 +198,14 @@ private:
 	void EnableRagdoll();
 
 	FTimerHandle RagdollTimerHandle;
+
+	// 공격 중 몸을 카메라 방향으로 돌릴 때 사용할 상태 태그
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Combat|Facing")
+	FGameplayTag FaceAimStateTag;
+
+	// 태그 디버그 로그
+	UPROPERTY(EditDefaultsOnly, Category = "SB|Combat|Facing")
+	bool bDebugFaceAimState = true;
 
 	// 골드 변수
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Gold",

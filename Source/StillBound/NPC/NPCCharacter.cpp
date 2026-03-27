@@ -42,6 +42,22 @@ ANPCCharacter::ANPCCharacter()
 	float RestockTime = 600.f;
 }
 
+void ANPCCharacter::ReduceShopItemStock(FName ItemRowName, int32 Amount)
+{
+	for (FShopItemData& ShopItem : ShopItemList)
+	{
+		if (ShopItem.ItemRowName == ItemRowName)
+		{
+			if (ShopItem.CurrentStock > 0)
+			{
+				ShopItem.CurrentStock = FMath::Max(0, ShopItem.CurrentStock - Amount);
+			}
+			// CurrentStock < 0 이면 무한재고라 차감 안 함
+			return;
+		}
+	}
+}
+
 // Called when the game starts or when spawned
 void ANPCCharacter::BeginPlay()
 {
@@ -334,24 +350,14 @@ bool ANPCCharacter::SellItemToPlayer(APlayerCharacter_SB* Player, FName ItemRowN
 		return false;
 	}
 
-	// 새 아이템 생성
-	UItemBase* NewItem = NewObject<UItemBase>(PlayerInventory, UItemBase::StaticClass());
+	// 공용 DT 생성 경로 사용
+	UItemBase* NewItem = PlayerInventory->CreateItemInstanceByID(ItemRowName, Quantity);
 	if (!NewItem)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[%s] Failed to create item!"), *NPCName);
+		UE_LOG(LogTemp, Error, TEXT("[%s] Failed to create item from DT: %s"),
+			*NPCName, *ItemRowName.ToString());
 		return false;
 	}
-
-	// 3. 아이템 생성
-	NewItem->ID = ItemData->ID;
-	NewItem->ItemType = ItemData->ItemType;
-	NewItem->ItemQuality = ItemData->ItemQuality;
-	NewItem->NumericData = ItemData->NumericData;
-	NewItem->TextData = ItemData->TextData;
-	NewItem->AssetData = ItemData->AssetData;
-	NewItem->ItemStatistics = ItemData->ItemStatistics;
-	NewItem->EquipWeaponClass = ItemData->EquipWeaponClass;
-	NewItem->Quantity = Quantity;
 
 	// 4. InventoryComponent의 HandleAddItem 사용
 	const FItemAddResult AddResult = PlayerInventory->HandleAddItem_AutoHotbarFirst(NewItem);
