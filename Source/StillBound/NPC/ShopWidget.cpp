@@ -251,6 +251,8 @@ void UShopWidget::UpdateGoldDisplay()
 // ============================================
 void UShopWidget::BuyItem(FName ItemRowName, int32 Quantity)
 {
+    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
+
     if (!NPCCharacter || !PlayerInventory) return;
 
     // 아이템 데이터 조회

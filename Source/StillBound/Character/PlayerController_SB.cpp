@@ -757,11 +757,19 @@ void APlayerController_SB::BeginPlay()
 	//가이드 퀘스트
 	if (USBGameInstance* SBGI = GetGameInstance<USBGameInstance>())
 	{
-		if (UGuideQuestSubsystem* GuideQuestSubsystem = GetGameInstance()->GetSubsystem<UGuideQuestSubsystem>())
+		if (UGuideQuestSubsystem* QuestSys = GetGameInstance()->GetSubsystem<UGuideQuestSubsystem>())
 		{
-			GuideQuestSubsystem->InitializeQuestTables(SBGI->GuideQuestMasterTable, SBGI->GuideQuestObjectiveTable);
-			GuideQuestSubsystem->AttachWidget(this, SBGI->GuideQuestWidgetClass);
-			GuideQuestSubsystem->EnsureStarted(SBGI->FirstGuideQuestId);
+			//디버깅용 코드
+			UE_LOG(LogTemp, Warning, TEXT("[GuideQuest Init] BeginPlay reached"));
+			UE_LOG(LogTemp, Warning, TEXT("[GuideQuest Init] MasterTable = %s"),
+				SBGI->GuideQuestMasterTable ? TEXT("Valid") : TEXT("Null"));
+			UE_LOG(LogTemp, Warning, TEXT("[GuideQuest Init] ObjectiveTable = %s"),
+				SBGI->GuideQuestObjectiveTable ? TEXT("Valid") : TEXT("Null"));
+			UE_LOG(LogTemp, Warning, TEXT("[GuideQuest Init] FirstGuideQuestId = %s"),
+				*SBGI->FirstGuideQuestId.ToString());
+
+			QuestSys->InitializeQuestTables(SBGI->GuideQuestMasterTable, SBGI->GuideQuestObjectiveTable);
+			QuestSys->EnsureStarted(SBGI->FirstGuideQuestId);
 		}
 	}
 	//===============

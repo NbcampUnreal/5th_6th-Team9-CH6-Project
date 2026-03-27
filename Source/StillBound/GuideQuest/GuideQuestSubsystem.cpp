@@ -41,6 +41,13 @@ void UGuideQuestSubsystem::InitializeQuestTables(UDataTable* InMasterTable, UDat
 {
 	GuideQuestMasterTable = InMasterTable;
 	GuideQuestObjectiveTable = InObjectiveTable;
+
+	//디버깅용 코드
+	UE_LOG(LogTemp, Warning, TEXT("[GuideQuestSubsystem] InitializeQuestTables called"));
+	UE_LOG(LogTemp, Warning, TEXT("[GuideQuestSubsystem] MasterTable = %s"),
+		GuideQuestMasterTable ? TEXT("Valid") : TEXT("Null"));
+	UE_LOG(LogTemp, Warning, TEXT("[GuideQuestSubsystem] ObjectiveTable = %s"),
+		GuideQuestObjectiveTable ? TEXT("Valid") : TEXT("Null"));
 }
 
 bool UGuideQuestSubsystem::BuildObjectivesForQuest(FName QuestId, TArray<FGuideQuestRuntimeObjective>& OutObjectives) const
@@ -76,6 +83,9 @@ bool UGuideQuestSubsystem::BuildObjectivesForQuest(FName QuestId, TArray<FGuideQ
 
 bool UGuideQuestSubsystem::StartQuest(FName QuestId, bool bResetProgress)
 {
+	//디버깅용 코드
+	UE_LOG(LogTemp, Warning, TEXT("[GuideQuestSubsystem] StartQuest called: %s"), *QuestId.ToString());
+
 	if (!IsValid(GuideQuestMasterTable) || !IsValid(GuideQuestObjectiveTable))
 	{
 		UE_LOG(LogGuideQuest, Error, TEXT("[GuideQuest] StartQuest failed: DataTables are not initialized."));
@@ -112,14 +122,22 @@ bool UGuideQuestSubsystem::StartQuest(FName QuestId, bool bResetProgress)
 		ActiveObjectives = MoveTemp(LoadedObjectives);
 	}
 
+	//디버깅용 코드
+	UE_LOG(LogTemp, Warning, TEXT("[GuideQuestSubsystem] StartQuest success: %s"), *ActiveQuestId.ToString());
+
 	OnGuideQuestUpdated.Broadcast();
 	return true;
 }
 
 void UGuideQuestSubsystem::EnsureStarted(FName FirstQuestId)
 {
+	//디버깅용 코드
+	UE_LOG(LogTemp, Warning, TEXT("[GuideQuestSubsystem] EnsureStarted called: %s"), *FirstQuestId.ToString());
+
 	if (!ActiveQuestId.IsNone())
 	{
+		//디버깅용 코드
+		UE_LOG(LogTemp, Warning, TEXT("[GuideQuestSubsystem] ActiveQuest already exists: %s"), *ActiveQuestId.ToString());
 		return;
 	}
 
@@ -128,6 +146,10 @@ void UGuideQuestSubsystem::EnsureStarted(FName FirstQuestId)
 
 void UGuideQuestSubsystem::ReportProgress(EGuideQuestEventType EventType, FName TargetId, int32 DeltaCount)
 {
+	//디버깅용 코드
+	UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] ReportProgress called: EventType=%d TargetId=%s Delta=%d"),
+		(int32)EventType, *TargetId.ToString(), DeltaCount);
+
 	if (ActiveQuestId.IsNone() || !ActiveQuestRow || DeltaCount <= 0)
 	{
 		return;
@@ -137,6 +159,13 @@ void UGuideQuestSubsystem::ReportProgress(EGuideQuestEventType EventType, FName 
 
 	for (FGuideQuestRuntimeObjective& Objective : ActiveObjectives)
 	{
+		//디버깅용 코드
+		UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] Checking Objective: EventType=%d TargetId=%s Current=%d Required=%d"),
+			(int32)Objective.EventType,
+			*Objective.TargetId.ToString(),
+			Objective.CurrentCount,
+			Objective.RequiredCount);
+
 		if (!Objective.Matches(EventType, TargetId))
 		{
 			continue;
@@ -150,14 +179,26 @@ void UGuideQuestSubsystem::ReportProgress(EGuideQuestEventType EventType, FName 
 		const int32 PrevCount = Objective.CurrentCount;
 		Objective.CurrentCount = FMath::Clamp(Objective.CurrentCount + DeltaCount, 0, Objective.RequiredCount);
 		bAnyChanged |= (PrevCount != Objective.CurrentCount);
+
+		//디버깅용 코드
+		UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] Objective matched: %d -> %d / %d"),
+			PrevCount,
+			Objective.CurrentCount,
+			Objective.RequiredCount);
 	}
 
 	if (!bAnyChanged)
 	{
+		//디버깅용 코드
+		UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] No objective changed"));
 		return;
 	}
 
 	OnGuideQuestUpdated.Broadcast();
+
+	//디버깅용 코드
+	UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] IsQuestComplete = %s"),
+		IsQuestComplete() ? TEXT("true") : TEXT("false"));
 
 	if (IsQuestComplete())
 	{
@@ -165,13 +206,44 @@ void UGuideQuestSubsystem::ReportProgress(EGuideQuestEventType EventType, FName 
 	}
 }
 
-void UGuideQuestSubsystem::ReportCollectItem(FName ItemId, int32 DeltaCount) { ReportProgress(EGuideQuestEventType::CollectItem, ItemId, DeltaCount); }
-void UGuideQuestSubsystem::ReportBuildPlaced(FName BuildingId, int32 DeltaCount) { ReportProgress(EGuideQuestEventType::BuildPlaced, BuildingId, DeltaCount); }
-void UGuideQuestSubsystem::ReportCraftItem(FName ItemId, int32 DeltaCount) { ReportProgress(EGuideQuestEventType::CraftItem, ItemId, DeltaCount); }
-void UGuideQuestSubsystem::ReportSellItem(FName ItemId, int32 DeltaCount) { ReportProgress(EGuideQuestEventType::SellItem, ItemId, DeltaCount); }
-void UGuideQuestSubsystem::ReportBuyItem(FName ItemId, int32 DeltaCount) { ReportProgress(EGuideQuestEventType::BuyItem, ItemId, DeltaCount); }
-void UGuideQuestSubsystem::ReportKillEnemy(FName EnemyId, int32 DeltaCount) { ReportProgress(EGuideQuestEventType::KillEnemy, EnemyId, DeltaCount); }
-void UGuideQuestSubsystem::ReportKillBoss(FName BossId) { ReportProgress(EGuideQuestEventType::KillBoss, BossId, 1); }
+void UGuideQuestSubsystem::ReportCollectItem(FName ItemId, int32 DeltaCount)
+{
+	//디버깅용 코드
+	UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] ReportCollectItem received: %s x%d"),
+		*ItemId.ToString(), DeltaCount);
+
+	ReportProgress(EGuideQuestEventType::CollectItem, ItemId, DeltaCount); 
+}
+
+void UGuideQuestSubsystem::ReportBuildPlaced(FName BuildingId, int32 DeltaCount) 
+{
+	ReportProgress(EGuideQuestEventType::BuildPlaced, BuildingId, DeltaCount); 
+}
+
+void UGuideQuestSubsystem::ReportCraftItem(FName ItemId, int32 DeltaCount) 
+{
+	ReportProgress(EGuideQuestEventType::CraftItem, ItemId, DeltaCount); 
+}
+
+void UGuideQuestSubsystem::ReportSellItem(FName ItemId, int32 DeltaCount) 
+{
+	ReportProgress(EGuideQuestEventType::SellItem, ItemId, DeltaCount); 
+}
+
+void UGuideQuestSubsystem::ReportBuyItem(FName ItemId, int32 DeltaCount)
+{ 
+	ReportProgress(EGuideQuestEventType::BuyItem, ItemId, DeltaCount);
+}
+
+void UGuideQuestSubsystem::ReportKillEnemy(FName EnemyId, int32 DeltaCount)
+{ 
+	ReportProgress(EGuideQuestEventType::KillEnemy, EnemyId, DeltaCount); 
+}
+
+void UGuideQuestSubsystem::ReportKillBoss(FName BossId)
+{ 
+	ReportProgress(EGuideQuestEventType::KillBoss, BossId, 1);
+}
 
 bool UGuideQuestSubsystem::IsQuestComplete() const
 {
@@ -193,8 +265,12 @@ bool UGuideQuestSubsystem::IsQuestComplete() const
 
 void UGuideQuestSubsystem::CompleteActiveQuest()
 {
+	//디버깅용 코드
+	UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] CompleteActiveQuest called"));
+
 	if (!ActiveQuestRow)
 	{
+		UE_LOG(LogTemp, Error, TEXT("[GuideQuest] ActiveQuestRow is null"));
 		return;
 	}
 
@@ -205,26 +281,42 @@ void UGuideQuestSubsystem::CompleteActiveQuest()
 		CompletedQuestIds.Add(CompletedQuestId);
 	}
 
-	// [수정] 보상 코드는 여기에 한 번만 존재해야 합니다!
+	// [수정] 보상 지급
 	const bool bRewardSuccess = GiveReward(GetPlayerCharacter());
 	if (!bRewardSuccess)
 	{
 		UE_LOG(LogGuideQuest, Warning, TEXT("[GuideQuest] Reward failed for quest %s"), *CompletedQuestId.ToString());
 	}
 
+	// [수정] 다음 퀘스트 ID는 초기화 전에 미리 백업
 	const FName NextQuestId = ActiveQuestRow->NextQuestId;
 
+	//디버깅용 코드
+	UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] CompletedQuestId = %s"), *CompletedQuestId.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] NextQuestId = %s"), *NextQuestId.ToString());
+
+	// [수정] 현재 퀘스트 상태 정리
 	ActiveQuestId = NAME_None;
 	ActiveQuestRow = nullptr;
 	ActiveObjectives.Reset();
 
+	// [수정] 완료 이벤트 먼저 브로드캐스트
 	OnGuideQuestCompleted.Broadcast(CompletedQuestId);
-	OnGuideQuestUpdated.Broadcast();
 
+	// [수정] 다음 퀘스트가 있으면 바로 시작
+	// StartQuest 내부에서 OnGuideQuestUpdated.Broadcast()가 호출되므로
+	// 여기서 중복으로 Updated를 호출하지 않음
 	if (!NextQuestId.IsNone())
 	{
+		//디버깅용 코드
+		UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] Starting next quest: %s"), *NextQuestId.ToString());
+
 		StartQuest(NextQuestId, true);
+		return;
 	}
+
+	// [수정] 다음 퀘스트가 없을 때만 UI 갱신
+	OnGuideQuestUpdated.Broadcast();
 }
 
 // [수정] 구현부가 누락되었던 GiveReward 함수 추가

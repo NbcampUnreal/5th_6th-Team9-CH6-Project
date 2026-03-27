@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
@@ -9,6 +9,7 @@ class UTextBlock;
 class UVerticalBox;
 class UQuestComponent;
 class UQuestObjectiveSlot;
+class UGuideQuestSubsystem;
 
 UCLASS()
 class STILLBOUND_API UQuestWidget : public UUserWidget
@@ -20,34 +21,42 @@ protected:
     virtual void NativeDestruct() override;
 
 public:
-    // Äù½ºÆ® ¸ñÇ¥ ¾÷µ¥ÀÌÆ®
+    // í€˜ìŠ¤íŠ¸ ëª©í‘œ ì—…ë°ì´íŠ¸
     UFUNCTION(BlueprintCallable, Category = "Quest")
     void RefreshQuestObjectives();
 
-    // QuestComponent ¼³Á¤
+    // QuestComponent ì„¤ì •
     UFUNCTION(BlueprintCallable, Category = "Quest")
     void SetQuestComponent(UQuestComponent* InQuestComponent);
 
-    // Äù½ºÆ® »óÅÂ º¯°æ Äİ¹é
+    // í€˜ìŠ¤íŠ¸ ìƒíƒœ ë³€ê²½ ì½œë°±
     UFUNCTION()
     void OnQuestUpdated(int32 QuestID, EQuestState NewState);
 
-    // Äù½ºÆ® ÁøÇàµµ º¯°æ Äİ¹é
+    // í€˜ìŠ¤íŠ¸ ì§„í–‰ë„ ë³€ê²½ ì½œë°±
     UFUNCTION()
     void OnQuestProgressUpdated(int32 QuestID, int32 CurrentCount);
 
+    // ê°€ì´ë“œ í€˜ìŠ¤íŠ¸ ê°±ì‹ 
+    UFUNCTION()
+    void OnGuideQuestUpdated();
+
 protected:
-    // Äù½ºÆ® ¸ñ·ÏÀ» ´ã´Â VerticalBox (ºí·çÇÁ¸°Æ®¿¡¼­ ¹ÙÀÎµù)
+    // í€˜ìŠ¤íŠ¸ ëª©ë¡ì„ ë‹´ëŠ” VerticalBox (ë¸”ë£¨í”„ë¦°íŠ¸ì—ì„œ ë°”ì¸ë”©)
     UPROPERTY(meta = (BindWidget))
     UVerticalBox* VB_QuestObjectives;
 
-    // Äù½ºÆ® ¾øÀ» ¶§ Ç¥½Ã ÅØ½ºÆ®
+    // í€˜ìŠ¤íŠ¸ ì—†ì„ ë•Œ í‘œì‹œ í…ìŠ¤íŠ¸
     UPROPERTY(meta = (BindWidget))
     UTextBlock* TXT_NoQuest;
 
-    // °³º° Äù½ºÆ® Ç×¸ñ À§Á¬ Å¬·¡½º
+    // ê°œë³„ í€˜ìŠ¤íŠ¸ í•­ëª© ìœ„ì ¯ í´ë˜ìŠ¤
     UPROPERTY(EditDefaultsOnly, Category = "Quest")
     TSubclassOf<UQuestObjectiveSlot> QuestObjectiveSlotClass;
+
+    // ê°€ì´ë“œ í€˜ìŠ¤íŠ¸ ì„œë¸Œì‹œìŠ¤í…œ ìºì‹œ
+    UPROPERTY()
+    UGuideQuestSubsystem* GuideQuestSubsystem;
 
 private:
     UPROPERTY()

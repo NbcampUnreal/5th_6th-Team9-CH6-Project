@@ -202,6 +202,9 @@ FItemAddResult UInventoryComponent::HandleNonStackableItems(UItemBase* InputItem
 	}
 
 	AddNewItem(InputItem, 1);
+	//가이드 퀘스트
+	NotifyGuideQuestItemCollected(InputItem->ID, 1);
+	//===============
 	return FItemAddResult::AddedAll(1, FText::Format(FText::FromString("Successfully added a single {0} to the inventory."), InputItem->TextData.Name));
 }
 
@@ -318,12 +321,20 @@ FItemAddResult UInventoryComponent::HandleAddItem(UItemBase* InputItem)
 
 		if (StackableAmountAdded == InitialRequestedAddAmount)
 		{
+			//가이드 퀘스트
+			NotifyGuideQuestItemCollected(InputItem->ID, StackableAmountAdded);
+			//===============
+
 			return FItemAddResult::AddedAll(InitialRequestedAddAmount, FText::Format(
 				FText::FromString("Succeesfully added {0} {1} to the inventory."), InitialRequestedAddAmount, InputItem->TextData.Name));
 		}
 
 		if (StackableAmountAdded < InitialRequestedAddAmount && StackableAmountAdded>0)
 		{
+			//가이드 퀘스트
+			NotifyGuideQuestItemCollected(InputItem->ID, StackableAmountAdded);
+			//===============
+
 			return FItemAddResult::AddedPartial(StackableAmountAdded, FText::Format(
 				FText::FromString("Partial amount of {0} added to the inventory. Number added = {1}"), InputItem->TextData.Name, StackableAmountAdded));
 		}
@@ -385,6 +396,10 @@ FItemAddResult UInventoryComponent::HandleAddItem_AutoHotbarFirst(UItemBase* Inp
 
 			OnHotbarUpdated.Broadcast();
 			OnInventoryUpdated.Broadcast();
+
+			//가이드 퀘스트
+			NotifyGuideQuestItemCollected(InputItem->ID, 1);
+			//===============
 
 			return FItemAddResult::AddedAll(1, FText::Format(FText::FromString("Added {0} to hotbar slot {1}."), InputItem->TextData.Name, FText::AsNumber(EmptyIdx + 1)));
 		}
@@ -478,11 +493,19 @@ FItemAddResult UInventoryComponent::HandleAddItem_AutoHotbarFirst(UItemBase* Inp
 		{
 			return FItemAddResult::AddedPartial(TotalAdded, FText::Format(FText::FromString("Added {0} partially (hotbar+inventory)."), InputItem->TextData.Name));
 		}
+		
+		//가이드 퀘스트
+		NotifyGuideQuestItemCollected(InputItem->ID, TotalAdded);
+		//===============
 
 		return FItemAddResult::AddedAll(TotalAdded, FText::Format(FText::FromString("Added{0} fully (hotbar+Inventory)."), InputItem->TextData.Name));
 	}
 
 	//핫바에서 전부 소화
+
+	//가이드 퀘스트
+	NotifyGuideQuestItemCollected(InputItem->ID, InitialRequestedAddAmount);
+	//===============
 	return FItemAddResult::AddedAll(InitialRequestedAddAmount, FText::Format(FText::FromString("Added {0} to hotbar."), InputItem->TextData.Name));
 }
 
@@ -866,6 +889,10 @@ FCraftResult UInventoryComponent::Craft(FName RecipeID, int32 CraftCount)
 
 	OnInventoryUpdated.Broadcast();
 
+	//가이드 퀘스트
+	NotifyGuideQuestCrafted(Row.ResultItemID, GiveCount);
+	//===============
+
 	R.bSuccess = true;
 	R.Message = FText::FromString(TEXT("Craft success"));
 	return R;
@@ -1064,13 +1091,47 @@ void UInventoryComponent::GetAllItems(TArray<UItemBase*>& OutItems) const
 }
 
 //가이드 퀘스트
-void UInventoryComponent::NotifyGuideQuestItemCollected(FName ItemID, int32 AddedAmount) const {
-	if (UGuideQuestSubsystem* QuestSys = GetWorld()->GetGameInstance()->GetSubsystem<UGuideQuestSubsystem>()) {
-		QuestSys->ReportCollectItem(ItemID, AddedAmount);
+void UInventoryComponent::NotifyGuideQuestItemCollected(FName ItemID, int32 AddedAmount) const
+{
+	if (ItemID.IsNone() || AddedAmount <= 0)
+	{
+		return;
+	}
+
+	if (!GetWorld() || !GetWorld()->GetGameInstance())
+	{
+		return;
+	}
+
+	if (UGuideQuestSubsystem* QuestSys = GetWorld()->GetGameInstance()->GetSubsystem<UGuideQuestSubsystem>())
+	{
+		////디버깅용 코드
+		//UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] NotifyGuideQuestItemCollected called: ItemID=%s AddedAmount=%d"),
+		//	*ItemID.ToString(), AddedAmount);
+
+		//QuestSys->ReportCollectItem(ItemID, AddedAmount);
+		return;
 	}
 }
-void UInventoryComponent::NotifyGuideQuestCrafted(FName ItemID, int32 CraftedAmount) const {
-	if (UGuideQuestSubsystem* QuestSys = GetWorld()->GetGameInstance()->GetSubsystem<UGuideQuestSubsystem>()) {
+
+void UInventoryComponent::NotifyGuideQuestCrafted(FName ItemID, int32 CraftedAmount) const
+{
+	if (ItemID.IsNone() || CraftedAmount <= 0)
+	{
+		return;
+	}
+
+	if (!GetWorld() || !GetWorld()->GetGameInstance())
+	{
+		return;
+	}
+
+	if (UGuideQuestSubsystem* QuestSys = GetWorld()->GetGameInstance()->GetSubsystem<UGuideQuestSubsystem>())
+	{
+		//디버깅용 코드
+		UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] NotifyGuideQuestCrafted called: ItemID=%s CraftedAmount=%d"),
+			*ItemID.ToString(), CraftedAmount);
+
 		QuestSys->ReportCraftItem(ItemID, CraftedAmount);
 	}
 }
