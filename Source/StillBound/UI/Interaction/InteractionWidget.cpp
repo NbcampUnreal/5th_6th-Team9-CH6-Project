@@ -14,12 +14,16 @@ void UInteractionWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    KeyPressText->SetText(FText::FromString("Press"));
     CurrentInteractionDuration = 0.f;
 }
 
 void UInteractionWidget::UpdateWidget(const FInteractableData& InteractableData)
 {
+    KeyPressText->SetText(FText::GetEmpty());
+    QuantityText->SetText(FText::GetEmpty());
+    QuantityText->SetVisibility(ESlateVisibility::Collapsed);
+    InteractionProgressBar->SetVisibility(ESlateVisibility::Collapsed);
+
     switch (InteractableData.InteractableType)
     {
     case EInteractableType::Pickup:
@@ -43,6 +47,7 @@ void UInteractionWidget::UpdateWidget(const FInteractableData& InteractableData)
         break;
 
     case EInteractableType::Device:
+        KeyPressText->SetText(FText::FromString("Press"));
         break;
 
     case EInteractableType::Toggle:

@@ -124,6 +124,8 @@ public:
     UFUNCTION(BlueprintCallable)
     void ReduceShopItemStock(FName ItemRowName, int32 Amount);
 
+    UPROPERTY(EditAnywhere, Category = "Interaction")
+    FInteractableData InteractableData;
 
 protected:
     virtual void BeginPlay() override;

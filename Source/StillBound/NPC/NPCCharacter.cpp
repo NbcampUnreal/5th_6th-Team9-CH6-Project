@@ -13,6 +13,7 @@
 #include "ShopWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Interface/InteractionInterface.h"
 
 // Sets default values
 ANPCCharacter::ANPCCharacter()
@@ -40,6 +41,8 @@ ANPCCharacter::ANPCCharacter()
 	DialogueWidget = nullptr;
 	ShopWidget = nullptr;
 	float RestockTime = 600.f;
+
+	InteractableData.InteractableType = EInteractableType::NonPlayerCharacter;
 }
 
 void ANPCCharacter::ReduceShopItemStock(FName ItemRowName, int32 Amount)

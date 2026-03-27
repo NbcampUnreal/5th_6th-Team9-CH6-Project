@@ -133,7 +133,6 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 					break;
 				case EItemAddResult::IAR_PartialAmountItemAdded:
 				{
-					// Äù½ºÆ® ÁøÇàµµ ¾÷µ¥ÀÌÆ® (ºÎºÐ Ãß°¡µÈ ¼ö·®)
 					if (UQuestComponent* QuestComp = Taker->FindComponentByClass<UQuestComponent>())
 					{
 						QuestComp->OnItemCollected(ItemReference->ID, AddResult.ActualAmountAdded);
@@ -161,7 +160,7 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 				
 				case EItemAddResult::IAR_AllItemAdded:
 				{
-					// Äù½ºÆ® ÁøÇàµµ ¾÷µ¥ÀÌÆ® (ÀüÃ¼ ¼ö·®)
+					// ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½àµµ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® (ï¿½ï¿½Ã¼ ï¿½ï¿½ï¿½ï¿½)
 					if (UQuestComponent* QuestComp = Taker->FindComponentByClass<UQuestComponent>())
 					{
 						QuestComp->OnItemCollected(ItemReference->ID, AddResult.ActualAmountAdded);
