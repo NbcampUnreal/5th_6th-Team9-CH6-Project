@@ -274,7 +274,9 @@ void UShopWidget::BuyItem(FName ItemRowName, int32 Quantity)
         // 골드 차감
         Player->ModifyGold(-TotalPrice);
 
-        // UI 업데이트
+        // ���� ����
+        NPCCharacter->ReduceShopItemStock(ItemRowName, Quantity);
+
         UpdateGoldDisplay();
         RefreshShop();
 
