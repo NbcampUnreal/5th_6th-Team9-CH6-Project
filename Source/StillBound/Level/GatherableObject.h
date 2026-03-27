@@ -104,6 +104,12 @@ protected:
     // 핫바 변경 감지 함수
     void CheckHotbarChanged();
 
+    //맨손 이동 감지용
+    FTimerHandle MovementCheckTimerHandle;
+
+    UFUNCTION()
+    void CheckMovementInput();
+
     //pickup ���� Ŭ����
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Setup")
     TSubclassOf<APickup> PickupClass;
