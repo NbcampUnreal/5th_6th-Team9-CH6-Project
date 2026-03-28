@@ -796,3 +796,33 @@ bool USBWorldSaveManagerSubsystem::ApplyDroppedItemsToPawn(APawn* Pawn, const US
     UE_LOG(LogTemp, Warning, TEXT("[Load] DroppedItems Loaded = %d"), Save->SavedDroppedItems.Num());
     return true;
 }
+
+//가이드 퀘스트 자동 복원용 함수
+bool USBWorldSaveManagerSubsystem::LoadCurrentWorldGuideQuest()
+{
+    if (CurrentSlotId.IsEmpty()) return false;
+
+    if (!UGameplayStatics::DoesSaveGameExist(CurrentSlotId, 0))
+    {
+        return false;
+    }
+
+    USBWorldSaveGame* Save = Cast<USBWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(CurrentSlotId, 0));
+    if (!Save) return false;
+
+    if (!Save->bHasGuideQuest)
+    {
+        return false;
+    }
+
+    if (UGameInstance* GI = GetGameInstance())
+    {
+        if (UGuideQuestSubsystem* QuestSys = GI->GetSubsystem<UGuideQuestSubsystem>())
+        {
+            QuestSys->ImportFromSaveGame(Save);
+            return true;
+        }
+    }
+
+    return false;
+}

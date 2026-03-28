@@ -71,7 +71,7 @@ void APlayerController_SB::SetupInputComponent()
 	EnhancedInputComponent->BindAction(HotbarSelectAction_9, ETriggerEvent::Started, this, &ThisClass::OnHotbar9);
 
 	EnhancedInputComponent->BindAction(ToggleMenuAction, ETriggerEvent::Started, this, &ThisClass::ToggleMenu);
-	EnhancedInputComponent->BindAction(FullMapAction,ETriggerEvent::Started,this,&ThisClass::ToggleFullMap);
+	EnhancedInputComponent->BindAction(FullMapAction, ETriggerEvent::Started, this, &ThisClass::ToggleFullMap);
 
 	EnhancedInputComponent->BindAction(ToggleBuildAction, ETriggerEvent::Started, this, &ThisClass::ToggleBuild);
 	EnhancedInputComponent->BindAction(PlaceBuildAction, ETriggerEvent::Started, this, &ThisClass::OnBuildPlace);
@@ -122,7 +122,7 @@ void APlayerController_SB::Jump()
 	ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
 
-	
+
 	if (!Char->CanJump())
 	{
 		return;
@@ -157,7 +157,7 @@ void APlayerController_SB::ToggleCrouch()
 		}
 	}
 
-	UAbilitySystemComponent* ASC =UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Char);
+	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Char);
 	if (ASC)
 	{
 		const FGameplayTag NoCrouchTag = FGameplayTag::RequestGameplayTag(TEXT("State.Action"));
@@ -331,7 +331,7 @@ bool APlayerController_SB::ActivateAbilityAttack(const FGameplayTag& InputTag) c
 void APlayerController_SB::Attack()
 {
 	if (IsGameplayInputBlocked()) return;
-	
+
 	ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
 
@@ -769,7 +769,25 @@ void APlayerController_SB::BeginPlay()
 				*SBGI->FirstGuideQuestId.ToString());
 
 			QuestSys->InitializeQuestTables(SBGI->GuideQuestMasterTable, SBGI->GuideQuestObjectiveTable);
-			QuestSys->EnsureStarted(SBGI->FirstGuideQuestId);
+
+			if (SBGI->GuideQuestWidgetClass)
+			{
+				QuestSys->AttachWidget(this, SBGI->GuideQuestWidgetClass);
+			}
+
+			bool bGuideQuestLoaded = false;
+			if (USBWorldSaveManagerSubsystem* SaveSub = GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>())
+			{
+				bGuideQuestLoaded = SaveSub->LoadCurrentWorldGuideQuest();
+
+				//디버깅용 코드
+				UE_LOG(LogTemp, Warning, TEXT("[GuideQuest Init] LoadCurrentWorldGuideQuest -> %d"), bGuideQuestLoaded);
+			}
+
+			if (!bGuideQuestLoaded && !QuestSys->HasActiveQuest())
+			{
+				QuestSys->EnsureStarted(SBGI->FirstGuideQuestId);
+			}
 		}
 	}
 	//===============

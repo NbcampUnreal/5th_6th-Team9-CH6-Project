@@ -267,36 +267,36 @@ void UGuideQuestSubsystem::ReportCollectItem(FName ItemId, int32 DeltaCount)
 	UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] ReportCollectItem received: %s x%d"),
 		*ItemId.ToString(), DeltaCount);
 
-	ReportProgress(EGuideQuestEventType::CollectItem, ItemId, DeltaCount); 
+	ReportProgress(EGuideQuestEventType::CollectItem, ItemId, DeltaCount);
 }
 
-void UGuideQuestSubsystem::ReportBuildPlaced(FName BuildingId, int32 DeltaCount) 
+void UGuideQuestSubsystem::ReportBuildPlaced(FName BuildingId, int32 DeltaCount)
 {
-	ReportProgress(EGuideQuestEventType::BuildPlaced, BuildingId, DeltaCount); 
+	ReportProgress(EGuideQuestEventType::BuildPlaced, BuildingId, DeltaCount);
 }
 
-void UGuideQuestSubsystem::ReportCraftItem(FName ItemId, int32 DeltaCount) 
+void UGuideQuestSubsystem::ReportCraftItem(FName ItemId, int32 DeltaCount)
 {
-	ReportProgress(EGuideQuestEventType::CraftItem, ItemId, DeltaCount); 
+	ReportProgress(EGuideQuestEventType::CraftItem, ItemId, DeltaCount);
 }
 
-void UGuideQuestSubsystem::ReportSellItem(FName ItemId, int32 DeltaCount) 
+void UGuideQuestSubsystem::ReportSellItem(FName ItemId, int32 DeltaCount)
 {
-	ReportProgress(EGuideQuestEventType::SellItem, ItemId, DeltaCount); 
+	ReportProgress(EGuideQuestEventType::SellItem, ItemId, DeltaCount);
 }
 
 void UGuideQuestSubsystem::ReportBuyItem(FName ItemId, int32 DeltaCount)
-{ 
+{
 	ReportProgress(EGuideQuestEventType::BuyItem, ItemId, DeltaCount);
 }
 
 void UGuideQuestSubsystem::ReportKillEnemy(FName EnemyId, int32 DeltaCount)
-{ 
-	ReportProgress(EGuideQuestEventType::KillEnemy, EnemyId, DeltaCount); 
+{
+	ReportProgress(EGuideQuestEventType::KillEnemy, EnemyId, DeltaCount);
 }
 
 void UGuideQuestSubsystem::ReportKillBoss(FName BossId)
-{ 
+{
 	ReportProgress(EGuideQuestEventType::KillBoss, BossId, 1);
 }
 
@@ -343,6 +343,10 @@ void UGuideQuestSubsystem::CompleteActiveQuest()
 		UE_LOG(LogGuideQuest, Warning, TEXT("[GuideQuest] Reward failed for quest %s"), *CompletedQuestId.ToString());
 	}
 
+	const FText RewardToastText = bRewardSuccess
+		? BuildCompletionRewardToastText()
+		: FText::FromString(TEXT("퀘스트를 완료했습니다."));
+
 	//다음 퀘스트 ID는 초기화 전에 미리 백업
 	const FName NextQuestId = ActiveQuestRow->NextQuestId;
 
@@ -357,6 +361,10 @@ void UGuideQuestSubsystem::CompleteActiveQuest()
 
 	//완료 이벤트 먼저 브로드캐스트
 	OnGuideQuestCompleted.Broadcast(CompletedQuestId);
+	if (!RewardToastText.IsEmpty())
+	{
+		OnGuideQuestRewardToast.Broadcast(RewardToastText);
+	}
 
 	//다음 퀘스트가 있으면 바로 시작
 	// StartQuest 내부에서 OnGuideQuestUpdated.Broadcast()가 호출되므로
@@ -452,7 +460,7 @@ void UGuideQuestSubsystem::AttachWidget(APlayerController* PlayerController, TSu
 		return;
 	}
 
-	NewWidget->AddToViewport(30);
+	NewWidget->AddToViewport(-10);
 	ActiveWidget = NewWidget;
 	OnGuideQuestUpdated.Broadcast();
 }
@@ -551,5 +559,51 @@ FText UGuideQuestSubsystem::BuildRewardText() const
 
 	default:
 		return FText::FromString(TEXT("보상: 없음"));
+	}
+}
+
+FText UGuideQuestSubsystem::BuildCompletionRewardToastText() const
+{
+	if (!ActiveQuestRow)
+	{
+		return FText::FromString(TEXT("퀘스트를 완료했습니다."));
+	}
+
+	switch (ActiveQuestRow->RewardType)
+	{
+	case EGuideQuestRewardType::Gold:
+		return FText::Format(
+			FText::FromString(TEXT("퀘스트 보상: 골드 {0}을 획득했습니다.")),
+			FText::AsNumber(ActiveQuestRow->RewardGold)
+		);
+
+	case EGuideQuestRewardType::Item:
+	{
+		FText RewardItemName = FText::FromName(ActiveQuestRow->RewardItemId);
+
+		if (APlayerCharacter_SB* PlayerCharacter = GetPlayerCharacter())
+		{
+			if (UInventoryComponent* Inventory = PlayerCharacter->GetInventory())
+			{
+				if (IsValid(Inventory->ItemDataTable))
+				{
+					if (const FItemDataRow* ItemRow =
+						Inventory->ItemDataTable->FindRow<FItemDataRow>(ActiveQuestRow->RewardItemId, TEXT("GuideQuestRewardToastLookup")))
+					{
+						RewardItemName = ItemRow->TextData.Name;
+					}
+				}
+			}
+		}
+
+		return FText::Format(
+			FText::FromString(TEXT("퀘스트 보상: {0} x{1}을 획득했습니다.")),
+			RewardItemName,
+			FText::AsNumber(ActiveQuestRow->RewardItemCount)
+		);
+	}
+
+	default:
+		return FText::FromString(TEXT("퀘스트를 완료했습니다."));
 	}
 }

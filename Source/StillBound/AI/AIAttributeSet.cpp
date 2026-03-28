@@ -1,10 +1,12 @@
-
+﻿
 
 #include "AI/AIAttributeSet.h"
 #include "GameplayEffectExtension.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayTagContainer.h"
 #include "AbilitySystemComponent.h"
+#include "GuideQuest/GuideQuestSubsystem.h"	//가이드 퀘스트
+#include "Engine/GameInstance.h"
 #include "AI/EnemyCharacter.h"
 
 
@@ -121,6 +123,34 @@ void UAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 				}
 
 				ASC->AddLooseGameplayTag(DeadTag);
+
+				//가이드 퀘스트
+				if (UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr)
+				{
+					if (UGuideQuestSubsystem* QuestSys = GI->GetSubsystem<UGuideQuestSubsystem>())
+					{
+						FName QuestEnemyId = NAME_None;
+
+						if (AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(Owner))
+						{
+							if (!Enemy->GetGuideQuestEnemyId().IsNone())
+							{
+								QuestEnemyId = Enemy->GetGuideQuestEnemyId();
+							}
+							else if (Enemy->GetEnemyId() > 0)
+							{
+								QuestEnemyId = FName(*FString::FromInt(Enemy->GetEnemyId()));
+							}
+						}
+
+						//디버깅용 코드
+						UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] ReportKillEnemy called: %s"),
+							*QuestEnemyId.ToString());
+
+						QuestSys->ReportKillEnemy(QuestEnemyId, 1);
+					}
+				}
+				//===============
 
 				FGameplayEventData EventData;
 				EventData.EventTag = DeathEventTag;

@@ -1,4 +1,4 @@
-
+﻿
 #pragma once
 
 #include "CoreMinimal.h"
@@ -66,6 +66,13 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "AI")
     void HandleDeath();
+
+    //가이드 퀘스트용 클래스 변수 추가
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Quest")
+    FName GuideQuestEnemyId = NAME_None;
+
+    UFUNCTION(BlueprintPure, Category = "Enemy|Quest")
+    FName GetGuideQuestEnemyId() const { return GuideQuestEnemyId; }
 
 private:
 	UPROPERTY(EditDefaultsOnly, Category="Enemy|Data")

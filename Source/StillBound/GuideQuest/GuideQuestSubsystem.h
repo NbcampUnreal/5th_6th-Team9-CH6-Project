@@ -119,6 +119,7 @@ struct FGuideQuestRuntimeObjective
 DECLARE_LOG_CATEGORY_EXTERN(LogGuideQuest, Log, All);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGuideQuestUpdated);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGuideQuestCompleted, FName, CompletedQuestId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGuideQuestRewardToast, FText, RewardText);
 
 UCLASS()
 class STILLBOUND_API UGuideQuestSubsystem : public UGameInstanceSubsystem
@@ -134,6 +135,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "GuideQuest")
 	FOnGuideQuestCompleted OnGuideQuestCompleted;
+
+	UPROPERTY(BlueprintAssignable, Category = "GuideQuest")
+	FOnGuideQuestRewardToast OnGuideQuestRewardToast;
 
 	UFUNCTION(BlueprintCallable, Category = "GuideQuest")
 	void InitializeQuestTables(UDataTable* InMasterTable, UDataTable* InObjectiveTable);
@@ -216,4 +220,5 @@ private:
 	void CompleteActiveQuest();
 	APlayerCharacter_SB* GetPlayerCharacter() const;
 	bool GiveReward(APlayerCharacter_SB* PlayerCharacter);
+	FText BuildCompletionRewardToastText() const;
 };

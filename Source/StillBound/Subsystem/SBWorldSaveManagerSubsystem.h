@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -44,11 +44,11 @@ public:
     UFUNCTION(BlueprintCallable)
     bool SaveCurrentWorldFromPawn(APawn* Pawn);
 
-    // ÄÜ¼Ö ·Îµå¿ë
+    // ì½˜ì†” ë¡œë“œìš©
     UFUNCTION(BlueprintCallable)
     bool LoadCurrentWorldToPawn(APawn* Pawn);
 
-    // ½ºÆù À§Ä¡ º¸Á¤¿ë
+    // ìŠ¤í° ìœ„ì¹˜ ë³´ì •ìš©
     UFUNCTION(BlueprintCallable)
     bool LoadCurrentWorldTransformToPawn(APawn* Pawn);
 
@@ -57,6 +57,10 @@ public:
 
     UFUNCTION(BlueprintCallable)
     bool LoadCurrentWorldInventoryToPawn(APawn* Pawn);
+
+    //ê°€ì´ë“œ í€˜ìŠ¤íŠ¸ í€˜ìŠ¤íŠ¸ ìë™ ë³µì›ìš© í•¨ìˆ˜
+    UFUNCTION(BlueprintCallable)
+    bool LoadCurrentWorldGuideQuest();
 
 private:
     static const FString IndexSlotName;
@@ -68,12 +72,12 @@ private:
     USBWorldSaveGame* LoadOrCreateWorldSave(const FString& SlotId);
     bool SaveWorldSave(const FString& SlotId, USBWorldSaveGame* WorldSave);
 
-    // 3´Ü°è helpers
+    // 3ë‹¨ê³„ helpers
     bool FillPlayerAttributesFromPawn(APawn* Pawn, USBWorldSaveGame* Save);
     bool ApplyPlayerAttributesToPawn(APawn* Pawn, const USBWorldSaveGame* Save);
     void UpdateIndexMetaFromWorldSave(const FString& SlotId, const USBWorldSaveGame* WorldSave);
 
-// Save °ü·Ã
+// Save ê´€ë ¨
 private:
     UPROPERTY()
     FString CurrentSlotId;

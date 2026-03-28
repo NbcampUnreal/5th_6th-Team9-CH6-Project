@@ -26,14 +26,23 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> TXT_GuideQuestReward;
 
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> TXT_RewardToast;
+
 	UFUNCTION()
 	void HandleGuideQuestUpdated();
 
 	UFUNCTION()
 	void HandleGuideQuestCompleted(FName CompletedQuestId);
 
+	UFUNCTION()
+	void HandleGuideQuestRewardToast(FText RewardText);
+
+	void HideRewardToast();
 	void RefreshFromSubsystem();
 
 private:
 	TWeakObjectPtr<UGuideQuestSubsystem> CachedSubsystem;
+	FTimerHandle RewardToastTimerHandle;
+	bool bShowingRewardToast = false;
 };
