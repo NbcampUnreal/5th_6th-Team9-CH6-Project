@@ -87,6 +87,9 @@ void AAltaractor::Interact_Implementation(APlayerCharacter_SB* PlayerCharacter)
 	if (!AltarUIInstance) return;
 
 	AltarUIInstance->AddToViewport(10);
+	//키보드 포커스 설정
+	AltarUIInstance->SetUserFocus(PC);
+	AltarUIInstance->SetKeyboardFocus();
 
 	// UI에 제단 레퍼런스 전달 (WBP_AltarUI는 AAltarActor* 를 받는 함수를 구현해야 함)
 	if (AltarUIInstance->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))

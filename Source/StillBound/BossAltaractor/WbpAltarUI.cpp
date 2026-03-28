@@ -5,6 +5,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
+#include "InputCoreTypes.h"
 
 void UWbpAltarUI::NativeConstruct()
 {
@@ -20,6 +21,8 @@ void UWbpAltarUI::NativeConstruct()
 	{
 		TextBlock_Warning->SetVisibility(ESlateVisibility::Hidden);
 	}
+	//위젯 열릴 때 즉시 포커스 설정
+	SetKeyboardFocus();
 }
 
  void UWbpAltarUI::InitWithAltar(AAltaractor* InAltar)
@@ -68,10 +71,13 @@ void UWbpAltarUI::OnInsertButtonClicked()
 	{
 		// 석판 부족 경고
 		if (TextBlock_Warning)
+		//{
+		//	TextBlock_Warning->SetText(
+		//		FText::FromString(TEXT("3개의 석판이 필요하다."))
+		//	);
+		//	TextBlock_Warning->SetVisibility(ESlateVisibility::Visible);
+		//}
 		{
-			TextBlock_Warning->SetText(
-				FText::FromString(TEXT("3 stone tablets are needed"))
-			);
 			TextBlock_Warning->SetVisibility(ESlateVisibility::Visible);
 		}
 		return;
@@ -90,4 +96,25 @@ UImage* UWbpAltarUI::GetSlotImage(int32 Index) const
 	case 2: return Slot_2;
 	default: return nullptr;
 	}
+}
+
+//esc키로 ui닫기
+FReply UWbpAltarUI::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (InKeyEvent.GetKey() == EKeys::Escape)
+	{
+		if (LinkedAltar)
+		{
+			LinkedAltar->CloseAltarUI();
+		}
+		return FReply::Handled();
+	}
+
+	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+FReply UWbpAltarUI::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	// UI 안의 모든 마우스 클릭
+	return FReply::Handled().SetUserFocus(TakeWidget());
 }
