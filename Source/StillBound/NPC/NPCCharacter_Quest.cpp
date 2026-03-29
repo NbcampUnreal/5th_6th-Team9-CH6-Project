@@ -68,6 +68,18 @@ int32 ANPCCharacter_Quest::GetAvailableQuestID(APlayerCharacter_SB* Player) cons
     for (int32 QuestID : QuestIDs)
     {
         EQuestState State = QuestComp->GetQuestState(QuestID);
+        
+        // 이미 완료해서 보상을 받은 퀘스트일 경우, 다음 연계 퀘스트 확인
+        if (State == EQuestState::Rewarded)
+        {
+            continue;
+        }
+        // 현재 진행 중이거나 보고 대기 중인 퀘스트--> 새로운 퀘스트 주지 않고 기다리기
+        if (State == EQuestState::Active || State==EQuestState::Completed)
+        {
+            return 0;
+        }
+        // 아직 시작 안 한 퀘스트 발견 시
         if (State == EQuestState::None || State == EQuestState::Available)
         {
             return QuestID;

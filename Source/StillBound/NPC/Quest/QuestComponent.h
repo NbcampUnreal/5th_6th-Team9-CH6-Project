@@ -45,6 +45,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Quest")
     void OnItemCollected(FName ItemID, int32 Amount);
 
+    // 인벤토리에서 아이템이 소모/버려졌을 때 호출 (델리게이트 등에 바인딩)
+    UFUNCTION(BlueprintCallable, Category = "Quest")
+    void OnItemRemoved(FName ItemID, int32 Amount);
+
     // 퀘스트 상태 조회
     UFUNCTION(BlueprintCallable, Category = "Quest")
     EQuestState GetQuestState(int32 QuestID) const;
@@ -71,4 +75,7 @@ private:
 
     // 진행 목록에서 인덱스 찾기
     int32 FindQuestProgressIndex(int32 QuestID) const;
+
+    // 실제 퀘스트 진척도와 상태를 인벤토리와 동기화하는 핵심 함수
+    void SyncCollectQuestProgress(FName ItemID);
 };

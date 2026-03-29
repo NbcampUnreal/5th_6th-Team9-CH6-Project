@@ -248,6 +248,7 @@ private:
     /// 가이드 퀘스트
     void NotifyGuideQuestItemCollected(FName ItemID, int32 AddedAmount) const;
     void NotifyGuideQuestCrafted(FName ItemID, int32 CraftedAmount) const;
+    void NotifyQuestItemRemoved(FName ItemID, int32 RemovedAmount) const;
     ///===============================================================================
 
 public:

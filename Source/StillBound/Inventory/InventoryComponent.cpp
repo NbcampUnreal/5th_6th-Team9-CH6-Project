@@ -1,6 +1,8 @@
 ﻿#include "Inventory/InventoryComponent.h"
 #include "Data/ItemData.h"
 #include "Items/ItemBase.h"
+#include "NPC/Quest/QuestComponent.h"
+#include "Character/PlayerCharacter_SB.h"
 #include "GuideQuest/GuideQuestSubsystem.h"
 
 static bool GetRecipeRow(UDataTable* Table, FName RecipeID, FCraftingRecipeRow& OutRow)
@@ -135,6 +137,9 @@ int32 UInventoryComponent::CalculateNumberForFullStack(UItemBase* StackableItem,
 void UInventoryComponent::RemoveSingleInstanceOfItem(UItemBase* ItemToRemove)
 {
 	if (!ItemToRemove) return;
+	// 지워지기 전에 아이템 정보 백업
+	FName RemovedID = ItemToRemove->ID;
+	int32 RemovedQuantity = ItemToRemove->Quantity;
 
 	for (int32 i = 0; i < InventorySlots.Num(); ++i)
 	{
@@ -142,6 +147,7 @@ void UInventoryComponent::RemoveSingleInstanceOfItem(UItemBase* ItemToRemove)
 		{
 			InventorySlots[i] = nullptr;
 			OnInventoryUpdated.Broadcast();
+			NotifyQuestItemRemoved(RemovedID, RemovedQuantity);
 			return;
 		}
 	}
@@ -153,6 +159,7 @@ void UInventoryComponent::RemoveSingleInstanceOfItem(UItemBase* ItemToRemove)
 			HotbarContents[i] = nullptr;
 			OnHotbarUpdated.Broadcast();
 			OnInventoryUpdated.Broadcast();
+			NotifyQuestItemRemoved(RemovedID, RemovedQuantity);
 			return;
 		}
 	}
@@ -162,12 +169,12 @@ void UInventoryComponent::RemoveSingleInstanceOfItem(UItemBase* ItemToRemove)
 int32 UInventoryComponent::RemoveAmountOfItem(UItemBase* ItemIn, int32 DesiredAmountToRemove)
 {
 	const int32 ActualAmountToRemove = FMath::Min(DesiredAmountToRemove, ItemIn->Quantity);
-
 	ItemIn->SetQuantity(ItemIn->Quantity - ActualAmountToRemove);
-
 	InventoryTotalWeight -= ActualAmountToRemove * ItemIn->GetItemSingleWeight();
 
 	OnInventoryUpdated.Broadcast();
+
+	NotifyQuestItemRemoved(ItemIn->ID, ActualAmountToRemove);
 
 	return ActualAmountToRemove;
 }
@@ -582,6 +589,7 @@ int32 UInventoryComponent::RemoveAmountAtIndex(int32 Index, int32 Quantity)
 	}
 
 	OnInventoryUpdated.Broadcast();
+	NotifyQuestItemRemoved(Item->ID, Removed);
 	return Removed;
 }
 
@@ -621,6 +629,7 @@ int32 UInventoryComponent::RemoveAmountInContainer(ESlotContainer InContainer, i
 		OnHotbarUpdated.Broadcast();
 		OnInventoryUpdated.Broadcast();
 	}
+	NotifyQuestItemRemoved(Item->ID, Removed);
 
 	return Removed;
 }
@@ -1132,6 +1141,20 @@ void UInventoryComponent::NotifyGuideQuestCrafted(FName ItemID, int32 CraftedAmo
 			*ItemID.ToString(), CraftedAmount);
 
 		QuestSys->ReportCraftItem(ItemID, CraftedAmount);
+	}
+}
+void UInventoryComponent::NotifyQuestItemRemoved(FName ItemID, int32 RemovedAmount) const
+{
+	if (ItemID.IsNone() || RemovedAmount <= 0)return;
+
+	APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwner());
+	if (Player)
+	{
+		UQuestComponent* QuestComp = Player->FindComponentByClass<UQuestComponent>();
+		if (QuestComp)
+		{
+			QuestComp->OnItemRemoved(ItemID, RemovedAmount);
+		}
 	}
 }
 //===============
