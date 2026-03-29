@@ -45,6 +45,7 @@ struct FGuideQuestMasterRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (MultiLine = "true"))
 	FText Summary;
 
+	// 단일 보상 레거시 필드
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	EGuideQuestRewardType RewardType = EGuideQuestRewardType::None;
 
@@ -83,6 +84,30 @@ struct FGuideQuestObjectiveRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FText Description;
+};
+
+USTRUCT(BlueprintType)
+struct FGuideQuestRewardRow : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FName QuestId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	int32 RewardOrder = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	EGuideQuestRewardType RewardType = EGuideQuestRewardType::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	int32 RewardGold = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FName RewardItemId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	int32 RewardItemCount = 0;
 };
 
 USTRUCT()
@@ -139,8 +164,11 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "GuideQuest")
 	FOnGuideQuestRewardToast OnGuideQuestRewardToast;
 
+	// 기존 단일 보상 초기화 선언
+	// void InitializeQuestTables(UDataTable* InMasterTable, UDataTable* InObjectiveTable);
+
 	UFUNCTION(BlueprintCallable, Category = "GuideQuest")
-	void InitializeQuestTables(UDataTable* InMasterTable, UDataTable* InObjectiveTable);
+	void InitializeQuestTables(UDataTable* InMasterTable, UDataTable* InObjectiveTable, UDataTable* InRewardTable = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = "GuideQuest")
 	bool StartQuest(FName QuestId, bool bResetProgress = true);
@@ -200,6 +228,10 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UDataTable> GuideQuestObjectiveTable = nullptr;
 
+	// 기존에는 GuideQuestRewardTable 멤버가 없고 마스터 테이블의 단일 보상 필드만 사용
+	UPROPERTY(Transient)
+	TObjectPtr<UDataTable> GuideQuestRewardTable = nullptr;
+
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UUserWidget> ActiveWidget;
 
@@ -216,9 +248,15 @@ private:
 	TArray<FName> CompletedQuestIds;
 
 	bool BuildObjectivesForQuest(FName QuestId, TArray<FGuideQuestRuntimeObjective>& OutObjectives) const;
+	void BuildRewardsForQuest(FName QuestId, TArray<FGuideQuestRewardRow>& OutRewards) const;
+	void BuildResolvedRewards(TArray<FGuideQuestRewardRow>& OutRewards) const;
+	bool IsValidRewardRow(const FGuideQuestRewardRow& RewardRow) const;
 	bool IsQuestComplete() const;
 	void CompleteActiveQuest();
 	APlayerCharacter_SB* GetPlayerCharacter() const;
 	bool GiveReward(APlayerCharacter_SB* PlayerCharacter);
+	bool GiveSingleReward(APlayerCharacter_SB* PlayerCharacter, const FGuideQuestRewardRow& RewardRow);
+	FText ResolveRewardItemName(FName ItemId, const TCHAR* ContextString) const;
+	FText BuildSingleRewardText(const FGuideQuestRewardRow& RewardRow) const;
 	FText BuildCompletionRewardToastText() const;
 };

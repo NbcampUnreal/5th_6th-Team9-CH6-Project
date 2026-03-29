@@ -18,7 +18,10 @@ void UGuideQuestSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		if (const USBGameInstance* SBGI = Cast<USBGameInstance>(GI))
 		{
-			InitializeQuestTables(SBGI->GuideQuestMasterTable, SBGI->GuideQuestObjectiveTable);
+			// 기존 단일 보상 초기화 호출은 팀원이 비교할 수 있도록 주석으로 유지
+			// InitializeQuestTables(SBGI->GuideQuestMasterTable, SBGI->GuideQuestObjectiveTable);
+
+			InitializeQuestTables(SBGI->GuideQuestMasterTable, SBGI->GuideQuestObjectiveTable, SBGI->GuideQuestRewardTable);
 		}
 	}
 }
@@ -39,10 +42,17 @@ void UGuideQuestSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UGuideQuestSubsystem::InitializeQuestTables(UDataTable* InMasterTable, UDataTable* InObjectiveTable)
+// 기존 단일 보상 초기화 시그니처는 팀원이 비교할 수 있도록 주석으로 유지
+// void UGuideQuestSubsystem::InitializeQuestTables(UDataTable* InMasterTable, UDataTable* InObjectiveTable)
+
+void UGuideQuestSubsystem::InitializeQuestTables(UDataTable* InMasterTable, UDataTable* InObjectiveTable, UDataTable* InRewardTable)
 {
 	GuideQuestMasterTable = InMasterTable;
 	GuideQuestObjectiveTable = InObjectiveTable;
+
+	// 기존에는 보상 테이블 대입이 없었음
+	// GuideQuestRewardTable = nullptr;
+	GuideQuestRewardTable = InRewardTable;
 
 	//디버깅용 코드
 	UE_LOG(LogTemp, Warning, TEXT("[GuideQuestSubsystem] InitializeQuestTables called"));
@@ -50,6 +60,8 @@ void UGuideQuestSubsystem::InitializeQuestTables(UDataTable* InMasterTable, UDat
 		GuideQuestMasterTable ? TEXT("Valid") : TEXT("Null"));
 	UE_LOG(LogTemp, Warning, TEXT("[GuideQuestSubsystem] ObjectiveTable = %s"),
 		GuideQuestObjectiveTable ? TEXT("Valid") : TEXT("Null"));
+	UE_LOG(LogTemp, Warning, TEXT("[GuideQuestSubsystem] RewardTable = %s"),
+		GuideQuestRewardTable ? TEXT("Valid") : TEXT("Null"));
 }
 
 bool UGuideQuestSubsystem::StartQuest(FName QuestId, bool bResetProgress)
@@ -134,6 +146,85 @@ bool UGuideQuestSubsystem::BuildObjectivesForQuest(FName QuestId, TArray<FGuideQ
 	return OutObjectives.Num() > 0;
 }
 
+void UGuideQuestSubsystem::BuildRewardsForQuest(FName QuestId, TArray<FGuideQuestRewardRow>& OutRewards) const
+{
+	OutRewards.Reset();
+
+	if (!IsValid(GuideQuestRewardTable) || QuestId.IsNone())
+	{
+		return;
+	}
+
+	TArray<FGuideQuestRewardRow*> RewardRows;
+	GuideQuestRewardTable->GetAllRows(TEXT("GuideQuestRewardLoad"), RewardRows);
+
+	for (const FGuideQuestRewardRow* Row : RewardRows)
+	{
+		if (!Row || Row->QuestId != QuestId)
+		{
+			continue;
+		}
+
+		if (!IsValidRewardRow(*Row))
+		{
+			continue;
+		}
+
+		OutRewards.Add(*Row);
+	}
+
+	OutRewards.Sort([](const FGuideQuestRewardRow& A, const FGuideQuestRewardRow& B)
+	{
+		return A.RewardOrder < B.RewardOrder;
+	});
+}
+
+void UGuideQuestSubsystem::BuildResolvedRewards(TArray<FGuideQuestRewardRow>& OutRewards) const
+{
+	OutRewards.Reset();
+
+	if (!ActiveQuestRow || ActiveQuestId.IsNone())
+	{
+		return;
+	}
+
+	BuildRewardsForQuest(ActiveQuestId, OutRewards);
+	if (OutRewards.Num() > 0)
+	{
+		return;
+	}
+
+	FGuideQuestRewardRow LegacyReward;
+	LegacyReward.QuestId = ActiveQuestId;
+	LegacyReward.RewardType = ActiveQuestRow->RewardType;
+	LegacyReward.RewardGold = ActiveQuestRow->RewardGold;
+	LegacyReward.RewardItemId = ActiveQuestRow->RewardItemId;
+	LegacyReward.RewardItemCount = ActiveQuestRow->RewardItemCount;
+
+	if (IsValidRewardRow(LegacyReward))
+	{
+		OutRewards.Add(LegacyReward);
+	}
+}
+
+bool UGuideQuestSubsystem::IsValidRewardRow(const FGuideQuestRewardRow& RewardRow) const
+{
+	switch (RewardRow.RewardType)
+	{
+	case EGuideQuestRewardType::Gold:
+		return RewardRow.RewardGold > 0;
+
+	case EGuideQuestRewardType::Item:
+		return !RewardRow.RewardItemId.IsNone() && RewardRow.RewardItemCount > 0;
+
+	default:
+		return false;
+	}
+}
+
+/*
+기존 단일보상 GiveReward 로직은 팀원이 비교할 수 있도록 주석으로 유지
+
 bool UGuideQuestSubsystem::GiveReward(APlayerCharacter_SB* PlayerCharacter)
 {
 	if (!PlayerCharacter || !ActiveQuestRow)
@@ -184,6 +275,84 @@ bool UGuideQuestSubsystem::GiveReward(APlayerCharacter_SB* PlayerCharacter)
 	// None 보상
 	return true;
 }
+*/
+
+bool UGuideQuestSubsystem::GiveSingleReward(APlayerCharacter_SB* PlayerCharacter, const FGuideQuestRewardRow& RewardRow)
+{
+	if (!PlayerCharacter)
+	{
+		return false;
+	}
+
+	if (!IsValidRewardRow(RewardRow))
+	{
+		return false;
+	}
+
+	UInventoryComponent* Inventory = PlayerCharacter->GetInventory();
+	if (!Inventory)
+	{
+		return false;
+	}
+
+	// 골드 보상은 700001 아이템으로 지급
+	if (RewardRow.RewardType == EGuideQuestRewardType::Gold)
+	{
+		UItemBase* GoldItem = Inventory->CreateItemInstanceByID(FName(TEXT("700001")), RewardRow.RewardGold);
+		if (!GoldItem)
+		{
+			return false;
+		}
+
+		const FItemAddResult AddResult = Inventory->HandleAddItem_AutoHotbarFirst(GoldItem);
+		return AddResult.ActualAmountAdded > 0;
+	}
+
+	// 아이템 보상
+	if (RewardRow.RewardType == EGuideQuestRewardType::Item)
+	{
+		UItemBase* RewardItem = Inventory->CreateItemInstanceByID(
+			RewardRow.RewardItemId,
+			RewardRow.RewardItemCount
+		);
+
+		if (!RewardItem)
+		{
+			return false;
+		}
+
+		const FItemAddResult AddResult = Inventory->HandleAddItem_AutoHotbarFirst(RewardItem);
+		return AddResult.ActualAmountAdded > 0;
+	}
+
+	return false;
+}
+
+bool UGuideQuestSubsystem::GiveReward(APlayerCharacter_SB* PlayerCharacter)
+{
+	if (!PlayerCharacter || !ActiveQuestRow)
+	{
+		return false;
+	}
+
+	TArray<FGuideQuestRewardRow> Rewards;
+	BuildResolvedRewards(Rewards);
+
+	// None 보상
+	if (Rewards.Num() <= 0)
+	{
+		return true;
+	}
+
+	bool bAllSuccess = true;
+	for (const FGuideQuestRewardRow& RewardRow : Rewards)
+	{
+		bAllSuccess &= GiveSingleReward(PlayerCharacter, RewardRow);
+	}
+
+	return bAllSuccess;
+}
+
 void UGuideQuestSubsystem::EnsureStarted(FName FirstQuestId)
 {
 	//디버깅용 코드
@@ -518,6 +687,57 @@ FText UGuideQuestSubsystem::BuildObjectiveProgressText() const
 	return FText::FromString(Combined);
 }
 
+FText UGuideQuestSubsystem::ResolveRewardItemName(FName ItemId, const TCHAR* ContextString) const
+{
+	if (ItemId.IsNone())
+	{
+		return FText::GetEmpty();
+	}
+
+	FText RewardItemName = FText::FromName(ItemId);
+
+	if (APlayerCharacter_SB* PlayerCharacter = GetPlayerCharacter())
+	{
+		if (UInventoryComponent* Inventory = PlayerCharacter->GetInventory())
+		{
+			if (IsValid(Inventory->ItemDataTable))
+			{
+				if (const FItemDataRow* ItemRow = Inventory->ItemDataTable->FindRow<FItemDataRow>(ItemId, ContextString))
+				{
+					RewardItemName = ItemRow->TextData.Name;
+				}
+			}
+		}
+	}
+
+	return RewardItemName;
+}
+
+FText UGuideQuestSubsystem::BuildSingleRewardText(const FGuideQuestRewardRow& RewardRow) const
+{
+	switch (RewardRow.RewardType)
+	{
+	case EGuideQuestRewardType::Gold:
+		return FText::Format(
+			FText::FromString(TEXT("골드 {0}")),
+			FText::AsNumber(RewardRow.RewardGold)
+		);
+
+	case EGuideQuestRewardType::Item:
+		return FText::Format(
+			FText::FromString(TEXT("아이템 {0} x{1}")),
+			ResolveRewardItemName(RewardRow.RewardItemId, TEXT("GuideQuestRewardLookup")),
+			FText::AsNumber(RewardRow.RewardItemCount)
+		);
+
+	default:
+		return FText::GetEmpty();
+	}
+}
+
+/*
+기존 단일보상 BuildRewardText 로직은 팀원이 비교할 수 있도록 주석으로 유지
+
 FText UGuideQuestSubsystem::BuildRewardText() const
 {
 	if (!ActiveQuestRow)
@@ -561,6 +781,41 @@ FText UGuideQuestSubsystem::BuildRewardText() const
 		return FText::FromString(TEXT("보상: 없음"));
 	}
 }
+*/
+
+FText UGuideQuestSubsystem::BuildRewardText() const
+{
+	if (!ActiveQuestRow)
+	{
+		return FText::GetEmpty();
+	}
+
+	TArray<FGuideQuestRewardRow> Rewards;
+	BuildResolvedRewards(Rewards);
+
+	if (Rewards.Num() <= 0)
+	{
+		return FText::FromString(TEXT("보상: 없음"));
+	}
+
+	FString Combined = TEXT("보상:");
+	for (const FGuideQuestRewardRow& RewardRow : Rewards)
+	{
+		const FText RewardText = BuildSingleRewardText(RewardRow);
+		if (RewardText.IsEmpty())
+		{
+			continue;
+		}
+
+		Combined += TEXT("\n- ");
+		Combined += RewardText.ToString();
+	}
+
+	return FText::FromString(Combined);
+}
+
+/*
+기존 단일보상 BuildCompletionRewardToastText 로직은 팀원이 비교할 수 있도록 주석으로 유지
 
 FText UGuideQuestSubsystem::BuildCompletionRewardToastText() const
 {
@@ -606,4 +861,69 @@ FText UGuideQuestSubsystem::BuildCompletionRewardToastText() const
 	default:
 		return FText::FromString(TEXT("퀘스트를 완료했습니다."));
 	}
+}
+*/
+
+FText UGuideQuestSubsystem::BuildCompletionRewardToastText() const
+{
+	if (!ActiveQuestRow)
+	{
+		return FText::FromString(TEXT("퀘스트를 완료했습니다."));
+	}
+
+	TArray<FGuideQuestRewardRow> Rewards;
+	BuildResolvedRewards(Rewards);
+
+	if (Rewards.Num() <= 0)
+	{
+		return FText::FromString(TEXT("퀘스트를 완료했습니다."));
+	}
+
+	FString Combined;
+	for (const FGuideQuestRewardRow& RewardRow : Rewards)
+	{
+		FText RewardText;
+
+		switch (RewardRow.RewardType)
+		{
+		case EGuideQuestRewardType::Gold:
+			RewardText = FText::Format(
+				FText::FromString(TEXT("골드 {0}")),
+				FText::AsNumber(RewardRow.RewardGold)
+			);
+			break;
+
+		case EGuideQuestRewardType::Item:
+			RewardText = FText::Format(
+				FText::FromString(TEXT("{0} x{1}")),
+				ResolveRewardItemName(RewardRow.RewardItemId, TEXT("GuideQuestRewardToastLookup")),
+				FText::AsNumber(RewardRow.RewardItemCount)
+			);
+			break;
+
+		default:
+			break;
+		}
+
+		if (RewardText.IsEmpty())
+		{
+			continue;
+		}
+
+		if (!Combined.IsEmpty())
+		{
+			Combined += TEXT(", ");
+		}
+		Combined += RewardText.ToString();
+	}
+
+	if (Combined.IsEmpty())
+	{
+		return FText::FromString(TEXT("퀘스트를 완료했습니다."));
+	}
+
+	return FText::Format(
+		FText::FromString(TEXT("퀘스트 보상: {0}을 획득했습니다.")),
+		FText::FromString(Combined)
+	);
 }

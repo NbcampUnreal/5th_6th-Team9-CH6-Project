@@ -28,6 +28,13 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GuideQuest")
     TObjectPtr<UDataTable> GuideQuestObjectiveTable = nullptr;
 
+    // 기존에는 마스터/목표 테이블만 사용
+    // TObjectPtr<UDataTable> GuideQuestRewardTable = nullptr;
+
+    // 가이드 퀘스트 보상 테이블
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GuideQuest")
+    TObjectPtr<UDataTable> GuideQuestRewardTable = nullptr;
+
     // 첫 시작 퀘스트 RowName
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GuideQuest")
     FName FirstGuideQuestId = NAME_None;

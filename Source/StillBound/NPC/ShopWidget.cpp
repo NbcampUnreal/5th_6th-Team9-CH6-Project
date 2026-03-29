@@ -261,18 +261,34 @@ void UShopWidget::BuyItem(FName ItemRowName, int32 Quantity)
 
     const int32 TotalPrice = ItemData->ItemStatistics.SellValue * Quantity;
 
-    // 골드 체크
-    if (Player->GetGold() < TotalPrice)
+    const FName GoldItemId(TEXT("700001"));
+
+    // 기존 CurrentGold 체크 로직
+    // if (Player->GetGold() < TotalPrice)
+    // {
+    //     UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] Not enough gold!"));
+    //     return;
+    // }
+
+    // 골드 체크 (아이템코드 700001 )
+    if (PlayerInventory->GetTotalCountByID(GoldItemId) < TotalPrice)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] Not enough gold!"));
+        UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] Not enough gold item 700001!"));
         return;
     }
 
     // NPC에서 아이템 판매
     if (NPCCharacter->SellItemToPlayer(Player, ItemRowName, Quantity))
     {
-        // 골드 차감
-        Player->ModifyGold(-TotalPrice);
+        // 기존 CurrentGold 차감 로직
+        // Player->ModifyGold(-TotalPrice);
+
+        // 골드 차감 (아이템코드 700001)
+        if (!PlayerInventory->ConsumeByID(GoldItemId, TotalPrice))
+        {
+            UE_LOG(LogTemp, Error, TEXT("[ShopWidget] Failed to consume gold item 700001 after purchase"));
+            return;
+        }
 
         // ���� ����
         NPCCharacter->ReduceShopItemStock(ItemRowName, Quantity);
@@ -342,8 +358,9 @@ bool UShopWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
         if (NPCCharacter && NPCCharacter->BuyItemFromPlayer(Player, DraggedItem, SellQuantity))
         {
             const int32 TotalGold = SellPrice * SellQuantity;
-            // 플레이어에게 골드 지급
-            Player->ModifyGold(TotalGold);
+
+            // 기존 CurrentGold 지급 로직
+            // Player->ModifyGold(TotalGold);
 
             // UI 업데이트
             UpdateGoldDisplay();
@@ -550,7 +567,7 @@ void UShopWidget::RefreshSoldItems()
         UE_LOG(LogTemp, Warning, TEXT("[RefreshSoldItems] Children count: %d, ScrollSlot valid: %s"),
             SB_SoldItems->GetChildrenCount(),
             ScrollSlot ? TEXT("YES") : TEXT("NO"));
-    
+
     }
 }
 

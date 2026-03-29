@@ -768,7 +768,10 @@ void APlayerController_SB::BeginPlay()
 			UE_LOG(LogTemp, Warning, TEXT("[GuideQuest Init] FirstGuideQuestId = %s"),
 				*SBGI->FirstGuideQuestId.ToString());
 
-			QuestSys->InitializeQuestTables(SBGI->GuideQuestMasterTable, SBGI->GuideQuestObjectiveTable);
+			// 기존 단일 보상 초기화 호출은 팀원이 비교할 수 있도록 주석으로 유지
+			// QuestSys->InitializeQuestTables(SBGI->GuideQuestMasterTable, SBGI->GuideQuestObjectiveTable);
+
+			QuestSys->InitializeQuestTables(SBGI->GuideQuestMasterTable, SBGI->GuideQuestObjectiveTable, SBGI->GuideQuestRewardTable);
 
 			if (SBGI->GuideQuestWidgetClass)
 			{
