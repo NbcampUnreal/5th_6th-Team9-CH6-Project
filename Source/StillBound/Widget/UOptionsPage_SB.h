@@ -7,6 +7,8 @@
 
 class UInputKeySelector;
 class UEnhancedInputLocalPlayerSubsystem;
+class UInputAction;
+class UInputMappingContext;
 
 UCLASS()
 class STILLBOUND_API UOptionsPage_SB : public UUserWidget
@@ -30,6 +32,24 @@ protected:
 
     UPROPERTY(meta = (BindWidget))
     UInputKeySelector* WorldMapKeySelector;
+
+    UPROPERTY(EditDefaultsOnly, Category = "KeyBinding|Conflict")
+    TArray<TObjectPtr<UInputMappingContext>> ConflictCheckContexts;
+
+    UPROPERTY(EditDefaultsOnly, Category = "KeyBinding|Conflict")
+    TObjectPtr<UInputAction> BuildModeAction;
+
+    UPROPERTY(EditDefaultsOnly, Category = "KeyBinding|Conflict")
+    TObjectPtr<UInputAction> InteractActionRef;
+
+    UPROPERTY(EditDefaultsOnly, Category = "KeyBinding|Conflict")
+    TObjectPtr<UInputAction> InventoryActionRef;
+
+    UPROPERTY(EditDefaultsOnly, Category = "KeyBinding|Conflict")
+    TObjectPtr<UInputAction> DodgeActionRef;
+
+    UPROPERTY(EditDefaultsOnly, Category = "KeyBinding|Conflict")
+    TObjectPtr<UInputAction> MapActionRef;
 
     UFUNCTION()
     void OnBuildKeySelected(FInputChord SelectedKey);
@@ -74,4 +94,5 @@ private:
     TMap<FName, FKey> AppliedBindingsOnOpen;
 
     bool bIgnoreSelectorEvents = false;
+    const UInputAction* GetActionForRow(const FName MappingName) const;
 };

@@ -5,6 +5,10 @@
 #include "UserSettings/EnhancedInputUserSettings.h"
 #include "GameplayTagContainer.h"
 #include "InputCoreTypes.h"
+#include "EnhancedActionKeyMapping.h"
+#include "PlayerMappableKeySettings.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
 
 void UOptionsPage_SB::NativeConstruct()
 {
@@ -155,10 +159,94 @@ void UOptionsPage_SB::ForceRefreshKeyBindingsUI()
     RefreshKeyBindingsUIFromPending();
 }
 
-// 중복키 검사는 나중에 구현.
-// 지금은 일단 항상 false 반환해서 Apply / Back 구조부터 안정화.
 bool UOptionsPage_SB::HasDuplicatePendingKey(const FName MappingName, const FKey& NewKey, FName* OutConflictRow) const
 {
+    if (!NewKey.IsValid() || NewKey == EKeys::Invalid)
+    {
+        return false;
+    }
+
+    // 1) 현재 옵션창에서 임시로 바꿔둔 값 먼저 검사
+    for (const TPair<FName, FKey>& Pair : PendingBindings)
+    {
+        const FName& ExistingRow = Pair.Key;
+        const FKey& ExistingKey = Pair.Value;
+
+        if (ExistingRow == MappingName)
+        {
+            continue;
+        }
+
+        if (!ExistingKey.IsValid() || ExistingKey == EKeys::Invalid)
+        {
+            continue;
+        }
+
+        if (ExistingKey == NewKey)
+        {
+            if (OutConflictRow)
+            {
+                *OutConflictRow = ExistingRow;
+            }
+            return true;
+        }
+    }
+
+    // 2) IMC 전체 매핑 검사 (mappable 안 켠 키까지 포함)
+    const UInputAction* CurrentRowAction = GetActionForRow(MappingName);
+
+    for (const UInputMappingContext* Context : ConflictCheckContexts)
+    {
+        if (!Context)
+        {
+            continue;
+        }
+
+        const TArray<FEnhancedActionKeyMapping>& Mappings = Context->GetMappings();
+
+        for (const FEnhancedActionKeyMapping& Mapping : Mappings)
+        {
+            if (!Mapping.Key.IsValid() || Mapping.Key == EKeys::Invalid)
+            {
+                continue;
+            }
+
+            if (Mapping.Key != NewKey)
+            {
+                continue;
+            }
+
+            // 지금 바꾸려는 "자기 자신 액션"은 충돌에서 제외
+            if (CurrentRowAction && Mapping.Action == CurrentRowAction)
+            {
+                continue;
+            }
+
+            // 이미 PendingBindings에서 검사한 row면 여기선 중복 검사 제외
+            if (const UPlayerMappableKeySettings* Settings = Mapping.GetPlayerMappableKeySettings())
+            {
+                if (PendingBindings.Contains(Settings->Name))
+                {
+                    continue;
+                }
+
+                if (OutConflictRow)
+                {
+                    *OutConflictRow = Settings->Name;
+                }
+            }
+            else
+            {
+                if (OutConflictRow)
+                {
+                    *OutConflictRow = FName(TEXT("NonMappable"));
+                }
+            }
+
+            return true;
+        }
+    }
+
     return false;
 }
 
@@ -177,6 +265,17 @@ void UOptionsPage_SB::HandleKeySelected(const FName MappingName, UInputKeySelect
     const FKey NewKey = SelectedKey.Key;
     if (!NewKey.IsValid() || NewKey == EKeys::Invalid)
     {
+        RefreshKeyBindingsUIFromPending();
+        return;
+    }
+
+    FName ConflictRow;
+    if (HasDuplicatePendingKey(MappingName, NewKey, &ConflictRow))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[KeyUI] Duplicate blocked: %s already uses %s"),
+            *ConflictRow.ToString(),
+            *NewKey.ToString());
+
         RefreshKeyBindingsUIFromPending();
         return;
     }
@@ -334,4 +433,30 @@ bool UOptionsPage_SB::ResetAllKeyBindingsToDefault()
 
     UE_LOG(LogTemp, Warning, TEXT("[KeyReset] All key bindings reset to default"));
     return true;
+}
+
+const UInputAction* UOptionsPage_SB::GetActionForRow(const FName MappingName) const
+{
+    if (MappingName == TEXT("BuildMode"))
+    {
+        return BuildModeAction;
+    }
+    if (MappingName == TEXT("Interact"))
+    {
+        return InteractActionRef;
+    }
+    if (MappingName == TEXT("Inventory"))
+    {
+        return InventoryActionRef;
+    }
+    if (MappingName == TEXT("Dodge"))
+    {
+        return DodgeActionRef;
+    }
+    if (MappingName == TEXT("Map"))
+    {
+        return MapActionRef;
+    }
+
+    return nullptr;
 }
