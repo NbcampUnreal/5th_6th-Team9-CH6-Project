@@ -522,54 +522,52 @@ float AGatherableObject::CalculateGatherTime(int32 ToolTier) const
 // =========아이템 드랍
 void AGatherableObject::SpawnDropItems(APlayerCharacter_SB* Character)
 {
-    if (!Character || !ItemDataTable || !PickupClass) { return; }
+    if (!Character || !PickupClass)
+    {
+        return;
+    }
 
-    //UInventoryComponent* Inventory = Character->GetInventory();
-    //if (!Inventory) return;
+    UInventoryComponent* PlayerInventory = Character->GetInventory();
+    if (!PlayerInventory)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[Gather] PlayerInventory is null"));
+        return;
+    }
 
     UWorld* World = GetWorld();
-    if (!World) { return; }
+    if (!World)
+    {
+        return;
+    }
 
-    //캐릭터 기준 드랍 스폰
-    FVector CharacterLocation = Character->GetActorLocation();
+    const FVector CharacterLocation = Character->GetActorLocation();
 
     for (const FGatherDropItem& Drop : DropItems)
     {
-        int32 Count = FMath::RandRange(Drop.MinCount, Drop.MaxCount);
-        if (Count <= 0) continue;
+        const int32 Count = FMath::RandRange(Drop.MinCount, Drop.MaxCount);
+        if (Count <= 0)
+        {
+            continue;
+        }
 
-        FItemDataRow* ItemRow = ItemDataTable->FindRow<FItemDataRow>(
-            Drop.ItemID, TEXT("GatherDrop")
-        );
-        if (!ItemRow) continue;
+        UItemBase* NewItem = PlayerInventory->CreateItemInstanceByID(Drop.ItemID, Count);
+        if (!NewItem)
+        {
+            UE_LOG(LogTemp, Error, TEXT("[Gather] Failed to create item from DT: %s"),
+                *Drop.ItemID.ToString());
+            continue;
+        }
 
-        //UItemBase 생성
-        UItemBase* NewItem = NewObject<UItemBase>(this);
-        NewItem->ID                              = ItemRow->ID;
-        NewItem->ItemType                  = ItemRow->ItemType;
-        NewItem->ItemQuality             = ItemRow->ItemQuality;
-        NewItem->ItemStatistics        = ItemRow->ItemStatistics;
-        NewItem->TextData                 = ItemRow->TextData;
-        NewItem->NumericData         = ItemRow->NumericData;
-        NewItem->AssetData              = ItemRow->AssetData;
-        NewItem->PickupActorClass = ItemRow->PickupActorClass;
-        NewItem->Quantity = Count;
-
-        //기존 InventoryComponent의 AddItem 함수명으로 수정
-       // Inventory->AddItem(NewItem);
-
-        //오브젝트 주변 랜덤 위치에 겹치지 않게 약간 퍼트려서 스폰
-        FVector SpawnOffset = FVector(
+        FVector SpawnOffset(
             FMath::RandRange(-50.f, 50.f),
             FMath::RandRange(-50.f, 50.f),
             50.f
         );
 
-        FVector WorldOffset = Character->GetActorRotation().RotateVector(SpawnOffset);
+        const FVector WorldOffset = Character->GetActorRotation().RotateVector(SpawnOffset);
 
-        // 라인트레이스로 지면 높이 감지
-        FVector TraceStart = CharacterLocation + WorldOffset + FVector(0.f, 0.f, 100.f);
-        FVector TraceEnd = CharacterLocation + WorldOffset - FVector(0.f, 0.f, 300.f);
+        const FVector TraceStart = CharacterLocation + WorldOffset + FVector(0.f, 0.f, 100.f);
+        const FVector TraceEnd = CharacterLocation + WorldOffset - FVector(0.f, 0.f, 300.f);
 
         FHitResult HitResult;
         FCollisionQueryParams QueryParams;
@@ -580,16 +578,15 @@ void AGatherableObject::SpawnDropItems(APlayerCharacter_SB* Character)
         if (World->LineTraceSingleByChannel(
             HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams))
         {
-            SpawnLocation = HitResult.ImpactPoint + FVector(0.f, 0.f, 10.f); // 지면 위 10cm
+            SpawnLocation = HitResult.ImpactPoint + FVector(0.f, 0.f, 10.f);
         }
         else
         {
-            // 지면 감지 실패 시 캐릭터 발 위치로 fallback
             SpawnLocation = CharacterLocation + WorldOffset;
             SpawnLocation.Z = CharacterLocation.Z;
         }
 
-        FTransform SpawnTransform(FRotator::ZeroRotator, SpawnLocation);
+        const FTransform SpawnTransform(FRotator::ZeroRotator, SpawnLocation);
 
         FActorSpawnParameters SpawnParams;
         SpawnParams.Owner = this;
@@ -598,6 +595,7 @@ void AGatherableObject::SpawnDropItems(APlayerCharacter_SB* Character)
 
         APickup* SpawnedPickup = World->SpawnActor<APickup>(
             PickupClass, SpawnTransform, SpawnParams);
+
         if (SpawnedPickup)
         {
             SpawnedPickup->InitializeDrop(NewItem, Count);

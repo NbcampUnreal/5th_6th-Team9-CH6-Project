@@ -60,7 +60,7 @@ UGA_Projectile::UGA_Projectile()
     bFireImmediatelyIfNoMontageOrEvent = true;
 
     // µð¹ö±×
-    bDebugTrace = false;
+    bDebugTrace = true;
     DebugLifeTime = 1.0f;
     DebugLineThickness = 1.5f;
 
