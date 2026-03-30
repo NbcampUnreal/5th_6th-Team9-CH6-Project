@@ -17,6 +17,8 @@ class UInventoryComponent;
 class UBuildPreview_IngredientPanel;
 class UImage;
 class UUW_Crosshair;
+class UTextBlock;
+class UWidget;
 
 /**
  * 
@@ -44,6 +46,8 @@ public:
 	void SetBossName(const FText& Name);
 	void SetBossHP(float Current, float Max);
 	void HideBossHP();
+
+
 
 	UUW_Minimap* GetMiniMapWidget() const { return MiniMapWidget; }
 
@@ -98,4 +102,20 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UUW_Crosshair> Crosshair;
 
+	//=========채집 불가 메시지
+public:
+
+	//채집 불가 메시지
+	void ShowGatherFailMessage(const FText& Message);
+	void HideGatherFailMessage();
+
+private:
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> GatherFailText;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> GatherFailPanel;
+
+	FTimerHandle GatherFailTimerHandle;
 };

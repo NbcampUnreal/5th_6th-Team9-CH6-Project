@@ -131,6 +131,22 @@ protected:
 
     FTimerHandle RespawnTimerHandle;
 
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Text")
+    FText GatherActionText = FText::FromString(TEXT(""));
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Text")
+    FText CannotGatherText = FText::FromString(TEXT(""));
+
+    //===== 채집 메시지 변수
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Text")
+    FText NeedPickaxeText = FText::FromString(TEXT(""));
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Text")
+    FText NeedAxeText = FText::FromString(TEXT(""));
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Text")
+    FText RemoveItemText = FText::FromString(TEXT(""));
+    
     //======== ���� �Լ�
 
     // ĳ���� ���� ������ Ƽ�� ��ȯ ,0=�Ǽ�
