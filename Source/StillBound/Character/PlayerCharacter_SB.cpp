@@ -30,6 +30,10 @@
 #include "NPC/Quest/QuestWidget.h"
 
 #include "Animation/AnimInstance.h"
+
+#include "BossAltaractor/Altaractor.h"
+#include "Kismet/GameplayStatics.h"
+
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -826,6 +830,28 @@ void APlayerCharacter_SB::Die()
 
 	bIsDead = true;
 
+	if (AbilitySystemComponent)
+	{
+		const FGameplayTag DeadTag =
+			FGameplayTag::RequestGameplayTag(TEXT("Player.State.Dead"), false);
+
+		if (DeadTag.IsValid())
+		{
+			AbilitySystemComponent->AddLooseGameplayTag(DeadTag);
+		}
+	}
+
+	EndInteract();
+	NotifyGatherEnd();
+
+	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
+	{
+		if (PC->UIManager)
+		{
+			PC->UIManager->ShowGameClear(false);
+		}
+	}
+
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
 		Move->StopMovementImmediately();
@@ -838,6 +864,11 @@ void APlayerCharacter_SB::Die()
 	{
 		if (UAnimInstance* Anim = MeshComp->GetAnimInstance())
 		{
+			if (UAnimMontage* CurrentMontage = Anim->GetCurrentActiveMontage())
+			{
+				Anim->Montage_Stop(0.1f, CurrentMontage);
+			}
+
 			Anim->StopAllMontages(0.1f);
 		}
 	}
@@ -846,7 +877,7 @@ void APlayerCharacter_SB::Die()
 
 	if (DeathMontage)
 	{
-		DelayTimer = PlayAnimMontage(DeathMontage, 1.5f);
+		DelayTimer = PlayAnimMontage(DeathMontage, 1.0f);
 	}
 
 	if (DelayTimer <= 0.0f)
@@ -875,6 +906,17 @@ void APlayerCharacter_SB::Revive()
 	//사망 상태 해제
 	bIsDead = false;
 
+	if (AbilitySystemComponent)
+	{
+		const FGameplayTag DeadTag =
+			FGameplayTag::RequestGameplayTag(TEXT("Player.State.Dead"), false);
+
+		if (DeadTag.IsValid())
+		{
+			AbilitySystemComponent->RemoveLooseGameplayTag(DeadTag);
+		}
+	}
+
 	//이동 능력 복구
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
@@ -889,27 +931,6 @@ void APlayerCharacter_SB::Revive()
 	{
 		float MaxHealth = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 		AbilitySystemComponent->SetNumericAttributeBase(UPlayerAttributeSet::GetHealthAttribute(), MaxHealth);
-		// 추가: 죽음 몽타주/죽음 포즈에 멈춰 있는 애니메이션 상태를 초기화
-		if (USkeletalMeshComponent* MeshComp = GetMesh())
-		{
-			// 현재 재생 중인 몽타주가 있으면 정지
-			if (UAnimInstance* AnimInstance = MeshComp->GetAnimInstance())
-			{
-				AnimInstance->StopAllMontages(0.0f);
-			}
-
-			// 현재 메시가 사용 중인 Anim Blueprint 클래스를 기억
-			UClass* CurrentAnimClass = MeshComp->GetAnimClass();
-
-			// 애니메이션 모드를 다시 Animation Blueprint로 강제 설정
-			MeshComp->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-
-			// Anim Blueprint 클래스가 있다면 다시 세팅해서 AnimInstance를 확실히 재초기화
-			if (CurrentAnimClass)
-			{
-				MeshComp->SetAnimInstanceClass(CurrentAnimClass);
-			}
-		}
 	}
 	//게임클리어 UI 숨기기 추가
 	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
@@ -917,6 +938,24 @@ void APlayerCharacter_SB::Revive()
 		if (PC->UIManager)
 		{
 			PC->UIManager->HideGameClear();
+			// 보스 HP바 숨기기
+			if (UUW_UIHUD* HUD = PC->UIManager->GetHUD())
+			{
+				HUD->HideBossHP();
+			}
+		}
+	}
+	//캐릭터 사망시 제단 강제 종료.
+	TArray<AActor*> Altars;
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(), AAltaractor::StaticClass(), Altars);
+
+	for (AActor* A : Altars)
+	{
+		AAltaractor* Altar = Cast<AAltaractor>(A);
+		if (Altar && Altar->IsActivated())
+		{
+			Altar->ForceEndArena();
 		}
 	}
 }
