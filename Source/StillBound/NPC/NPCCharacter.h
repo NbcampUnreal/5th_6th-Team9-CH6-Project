@@ -121,6 +121,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Shop")
     const TArray<FShopItemData>& GetShopItemList() const { return ShopItemList; }
 
+    UFUNCTION(BlueprintCallable)
+    void ReduceShopItemStock(FName ItemRowName, int32 Amount);
+
+    UPROPERTY(EditAnywhere, Category = "Interaction")
+    FInteractableData InteractableData;
 
 protected:
     virtual void BeginPlay() override;

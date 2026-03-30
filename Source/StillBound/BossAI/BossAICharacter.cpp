@@ -79,6 +79,15 @@ void ABossAICharacter::HandleDeath()
 	if (bIsDead) return;
 	bIsDead = true;
 
+
+	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetWorld()->GetFirstPlayerController()))
+	{
+		if (PC->UIManager)
+		{
+			PC->UIManager->ShowGameClear(true); 
+		}
+	}
+
 	if (AAIController* AIC = Cast<AAIController>(GetController()))
 	{
 		AIC->StopMovement();

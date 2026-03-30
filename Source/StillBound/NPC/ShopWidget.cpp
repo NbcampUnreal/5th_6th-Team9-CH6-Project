@@ -1,4 +1,4 @@
-// ShopWidget.cpp
+ï»¿// ShopWidget.cpp
 
 #include "NPC/ShopWidget.h"
 #include "NPC/NPCCharacter.h"
@@ -16,7 +16,8 @@
 #include "Components/TextBlock.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
-#include "Blueprint/WidgetBlueprintLibrary.h"  
+#include "Blueprint/WidgetBlueprintLibrary.h"
+#include "GuideQuest/GuideQuestSubsystem.h"
 
 void UShopWidget::NativeConstruct()
 {
@@ -24,7 +25,7 @@ void UShopWidget::NativeConstruct()
 
     UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] NativeConstruct CALLED"));
 
-    // ÀÔ·Â ¸ğµå ¼³Á¤
+    // ì…ë ¥ ëª¨ë“œ ì„¤ì •
     if (APlayerController* PC = GetOwningPlayer())
     {
         FInputModeUIOnly InputMode;
@@ -33,7 +34,7 @@ void UShopWidget::NativeConstruct()
         PC->bShowMouseCursor = true;
     }
 
-    // ¹öÆ° ¹ÙÀÎµù
+    // ë²„íŠ¼ ë°”ì¸ë”©
     if (BTN_BuyTab)
     {
         BTN_BuyTab->OnClicked.AddUniqueDynamic(this, &UShopWidget::OnBuyTabClicked);
@@ -49,20 +50,20 @@ void UShopWidget::NativeConstruct()
         BTN_Close->OnClicked.AddUniqueDynamic(this, &UShopWidget::OnCloseButtonClicked);
     }
 
-    // ±âº» ÅÇ: Buy
+    // ê¸°ë³¸ íƒ­: Buy
     SwitchTab(true);
 }
 
 void UShopWidget::NativeDestruct()
 {
-    // ÀÎº¥Åä¸® µ¨¸®°ÔÀÌÆ® ÇØÁ¦
+    // ì¸ë²¤í† ë¦¬ ë¸ë¦¬ê²Œì´íŠ¸ í•´ì œ
     if (PlayerInventory)
     {
         PlayerInventory->OnInventoryUpdated.RemoveAll(this);
         PlayerInventory->OnHotbarUpdated.RemoveAll(this);
     }
 
-    // Å¸ÀÌ¸Ó Á¤¸®
+    // íƒ€ì´ë¨¸ ì •ë¦¬
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().ClearTimer(RestockTimerHandle);
@@ -84,7 +85,7 @@ void UShopWidget::InitializeShop(ANPCCharacter* InNPCCharacter)
 
     NPCCharacter = InNPCCharacter;
 
-    // Player °¡Á®¿À±â
+    // Player ê°€ì ¸ì˜¤ê¸°
     APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
     if (!Player)
     {
@@ -104,30 +105,30 @@ void UShopWidget::InitializeShop(ANPCCharacter* InNPCCharacter)
         return;
     }
 
-    // ÀÎº¥Åä¸® ¾÷µ¥ÀÌÆ® µ¨¸®°ÔÀÌÆ® ¹ÙÀÎµù
+    // ì¸ë²¤í† ë¦¬ ì—…ë°ì´íŠ¸ ë¸ë¦¬ê²Œì´íŠ¸ ë°”ì¸ë”©
     PlayerInventory->OnInventoryUpdated.AddUniqueDynamic(this, &UShopWidget::OnInventoryUpdated);
     PlayerInventory->OnHotbarUpdated.AddUObject(this, &UShopWidget::OnInventoryUpdated);
 
     UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] Inventory delegates bound"));
 
-    // »óÁ¡ ÀÌ¸§ ¼³Á¤
+    // ìƒì  ì´ë¦„ ì„¤ì •
     if (TXT_ShopName)
     {
         TXT_ShopName->SetText(NPCCharacter->ShopName);
     }
 
-    // »óÁ¡ »õ·Î°íÄ§
+    // ìƒì  ìƒˆë¡œê³ ì¹¨
     RefreshShop();
 
-    // Àç°í ÃÊ±âÈ­ Å¸ÀÌ¸Ó (10ºĞ = 600ÃÊ)
+    // ì¬ê³  ì´ˆê¸°í™” íƒ€ì´ë¨¸ (10ë¶„ = 600ì´ˆ)
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().SetTimer(
             RestockTimerHandle,
             this,
             &UShopWidget::OnRestockTimer,
-            600.0f,  // 10ºĞ °íÁ¤
-            true     // ¹İº¹
+            600.0f,  // 10ë¶„ ê³ ì •
+            true     // ë°˜ë³µ
         );
     }
 
@@ -176,7 +177,7 @@ void UShopWidget::DisplayShopItems()
         {
             ItemSlot->SetShopItemData(ShopItem, this, NPCCharacter);
 
-            // Ç°ÀıÀÌ¸é ¹öÆ° ºñÈ°¼ºÈ­
+            // í’ˆì ˆì´ë©´ ë²„íŠ¼ ë¹„í™œì„±í™”
             if (ShopItem.CurrentStock <= 0)
             {
                 ItemSlot->SetIsEnabled(false);
@@ -201,7 +202,7 @@ void UShopWidget::DisplayPlayerInventory()
     const TArray<UItemBase*>& HotbarSlots = PlayerInventory->GetHotbarSlots();
     for (int32 i = 0; i < HotbarSlots.Num(); ++i)
     {
-        if (!HotbarSlots[i]) continue; // ºó ½½·ÔÀº ½ºÅµ (ÆÇ¸Å ÅÇÀÌ´Ï ¾ÆÀÌÅÛ ÀÖ´Â °Í¸¸)
+        if (!HotbarSlots[i]) continue; // ë¹ˆ ìŠ¬ë¡¯ì€ ìŠ¤í‚µ (íŒë§¤ íƒ­ì´ë‹ˆ ì•„ì´í…œ ìˆëŠ” ê²ƒë§Œ)
 
         UInventoryItemSlot* ItemSlot = CreateWidget<UInventoryItemSlot>(this, InventoryItemSlotClass);
         if (ItemSlot)
@@ -250,30 +251,63 @@ void UShopWidget::UpdateGoldDisplay()
 // ============================================
 void UShopWidget::BuyItem(FName ItemRowName, int32 Quantity)
 {
+    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
+
     if (!NPCCharacter || !PlayerInventory) return;
 
+    // ì•„ì´í…œ ë°ì´í„° ì¡°íšŒ
     const FItemDataRow* ItemData = NPCCharacter->GetItemData(ItemRowName);
     if (!ItemData) return;
 
     const int32 TotalPrice = ItemData->ItemStatistics.SellValue * Quantity;
 
-    // °ñµå Ã¼Å©
-    if (PlayerInventory->GetTotalCountByID(FName(TEXT("700001"))) < TotalPrice)
+    const FName GoldItemId(TEXT("700001"));
+
+    // ê¸°ì¡´ CurrentGold ì²´í¬ ë¡œì§
+    // if (Player->GetGold() < TotalPrice)
+    // {
+    //     UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] Not enough gold!"));
+    //     return;
+    // }
+
+    // ê³¨ë“œ ì²´í¬ (ì•„ì´í…œì½”ë“œ 700001 )
+    if (PlayerInventory->GetTotalCountByID(GoldItemId) < TotalPrice)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] Not enough gold!"));
+        UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] Not enough gold item 700001!"));
         return;
     }
 
-    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningPlayerPawn());
-    if (!Player) return;
-
+    // NPCì—ì„œ ì•„ì´í…œ íŒë§¤
     if (NPCCharacter->SellItemToPlayer(Player, ItemRowName, Quantity))
     {
-        // °ñµå ¾ÆÀÌÅÛ Â÷°¨
-        PlayerInventory->ConsumeByID(FName(TEXT("700001")), TotalPrice);
+        // ê¸°ì¡´ CurrentGold ì°¨ê° ë¡œì§
+        // Player->ModifyGold(-TotalPrice);
+
+        // ê³¨ë“œ ì°¨ê° (ì•„ì´í…œì½”ë“œ 700001)
+        if (!PlayerInventory->ConsumeByID(GoldItemId, TotalPrice))
+        {
+            UE_LOG(LogTemp, Error, TEXT("[ShopWidget] Failed to consume gold item 700001 after purchase"));
+            return;
+        }
+
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+        NPCCharacter->ReduceShopItemStock(ItemRowName, Quantity);
 
         UpdateGoldDisplay();
         RefreshShop();
+
+        UE_LOG(LogTemp, Log, TEXT("[ShopWidget] Purchased %dx %s for %dG"),
+            Quantity, *ItemRowName.ToString(), TotalPrice);
+
+        //ê°€ì´ë“œ í€˜ìŠ¤íŠ¸
+        if (UGameInstance* GI = GetGameInstance())
+        {
+            if (UGuideQuestSubsystem* QuestSys = GI->GetSubsystem<UGuideQuestSubsystem>())
+            {
+                QuestSys->ReportBuyItem(ItemRowName, Quantity);
+            }
+        }
+        //===============
     }
 }
 
@@ -293,7 +327,7 @@ bool UShopWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
     const int32 BaseSellValue = DraggedItem->ItemStatistics.SellValue;
     const int32 SellPrice = FMath::FloorToInt(BaseSellValue * 0.8f);
 
-    // ÆÇ¸Å ºÒ°¡ Ã¼Å©
+    // íŒë§¤ ë¶ˆê°€ ì²´í¬
     if (SellPrice <= 0)
     {
         UE_LOG(LogTemp, Warning, TEXT("[ShopWidget] This item cannot be sold: %s"),
@@ -310,7 +344,7 @@ bool UShopWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
         return true;
     }
 
-    // Shift Å°·Î ÀüÃ¼ ÆÇ¸Å ¿©ºÎ È®ÀÎ
+    // Shift í‚¤ë¡œ ì „ì²´ íŒë§¤ ì—¬ë¶€ í™•ì¸
     int32 SellQuantity = InDragDropEvent.IsShiftDown() ? DraggedItem->Quantity : 1;
 
     FName ItemRowName = DraggedItem->ID;
@@ -320,24 +354,25 @@ bool UShopWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
     if (!Player) return false;
 
     if (NPCCharacter) {
-        // NPC¿¡°Ô ¾ÆÀÌÅÛ ÆÇ¸Å
+        // NPCì—ê²Œ ì•„ì´í…œ íŒë§¤
         if (NPCCharacter && NPCCharacter->BuyItemFromPlayer(Player, DraggedItem, SellQuantity))
         {
             const int32 TotalGold = SellPrice * SellQuantity;
-            // ÇÃ·¹ÀÌ¾î¿¡°Ô °ñµå Áö±Ş
-            //Player->ModifyGold(TotalGold);
 
-            // UI ¾÷µ¥ÀÌÆ®
+            // ê¸°ì¡´ CurrentGold ì§€ê¸‰ ë¡œì§
+            // Player->ModifyGold(TotalGold);
+
+            // UI ì—…ë°ì´íŠ¸
             UpdateGoldDisplay();
 
-            // ÆÇ¸Å ±â·Ï Ãß°¡
+            // íŒë§¤ ê¸°ë¡ ì¶”ê°€
             FSoldItemRecord Record;
             Record.ItemRowName = ItemRowName;
             Record.Quantity = SellQuantity;
             Record.GoldEarned = TotalGold;
             SoldItemHistory.Add(Record);
 
-            // ÆÇ¸Å ¸ñ·Ï °»½Å
+            // íŒë§¤ ëª©ë¡ ê°±ì‹ 
             RefreshSoldItems();
 
             DisplayPlayerInventory();
@@ -346,10 +381,20 @@ bool UShopWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
                 SellQuantity,
                 *DraggedItem->TextData.Name.ToString(),
                 TotalGold);
+
+            //ê°€ì´ë“œ í€˜ìŠ¤íŠ¸
+            if (UGameInstance* GI = GetGameInstance())
+            {
+                if (UGuideQuestSubsystem* QuestSys = GI->GetSubsystem<UGuideQuestSubsystem>())
+                {
+                    QuestSys->ReportSellItem(ItemRowName, SellQuantity);
+                }
+            }
+            //==============
         }
     }
 
-    // DropZone »ö»ó ÃÊ±âÈ­
+    // DropZone ìƒ‰ìƒ ì´ˆê¸°í™”
     if (DropZone)
     {
         DropZone->SetBrushColor(FLinearColor::White);
@@ -375,7 +420,7 @@ void UShopWidget::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDrop
 
     const int32 SellPrice = FMath::FloorToInt(Item->ItemStatistics.SellValue * 0.8f);
 
-    // DropZone ÇÏÀÌ¶óÀÌÆ®
+    // DropZone í•˜ì´ë¼ì´íŠ¸
     if (DropZone)
     {
         if (SellPrice > 0)
@@ -388,7 +433,7 @@ void UShopWidget::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDrop
         }
     }
 
-    // °¡°İ Ç¥½Ã
+    // ê°€ê²© í‘œì‹œ
     if (TXT_DropHint)
     {
         if (SellPrice > 0)
@@ -420,7 +465,7 @@ void UShopWidget::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDrag
 }
 
 // ============================================
-// ÅÇ ÀüÈ¯
+// íƒ­ ì „í™˜
 // ============================================
 void UShopWidget::OnBuyTabClicked()
 {
@@ -455,7 +500,7 @@ void UShopWidget::SwitchTab(bool bShowBuy)
 }
 
 // ============================================
-// »óÁ¡ ´İ±â
+// ìƒì  ë‹«ê¸°
 // ============================================
 void UShopWidget::OnCloseButtonClicked()
 {
@@ -466,7 +511,7 @@ void UShopWidget::CloseShop()
 {
     SoldItemHistory.Empty();
 
-    // ÀÔ·Â ¸ğµå º¹±¸
+    // ì…ë ¥ ëª¨ë“œ ë³µêµ¬
     if (APlayerController* PC = GetOwningPlayer())
     {
         FInputModeGameOnly InputMode;
@@ -474,13 +519,13 @@ void UShopWidget::CloseShop()
         PC->bShowMouseCursor = false;
     }
 
-    // Å¸ÀÌ¸Ó Á¤¸®
+    // íƒ€ì´ë¨¸ ì •ë¦¬
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().ClearTimer(RestockTimerHandle);
     }
 
-    // Widget Á¦°Å
+    // Widget ì œê±°
     RemoveFromParent();
 
     UE_LOG(LogTemp, Log, TEXT("[ShopWidget] Shop closed"));
@@ -522,12 +567,12 @@ void UShopWidget::RefreshSoldItems()
         UE_LOG(LogTemp, Warning, TEXT("[RefreshSoldItems] Children count: %d, ScrollSlot valid: %s"),
             SB_SoldItems->GetChildrenCount(),
             ScrollSlot ? TEXT("YES") : TEXT("NO"));
-    
+
     }
 }
 
 // ============================================
-// Àç°í ÃÊ±âÈ­ Å¸ÀÌ¸Ó
+// ì¬ê³  ì´ˆê¸°í™” íƒ€ì´ë¨¸
 // ============================================
 void UShopWidget::OnRestockTimer()
 {
@@ -536,21 +581,21 @@ void UShopWidget::OnRestockTimer()
         return;
     }
 
-    // »óÁ¡ ¾ÆÀÌÅÛ ÀçÃÊ±âÈ­
+    // ìƒì  ì•„ì´í…œ ì¬ì´ˆê¸°í™”
     NPCCharacter->InitializeShopItems();
 
-    // UI »õ·Î°íÄ§
+    // UI ìƒˆë¡œê³ ì¹¨
     RefreshShop();
 
     UE_LOG(LogTemp, Log, TEXT("[ShopWidget] Shop restocked!"));
 }
 
 // ============================================
-// ÀÎº¥Åä¸® ¾÷µ¥ÀÌÆ® µ¨¸®°ÔÀÌÆ®
+// ì¸ë²¤í† ë¦¬ ì—…ë°ì´íŠ¸ ë¸ë¦¬ê²Œì´íŠ¸
 // ============================================
 void UShopWidget::OnInventoryUpdated()
 {
-    // Sell ÅÇÀÏ ¶§¸¸ »õ·Î°íÄ§
+    // Sell íƒ­ì¼ ë•Œë§Œ ìƒˆë¡œê³ ì¹¨
     if (!bShowBuyTab)
     {
         DisplayPlayerInventory();

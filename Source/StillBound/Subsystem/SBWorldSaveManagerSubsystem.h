@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -44,11 +44,11 @@ public:
     UFUNCTION(BlueprintCallable)
     bool SaveCurrentWorldFromPawn(APawn* Pawn);
 
-    // �ܼ� �ε��
+    // 콘솔 로드용
     UFUNCTION(BlueprintCallable)
     bool LoadCurrentWorldToPawn(APawn* Pawn);
 
-    // ���� ��ġ ������
+    // 스폰 위치 보정용
     UFUNCTION(BlueprintCallable)
     bool LoadCurrentWorldTransformToPawn(APawn* Pawn);
 
@@ -57,6 +57,18 @@ public:
 
     UFUNCTION(BlueprintCallable)
     bool LoadCurrentWorldInventoryToPawn(APawn* Pawn);
+
+    //가이드 퀘스트 퀘스트 자동 복원용 함수
+    UFUNCTION(BlueprintCallable)
+    bool LoadCurrentWorldGuideQuest();
+
+    //세이브 포인트 갱신 위치 저장용 함수 추가
+    UFUNCTION(BlueprintCallable)
+    bool SaveCurrentWorldRespawnTransform(const FTransform& RespawnTransform);
+
+    // GameMode 런타임 부활 위치로 다시 복원하는 함수 추가
+    UFUNCTION(BlueprintCallable)
+    bool LoadCurrentWorldRespawnTransformToGameMode(UObject* WorldContextObject);
 
 private:
     static const FString IndexSlotName;
@@ -68,12 +80,12 @@ private:
     USBWorldSaveGame* LoadOrCreateWorldSave(const FString& SlotId);
     bool SaveWorldSave(const FString& SlotId, USBWorldSaveGame* WorldSave);
 
-    // 3�ܰ� helpers
+    // 3단계 helpers
     bool FillPlayerAttributesFromPawn(APawn* Pawn, USBWorldSaveGame* Save);
     bool ApplyPlayerAttributesToPawn(APawn* Pawn, const USBWorldSaveGame* Save);
     void UpdateIndexMetaFromWorldSave(const FString& SlotId, const USBWorldSaveGame* WorldSave);
 
-// Save ����
+// Save 관련
 private:
     UPROPERTY()
     FString CurrentSlotId;

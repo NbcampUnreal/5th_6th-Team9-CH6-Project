@@ -15,6 +15,7 @@
 #include "UI/Interaction/InteractionWidget.h"
 #include "UI/Inventory/HotbarPanel.h"
 #include "UI/Build/BuildMenuWidget.h"
+#include "Widget/UOptionsPage_SB.h"
 
 void USB_UIManager::Init(APlayerController* InOwnerPC)
 {
@@ -491,6 +492,11 @@ void USB_UIManager::OpenOptionsPage_FromPause()
 	CallBPFuncIfExists(OptionsPageWidget, TEXT("SetupForPauseMenu"));
 
 	OptionsPageWidget->SetVisibility(ESlateVisibility::Visible);
+
+	if (UOptionsPage_SB* OptionsPage = Cast<UOptionsPage_SB>(OptionsPageWidget))
+	{
+		OptionsPage->ForceRefreshKeyBindingsUI();
+	}
 }
 
 void USB_UIManager::OpenOptionsPage_FromTitle()
@@ -498,6 +504,27 @@ void USB_UIManager::OpenOptionsPage_FromTitle()
 	if (!OptionsPageWidget) return;
 
 	CallBPFuncIfExists(OptionsPageWidget, TEXT("SetupForTitle"));
-
 	OptionsPageWidget->SetVisibility(ESlateVisibility::Visible);
+
+	if (UOptionsPage_SB* OptionsPage = Cast<UOptionsPage_SB>(OptionsPageWidget))
+	{
+		OptionsPage->ForceRefreshKeyBindingsUI();
+	}
+}
+
+//=====채집 불가 메시지
+void USB_UIManager::ShowGatherFailMessage(const FText& Message)
+{
+	if (UUW_UIHUD* HUD = GetHUD())
+	{
+		HUD->ShowGatherFailMessage(Message);
+	}
+}
+
+void USB_UIManager::HideGatherFailMessage()
+{
+	if (UUW_UIHUD* HUD = GetHUD())
+	{
+		HUD->HideGatherFailMessage();
+	}
 }

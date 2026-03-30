@@ -9,6 +9,9 @@
 #include "Components/SphereComponent.h"
 #include "Engine/World.h"
 #include "Engine/DataTable.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Character/PlayerController_SB.h"
+#include "UI/USB_UIManager.h"
 
 AGatherableObject::AGatherableObject()
 {
@@ -45,6 +48,7 @@ void AGatherableObject::EndPlay(const EEndPlayReason::Type EndPlayReason)
         World->GetTimerManager().ClearTimer(RespawnTimerHandle);
         World->GetTimerManager().ClearTimer(FallTimerHandle);
         World->GetTimerManager().ClearTimer(HotbarCheckTimerHandle);
+        World->GetTimerManager().ClearTimer(MovementCheckTimerHandle);
     }
     Super::EndPlay(EndPlayReason);
 }
@@ -87,6 +91,66 @@ void AGatherableObject::BeginInteract_Implementation()
     if (!CanGather(Player))
     {
         InteractableData.InteractionDuration = 9999.f;
+
+        UInventoryComponent* Inventory = Player->GetInventory();
+        if (Inventory)
+        {
+            UItemBase* EquippedItem = Inventory->GetItemInContainer(
+                ESlotContainer::Hotbar, Player->CurrentHotbarIndex);
+
+            FText MessageToShow;
+            bool bShouldShowMessage = false;
+
+            if (EquippedItem)
+            {
+                if (EquippedItem->ItemType != EItemType::Tool)
+                {
+                    // ★ Tool이 아닌 아이템을 들고 있는 경우
+                    MessageToShow = RemoveItemText;
+                    bShouldShowMessage = true;
+                }
+                else
+                {
+                    EToolKind EquippedKind = EquippedItem->ItemStatistics.ToolKind;
+
+                    // 돌 채집인데 곡괭이가 아닌 경우
+                    if (GatherType == EGatherType::Rock &&
+                        EquippedKind != EToolKind::Pickaxe)
+                    {
+                        MessageToShow = NeedPickaxeText;
+                        bShouldShowMessage = true;
+                    }
+                    // 나무 채집인데 도끼가 아닌 경우
+                    else if (GatherType == EGatherType::Wood &&
+                        EquippedKind != EToolKind::Axe)
+                    {
+                        MessageToShow = NeedAxeText;
+                        bShouldShowMessage = true;
+                    }
+                }
+            }
+            else
+            {
+                //맨손인데 돌 채집 시도하는 경우
+                if (GatherType == EGatherType::Rock)
+                {
+                    MessageToShow = NeedPickaxeText;
+                    bShouldShowMessage = true;
+                }
+            }
+
+            if (bShouldShowMessage)
+            {
+                if (APlayerController_SB* PC = Cast<APlayerController_SB>(
+                    Player->GetController()))
+                {
+                    if (PC->UIManager)
+                    {
+                        PC->UIManager->ShowGatherFailMessage(MessageToShow);
+                    }
+                }
+            }
+        }
         return;
     }
 
@@ -115,6 +179,14 @@ void AGatherableObject::BeginInteract_Implementation()
              0.1f,
              true 
          );
+         //이동 입력 감지
+         World->GetTimerManager().SetTimer(
+             MovementCheckTimerHandle,
+             this,
+             &AGatherableObject::CheckMovementInput,
+             0.05f, // 0.05초마다 체크
+             true
+         );
      }
 
      Player->NotifyGatherStart(InteractableData.InteractionDuration);
@@ -127,6 +199,7 @@ void AGatherableObject::EndInteract_Implementation()
     if (World)
     {
         World->GetTimerManager().ClearTimer(HotbarCheckTimerHandle);
+        World->GetTimerManager().ClearTimer(MovementCheckTimerHandle);
     }
 
     // 캐시 초기화
@@ -195,12 +268,14 @@ FInteractableData AGatherableObject::GetInteractableData_Implementation()
     if (GatherType == EGatherType::Wood)
     {
         InteractableData.Name = FText::FromString(
-            FString::Printf(TEXT("Wood (remaining foraging %d)"), CurrentGatherCount));
+            //FString::Printf(TEXT("Wood (remaining foraging %d)"), CurrentGatherCount));
+            FString::Printf(TEXT("")));
     }
     else
     {
         InteractableData.Name = FText::FromString(
-            FString::Printf(TEXT("Rock (remaining foraging %d)"), CurrentGatherCount));
+            //FString::Printf(TEXT("Rock (remaining foraging %d)"), CurrentGatherCount));
+            FString::Printf(TEXT("")));
     }
 
     //플레이어를 찾아서 현재 도구 티어 반영
@@ -220,19 +295,22 @@ FInteractableData AGatherableObject::GetInteractableData_Implementation()
         if (!CanGather(Player))
         {
             InteractableData.InteractionDuration = 0.f;
-            InteractableData.Action = FText::FromString(TEXT("Cannot gather"));
+            //InteractableData.Action = FText::FromString(TEXT("Cannot gather"));
+            InteractableData.Action = CannotGatherText;
         }
         else
         {
             int32 ToolTier = GetCharacterToolTier(Player);
             InteractableData.InteractionDuration = CalculateGatherTime(ToolTier);
-            InteractableData.Action = FText::FromString(TEXT("gathering"));
+            //InteractableData.Action = FText::FromString(TEXT("gathering"));
+            InteractableData.Action = GatherActionText;
         }
     }
     else
     {
         InteractableData.InteractionDuration = BaseGatherTime;
-        InteractableData.Action = FText::FromString(TEXT("gathering"));
+       // InteractableData.Action = FText::FromString(TEXT("gathering"));
+        InteractableData.Action = GatherActionText;
     }
 
     return InteractableData;
@@ -344,6 +422,50 @@ void AGatherableObject::CheckHotbarChanged()
         CachedHotbarIndex = -1;
         CachedToolID = NAME_None;
         //캐릭터의 EndInteract 호출해서 채집 취소
+        Player->EndInteract();
+    }
+}
+
+void AGatherableObject::CheckMovementInput()
+{
+    APlayerCharacter_SB* Player = nullptr;
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        if (APlayerController* PC = It->Get())
+        {
+            Player = Cast<APlayerCharacter_SB>(PC->GetPawn());
+            if (Player) { break; }
+        }
+    }
+
+    if (!Player) { return; }
+
+    bool bShouldCancel = false;
+    //캐릭터의 이동 입력값 확인
+    //FVector InputVector = Player->GetPendingMovementInputVector();
+    UCharacterMovementComponent* MoveComp = Player->GetCharacterMovement();
+    if (MoveComp)
+    {
+        //LastInputVector - 직전 프레임 입력값
+        FVector LastInput = MoveComp->GetLastInputVector();
+        if (!LastInput.IsNearlyZero(0.1f))
+        {
+            bShouldCancel = true;
+        }
+    }
+
+    if (bShouldCancel)
+    {
+        UWorld* World = GetWorld();
+        if (World)
+        {
+            World->GetTimerManager().ClearTimer(MovementCheckTimerHandle);
+            World->GetTimerManager().ClearTimer(HotbarCheckTimerHandle);
+        }
+
+        CachedHotbarIndex = -1;
+        CachedToolID = NAME_None;
+
         Player->EndInteract();
     }
 }

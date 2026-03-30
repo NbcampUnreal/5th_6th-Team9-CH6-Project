@@ -1,5 +1,6 @@
 #include "QuestComponent.h"
 #include "Character/PlayerCharacter_SB.h"
+#include "Inventory/InventoryComponent.h"
 
 UQuestComponent::UQuestComponent()
 {
@@ -68,8 +69,18 @@ bool UQuestComponent::CompleteQuest(int32 QuestID)
     APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwner());
     if (Player && QuestData->RewardGold > 0)
     {
-        Player->ModifyGold(QuestData->RewardGold);
-        UE_LOG(LogTemp, Log, TEXT("[QuestComponent] Quest reward: %dG"), QuestData->RewardGold);
+        UInventoryComponent* Inventory = Player->GetInventory();
+        if (Inventory)
+        {
+            UItemBase* GoldItem = Inventory->CreateItemInstanceByID(
+                FName(TEXT("700001")), QuestData->RewardGold);
+            if (GoldItem)
+            {
+                Inventory->HandleAddItem_AutoHotbarFirst(GoldItem);
+                UE_LOG(LogTemp, Log, TEXT("[QuestComponent] Quest reward: %dG"),
+                    QuestData->RewardGold);
+            }
+        }
     }
 
     // 상태 변경
@@ -78,55 +89,34 @@ bool UQuestComponent::CompleteQuest(int32 QuestID)
     {
         QuestProgressList[Index].State = EQuestState::Rewarded;
     }
-
     OnQuestUpdated.Broadcast(QuestID, EQuestState::Rewarded);
 
-    UE_LOG(LogTemp, Log, TEXT("[QuestComponent] Quest completed: %d"), QuestID);
-
-    // 연계 퀘스트 자동 수락
-    if (QuestData->NextQuestID != 0)
+    // 퀘스트 아이템 차감
+    if (Player && QuestData->QuestType == EQuestType::Collect
+        && !QuestData->TargetItemID.IsNone()
+        && QuestData->TargetCount > 0)
     {
-        AcceptQuest(QuestData->NextQuestID);
-        UE_LOG(LogTemp, Log, TEXT("[QuestComponent] Next quest started: %d"), QuestData->NextQuestID);
+        UInventoryComponent* Inventory = Player->GetInventory();
+        if (Inventory)
+        {
+            Inventory->ConsumeByID(QuestData->TargetItemID, QuestData->TargetCount);
+            UE_LOG(LogTemp, Log, TEXT("[QuestComponent] Consumed %dx %s"),
+                QuestData->TargetCount, *QuestData->TargetItemID.ToString());
+        }
     }
+    UE_LOG(LogTemp, Log, TEXT("[QuestComponent] Quest completed: %d"), QuestID);
 
     return true;
 }
 
 void UQuestComponent::OnItemCollected(FName ItemID, int32 Amount)
 {
-    for (FQuestProgress& Progress : QuestProgressList)
-    {
-        if (Progress.State != EQuestState::Active) continue;
+    SyncCollectQuestProgress(ItemID);
+}
 
-        FQuestDataRow* QuestData = GetQuestData(Progress.QuestID);
-        if (!QuestData) continue;
-
-        // 수집 퀘스트이고 목표 아이템이 일치하는지 확인
-        if (QuestData->QuestType == EQuestType::Collect &&
-            QuestData->TargetItemID == ItemID)
-        {
-            Progress.CurrentCount = FMath::Min(
-                Progress.CurrentCount + Amount,
-                QuestData->TargetCount
-            );
-
-            OnQuestProgressUpdated.Broadcast(Progress.QuestID, Progress.CurrentCount);
-
-            UE_LOG(LogTemp, Log, TEXT("[QuestComponent] Quest %d progress: %d/%d"),
-                Progress.QuestID, Progress.CurrentCount, QuestData->TargetCount);
-
-            // 목표 달성 시 완료 가능 상태로 변경
-            if (Progress.CurrentCount >= QuestData->TargetCount)
-            {
-                Progress.State = EQuestState::Completed;
-                OnQuestUpdated.Broadcast(Progress.QuestID, EQuestState::Completed);
-
-                UE_LOG(LogTemp, Log, TEXT("[QuestComponent] Quest %d ready to complete!"),
-                    Progress.QuestID);
-            }
-        }
-    }
+void UQuestComponent::OnItemRemoved(FName ItemID, int32 Amount)
+{
+    SyncCollectQuestProgress(ItemID);
 }
 
 EQuestState UQuestComponent::GetQuestState(int32 QuestID) const
@@ -176,7 +166,26 @@ FQuestDataRow* UQuestComponent::GetQuestData(int32 QuestID) const
 bool UQuestComponent::IsQuestCompletable(int32 QuestID) const
 {
     EQuestState State = GetQuestState(QuestID);
-    return State == EQuestState::Completed;
+    if (State != EQuestState::Completed) return false;
+
+    FQuestDataRow* QuestData = GetQuestData(QuestID);
+    if (!QuestData) return false;
+
+    if (QuestData->QuestType == EQuestType::Collect && !QuestData->TargetItemID.IsNone())
+    {
+        APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwner());
+        if (!Player) return false;
+
+        UInventoryComponent* Inventory = Player->GetInventory();
+        if (!Inventory) return false;
+
+        int32 CurrentCount = Inventory->GetTotalCountByID(QuestData->TargetItemID);
+        if (CurrentCount < QuestData->TargetCount)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 int32 UQuestComponent::FindQuestProgressIndex(int32 QuestID) const
@@ -187,4 +196,54 @@ int32 UQuestComponent::FindQuestProgressIndex(int32 QuestID) const
             return i;
     }
     return INDEX_NONE;
+}
+
+void UQuestComponent::SyncCollectQuestProgress(FName ItemID)
+{
+    APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwner());
+    if (!Player) return;
+
+    UInventoryComponent* Inventory = Player->GetInventory();
+    if (!Inventory) return;
+
+    for (FQuestProgress& Progress : QuestProgressList)
+    {
+        // Active(진행 중)과 Completed(보고 대기) 상태만 검사
+        // 이미 보상을 받은 상태면 건너뜀
+        if (Progress.State != EQuestState::Active && Progress.State != EQuestState::Completed)
+        {
+            continue;
+        }
+        FQuestDataRow* QuestData = GetQuestData(Progress.QuestID);
+        if (!QuestData) continue;
+
+        // 수집 퀘스트이고, 대상 아이템이 일치할 경우에만 로직 수행
+        if (QuestData->QuestType == EQuestType::Collect && QuestData->TargetItemID == ItemID)
+        {
+            int32 OldCount = Progress.CurrentCount;
+            EQuestState OldState = Progress.State;
+
+            // 인벤토리 기반 수량 동기화 (최대 목표치를 넘지 않도록)
+            Progress.CurrentCount = FMath::Min(Inventory->GetTotalCountByID(ItemID), QuestData->TargetCount);
+
+            // 값이 실제로 변경됐을 때만 UI 업뎃 방송
+            if (OldCount != Progress.CurrentCount)
+            {
+                OnQuestProgressUpdated.Broadcast(Progress.QuestID, Progress.CurrentCount);
+            }
+            // 상태 전이 체크
+            if (Progress.CurrentCount >= QuestData->TargetCount && OldState == EQuestState::Active)
+            {
+                // 조건 달성: 진행중->완료 대기
+                Progress.State = EQuestState::Completed;
+                OnQuestUpdated.Broadcast(Progress.QuestID, EQuestState::Completed);
+            }
+            else if (Progress.CurrentCount < QuestData->TargetCount && OldState == EQuestState::Completed)
+            {
+                // 아이템 상실로 인한 롤백(완료 대기->진행 중)
+                Progress.State = EQuestState::Active;
+                OnQuestUpdated.Broadcast(Progress.QuestID, EQuestState::Active);
+            }
+        }
+    }
 }

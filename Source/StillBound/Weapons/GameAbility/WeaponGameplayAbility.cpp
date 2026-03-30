@@ -1,36 +1,248 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-#include "Weapons/GameAbility/WeaponGameplayAbility.h"
+﻿#include "Weapons/GameAbility/WeaponGameplayAbility.h"
 
 #include "Weapons/WeaponBase.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayEffect.h"
 #include "GameplayTagsManager.h"
+#include "Character/PlayerAttributeSet.h"
 
 #include "Weapons/GameEffect/GE_WeaponDamage_Instant.h"
 
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 
-// 현재 무기의 HitBox 모양 그대로 디버그 박스를 그린다.
-
 UWeaponGameplayAbility::UWeaponGameplayAbility()
 {
-    // 싱글플레이 기준: LocalOnly
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalOnly;
-
-    // 무기 공격은 상태(히트목록/타이머 등)가 필요하니 인스턴스 권장
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
-    // 기본 데미지 GE (BP에서 교체 가능)
     BaseDamageEffectClass = UGE_WeaponDamage_Instant::StaticClass();
+
+    FaceAimStateTag = FGameplayTag::RequestGameplayTag(
+        TEXT("State.Attack.FaceAim"),
+        false
+    );
+
+    StaminaCostSetByCallerTag = FGameplayTag::RequestGameplayTag(
+        TEXT("Data.StaminaCost"),
+        false
+    );
+}
+
+void UWeaponGameplayAbility::ActivateAbility(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayAbilityActivationInfo ActivationInfo,
+    const FGameplayEventData* TriggerEventData
+)
+{
+    Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+    bAddedFaceAimStateTagThisActivation = false;
+
+    if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
+    {
+        if (bDebugStaminaCost)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[WeaponGA] CommitAbility failed Ability=%s Weapon=%s"),
+                *GetNameSafe(this),
+                *GetNameSafe(GetWeaponFromSourceObjectByHandle(Handle)));
+        }
+
+        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        return;
+    }
+
+    AddFaceAimStateTag();
+}
+
+bool UWeaponGameplayAbility::CheckCost(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    FGameplayTagContainer* OptionalRelevantTags
+) const
+{
+    if (!Super::CheckCost(Handle, ActorInfo, OptionalRelevantTags))
+    {
+        return false;
+    }
+
+    if (!bUseAttackStaminaCost)
+    {
+        return true;
+    }
+
+    if (!ActorInfo || !ActorInfo->AbilitySystemComponent.IsValid())
+    {
+        if (bDebugStaminaCost)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[StaminaCost] CheckCost failed: ASC is null Ability=%s"),
+                *GetNameSafe(this));
+        }
+        return false;
+    }
+
+    float RequiredCost = 0.f;
+    if (!TryComputeAttackStaminaCostFromWeapon(Handle, RequiredCost, 1.f, 0.f))
+    {
+        if (bDebugStaminaCost)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[StaminaCost] CheckCost failed: could not compute required cost Ability=%s Weapon=%s"),
+                *GetNameSafe(this),
+                *GetNameSafe(GetWeaponFromSourceObjectByHandle(Handle)));
+        }
+        return false;
+    }
+
+    const UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+    const float CurrentStamina = ASC->GetNumericAttribute(UPlayerAttributeSet::GetStaminaAttribute());
+    const bool bEnoughStamina = (CurrentStamina >= RequiredCost);
+
+    if (bDebugStaminaCost)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[StaminaCost] CheckCost Current=%.2f Required=%.2f Result=%d Ability=%s Weapon=%s"),
+            CurrentStamina,
+            RequiredCost,
+            bEnoughStamina ? 1 : 0,
+            *GetNameSafe(this),
+            *GetNameSafe(GetWeaponFromSourceObjectByHandle(Handle)));
+    }
+
+    return bEnoughStamina;
+}
+
+void UWeaponGameplayAbility::ApplyCost(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayAbilityActivationInfo ActivationInfo
+) const
+{
+    Super::ApplyCost(Handle, ActorInfo, ActivationInfo);
+
+    if (!bUseAttackStaminaCost)
+    {
+        return;
+    }
+
+    float RequiredCost = 0.f;
+    if (!TryComputeAttackStaminaCostFromWeapon(Handle, RequiredCost, 1.f, 0.f))
+    {
+        if (bDebugStaminaCost)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[StaminaCost] ApplyCost failed: could not compute required cost Ability=%s Weapon=%s"),
+                *GetNameSafe(this),
+                *GetNameSafe(GetWeaponFromSourceObjectByHandle(Handle)));
+        }
+        return;
+    }
+
+    ApplyAttackStaminaCostValueToSelf(RequiredCost, 1.f, 1.f);
+}
+
+void UWeaponGameplayAbility::EndAbility(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayAbilityActivationInfo ActivationInfo,
+    bool bReplicateEndAbility,
+    bool bWasCancelled
+)
+{
+    RemoveFaceAimStateTag();
+
+    Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void UWeaponGameplayAbility::AddFaceAimStateTag()
+{
+    if (!bUseFaceAimStateTag)
+    {
+        return;
+    }
+
+    if (bAddedFaceAimStateTagThisActivation)
+    {
+        return;
+    }
+
+    if (!FaceAimStateTag.IsValid())
+    {
+        if (bDebugStateTag)
+        {
+            UE_LOG(LogTemp, Warning,
+                TEXT("[WeaponGA] FaceAimStateTag is invalid. Register tag and set it in defaults."));
+        }
+        return;
+    }
+
+    UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+    if (!ASC)
+    {
+        if (bDebugStateTag)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[WeaponGA] AddFaceAimStateTag failed: ASC is null"));
+        }
+        return;
+    }
+
+    ASC->AddLooseGameplayTag(FaceAimStateTag);
+    bAddedFaceAimStateTagThisActivation = true;
+
+    if (bDebugStateTag)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[WeaponGA] Add StateTag=%s Ability=%s Weapon=%s"),
+            *FaceAimStateTag.ToString(),
+            *GetNameSafe(this),
+            *GetNameSafe(GetWeaponFromSourceObject()));
+    }
+}
+
+void UWeaponGameplayAbility::RemoveFaceAimStateTag()
+{
+    if (!bUseFaceAimStateTag)
+    {
+        return;
+    }
+
+    if (!bAddedFaceAimStateTagThisActivation)
+    {
+        return;
+    }
+
+    if (!FaceAimStateTag.IsValid())
+    {
+        bAddedFaceAimStateTagThisActivation = false;
+        return;
+    }
+
+    UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+    if (!ASC)
+    {
+        bAddedFaceAimStateTagThisActivation = false;
+
+        if (bDebugStateTag)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[WeaponGA] RemoveFaceAimStateTag failed: ASC is null"));
+        }
+        return;
+    }
+
+    ASC->RemoveLooseGameplayTag(FaceAimStateTag);
+    bAddedFaceAimStateTagThisActivation = false;
+
+    if (bDebugStateTag)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[WeaponGA] Remove StateTag=%s Ability=%s Weapon=%s"),
+            *FaceAimStateTag.ToString(),
+            *GetNameSafe(this),
+            *GetNameSafe(GetWeaponFromSourceObject()));
+    }
 }
 
 FGameplayTag UWeaponGameplayAbility::GetDataDamageTag()
 {
     static const FGameplayTag Tag =
-        FGameplayTag::RequestGameplayTag(TEXT("Data.EnemyDamage"), /*ErrorIfNotFound*/ false);
+        FGameplayTag::RequestGameplayTag(TEXT("Data.EnemyDamage"), false);
 
     ensureMsgf(Tag.IsValid(),
         TEXT("[GAS] GameplayTag 'Data.EnemyDamage' is not registered. Add it in Project Settings > GameplayTags or DefaultGameplayTags.ini"));
@@ -38,9 +250,32 @@ FGameplayTag UWeaponGameplayAbility::GetDataDamageTag()
     return Tag;
 }
 
+FGameplayTag UWeaponGameplayAbility::GetDataStaminaCostTag()
+{
+    static const FGameplayTag Tag =
+        FGameplayTag::RequestGameplayTag(TEXT("Data.StaminaCost"), false);
+
+    ensureMsgf(Tag.IsValid(),
+        TEXT("[GAS] GameplayTag 'Data.StaminaCost' is not registered. Add it in Project Settings > GameplayTags or DefaultGameplayTags.ini"));
+
+    return Tag;
+}
+
 AWeaponBase* UWeaponGameplayAbility::GetWeaponFromSourceObject() const
 {
     const FGameplayAbilitySpec* Spec = FindCurrentAbilitySpec();
+    if (!Spec)
+    {
+        return nullptr;
+    }
+
+    UObject* SourceObj = Spec->SourceObject.Get();
+    return Cast<AWeaponBase>(SourceObj);
+}
+
+AWeaponBase* UWeaponGameplayAbility::GetWeaponFromSourceObjectByHandle(const FGameplayAbilitySpecHandle Handle) const
+{
+    const FGameplayAbilitySpec* Spec = FindAbilitySpecByHandle(Handle);
     if (!Spec)
     {
         return nullptr;
@@ -68,7 +303,6 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
         return false;
     }
 
-    // 확률 발동
     if (Chance < 1.0f)
     {
         const float Roll = FMath::FRand();
@@ -102,7 +336,6 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     AActor* Avatar = GetAvatarActorFromActorInfo();
     AWeaponBase* Weapon = GetWeaponFromSourceObject();
 
-    // 컨텍스트: instigator / source object 세팅
     FGameplayEffectContextHandle Ctx = SourceASC->MakeEffectContext();
     if (Avatar)
     {
@@ -123,7 +356,6 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
         return false;
     }
 
-    // SetByCaller 주입
     for (const auto& KVP : SetByCallerMagnitudes)
     {
         if (KVP.Key.IsValid())
@@ -139,6 +371,82 @@ bool UWeaponGameplayAbility::ApplyEffectToTargetActor(
     }
 
     SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+    return true;
+}
+
+bool UWeaponGameplayAbility::ApplyEffectToSelf(
+    TSubclassOf<UGameplayEffect> EffectClass,
+    float Level,
+    const TMap<FGameplayTag, float>& SetByCallerMagnitudes,
+    float Chance
+) const
+{
+    if (!EffectClass)
+    {
+        if (bDebugGE)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[GE][Self] EffectClass is null"));
+        }
+        return false;
+    }
+
+    if (Chance < 1.0f)
+    {
+        const float Roll = FMath::FRand();
+        if (Roll > Chance)
+        {
+            return false;
+        }
+    }
+
+    UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
+    if (!SourceASC)
+    {
+        if (bDebugGE)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[GE][Self] SourceASC is null"));
+        }
+        return false;
+    }
+
+    AActor* Avatar = GetAvatarActorFromActorInfo();
+    AWeaponBase* Weapon = GetWeaponFromSourceObject();
+
+    FGameplayEffectContextHandle Ctx = SourceASC->MakeEffectContext();
+    if (Avatar)
+    {
+        Ctx.AddInstigator(Avatar, Weapon ? Cast<AActor>(Weapon) : Avatar);
+    }
+    if (Weapon)
+    {
+        Ctx.AddSourceObject(Weapon);
+    }
+
+    FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(EffectClass, Level, Ctx);
+    if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
+    {
+        if (bDebugGE)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[GE][Self] MakeOutgoingSpec failed Effect=%s"), *GetNameSafe(EffectClass));
+        }
+        return false;
+    }
+
+    for (const auto& KVP : SetByCallerMagnitudes)
+    {
+        if (KVP.Key.IsValid())
+        {
+            SpecHandle.Data->SetSetByCallerMagnitude(KVP.Key, KVP.Value);
+
+            if (bDebugGE)
+            {
+                UE_LOG(LogTemp, Log, TEXT("[GE][Self] SetByCaller %s=%.2f Effect=%s"),
+                    *KVP.Key.ToString(), KVP.Value, *GetNameSafe(EffectClass));
+            }
+        }
+    }
+
+    SourceASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
     return true;
 }
 
@@ -193,13 +501,19 @@ bool UWeaponGameplayAbility::ApplyWeaponDamageToTargetActor(
     float FallbackDamage
 ) const
 {
-    if (!TargetActor) return false;
+    if (!TargetActor)
+    {
+        return false;
+    }
 
     const float Base = GetDamageFromWeaponOrFallback(FallbackDamage);
     const float Mult = FMath::Max(0.f, DamageMultiplier);
     const float FinalDamage = Base * Mult;
 
-    if (FinalDamage <= 0.f) return false;
+    if (FinalDamage <= 0.f)
+    {
+        return false;
+    }
 
     if (bDebugGE)
     {
@@ -211,7 +525,135 @@ bool UWeaponGameplayAbility::ApplyWeaponDamageToTargetActor(
     return ApplyBaseDamageToTargetActor(TargetActor, FinalDamage, Level, Chance);
 }
 
-// //수정: 공통 히트 FX 스폰 (위치/노멀 직접 전달)
+float UWeaponGameplayAbility::ComputeAttackStaminaCostFromDamage(float DamageValue) const
+{
+    const float SafeDamage = FMath::Max(0.f, DamageValue);
+    return (SafeDamage * AttackStaminaCostMultiplier) + AttackStaminaCostFlatDelta;
+}
+
+bool UWeaponGameplayAbility::TryComputeAttackStaminaCostFromWeapon(
+    const FGameplayAbilitySpecHandle Handle,
+    float& OutFinalCost,
+    float DamageMultiplier,
+    float FallbackDamage
+) const
+{
+    OutFinalCost = 0.f;
+
+    const AWeaponBase* Weapon = GetWeaponFromSourceObjectByHandle(Handle);
+    const float Base = (Weapon && Weapon->GetWeaponDamage() > 0.f)
+        ? Weapon->GetWeaponDamage()
+        : FallbackDamage;
+
+    const float Mult = FMath::Max(0.f, DamageMultiplier);
+    const float DamageValue = Base * Mult;
+    const float FinalCost = ComputeAttackStaminaCostFromDamage(DamageValue);
+
+    if (bDebugStaminaCost)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[StaminaCost] Compute Cost Damage=%.2f (Base=%.2f Mult=%.2f) FinalCost=%.2f Weapon=%s"),
+            DamageValue,
+            Base,
+            Mult,
+            FinalCost,
+            *GetNameSafe(Weapon));
+    }
+
+    if (FinalCost <= 0.f)
+    {
+        OutFinalCost = 0.f;
+        return true;
+    }
+
+    OutFinalCost = FinalCost;
+    return true;
+}
+
+bool UWeaponGameplayAbility::ApplyAttackStaminaCostValueToSelf(
+    float FinalCost,
+    float Level,
+    float Chance
+) const
+{
+    if (!bUseAttackStaminaCost)
+    {
+        return false;
+    }
+
+    if (!AttackStaminaCostEffectClass)
+    {
+        if (bDebugStaminaCost)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[StaminaCost] AttackStaminaCostEffectClass is null"));
+        }
+        return false;
+    }
+
+    if (FinalCost <= 0.f)
+    {
+        if (bDebugStaminaCost)
+        {
+            UE_LOG(LogTemp, Log, TEXT("[StaminaCost] FinalCost <= 0. Skip apply. FinalCost=%.2f"), FinalCost);
+        }
+        return true;
+    }
+
+    FGameplayTag CostTag = StaminaCostSetByCallerTag;
+    if (!CostTag.IsValid())
+    {
+        CostTag = GetDataStaminaCostTag();
+    }
+
+    if (!CostTag.IsValid())
+    {
+        return false;
+    }
+
+    TMap<FGameplayTag, float> Mags;
+    Mags.Add(CostTag, -FinalCost);
+
+    if (bDebugStaminaCost)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[StaminaCost] Apply Self Cost=%.2f Tag=%s Effect=%s"),
+            FinalCost,
+            *CostTag.ToString(),
+            *GetNameSafe(AttackStaminaCostEffectClass));
+    }
+
+    return ApplyEffectToSelf(
+        AttackStaminaCostEffectClass,
+        Level,
+        Mags,
+        Chance
+    );
+}
+
+bool UWeaponGameplayAbility::ApplyAttackStaminaCostToSelf(
+    float DamageValue,
+    float Level,
+    float Chance
+) const
+{
+    const float FinalCost = ComputeAttackStaminaCostFromDamage(DamageValue);
+    return ApplyAttackStaminaCostValueToSelf(FinalCost, Level, Chance);
+}
+
+bool UWeaponGameplayAbility::ApplyAttackStaminaCostFromWeapon(
+    float DamageMultiplier,
+    float Level,
+    float Chance,
+    float FallbackDamage
+) const
+{
+    float FinalCost = 0.f;
+    if (!TryComputeAttackStaminaCostFromWeapon(CurrentSpecHandle, FinalCost, DamageMultiplier, FallbackDamage))
+    {
+        return false;
+    }
+
+    return ApplyAttackStaminaCostValueToSelf(FinalCost, Level, Chance);
+}
+
 bool UWeaponGameplayAbility::SpawnWeaponHitImpactFXAtLocation(
     const FVector& SpawnLocation,
     const FVector& ImpactNormal
@@ -247,7 +689,6 @@ bool UWeaponGameplayAbility::SpawnWeaponHitImpactFXAtLocation(
         SpawnRotation = FinalNormal.Rotation();
     }
 
-    // 로컬 오프셋을 현재 회전 기준으로 적용
     const FVector FinalLocation =
         SpawnLocation + SpawnRotation.RotateVector(FX.LocationOffset);
 
@@ -266,7 +707,6 @@ bool UWeaponGameplayAbility::SpawnWeaponHitImpactFXAtLocation(
     return true;
 }
 
-// //수정: FHitResult 기반 공통 히트 FX 스폰
 bool UWeaponGameplayAbility::SpawnWeaponHitImpactFXFromHitResult(const FHitResult& HitResult) const
 {
     FVector SpawnLocation = FVector::ZeroVector;
@@ -292,7 +732,6 @@ bool UWeaponGameplayAbility::SpawnWeaponHitImpactFXFromHitResult(const FHitResul
                 *GetNameSafe(HitResult.GetActor()));
         }
         return false;
-       
     }
 
     if (!HitResult.ImpactNormal.IsNearlyZero())
@@ -309,13 +748,18 @@ bool UWeaponGameplayAbility::SpawnWeaponHitImpactFXFromHitResult(const FHitResul
 
 const FGameplayAbilitySpec* UWeaponGameplayAbility::FindCurrentAbilitySpec() const
 {
+    return FindAbilitySpecByHandle(CurrentSpecHandle);
+}
+
+const FGameplayAbilitySpec* UWeaponGameplayAbility::FindAbilitySpecByHandle(const FGameplayAbilitySpecHandle Handle) const
+{
     UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
     if (!ASC)
     {
         return nullptr;
     }
 
-    return ASC->FindAbilitySpecFromHandle(CurrentSpecHandle);
+    return ASC->FindAbilitySpecFromHandle(Handle);
 }
 
 bool UWeaponGameplayAbility::TryGetInputTagFromCurrentSpec(FGameplayTag& OutInputTag) const
@@ -328,8 +772,7 @@ bool UWeaponGameplayAbility::TryGetInputTagFromCurrentSpec(FGameplayTag& OutInpu
         return false;
     }
 
-    // 1) 정석: InputTag 루트 기반 매칭
-    const FGameplayTag InputRoot = FGameplayTag::RequestGameplayTag(TEXT("InputTag"), /*ErrorIfNotFound*/ false);
+    const FGameplayTag InputRoot = FGameplayTag::RequestGameplayTag(TEXT("InputTag"), false);
     if (InputRoot.IsValid())
     {
         for (const FGameplayTag& Tag : Spec->DynamicAbilityTags)
@@ -342,7 +785,6 @@ bool UWeaponGameplayAbility::TryGetInputTagFromCurrentSpec(FGameplayTag& OutInpu
         }
     }
 
-    // 2) 안전장치: 루트 태그가 등록 안 된 경우 대비 prefix 매칭
     for (const FGameplayTag& Tag : Spec->DynamicAbilityTags)
     {
         if (Tag.IsValid() && Tag.ToString().StartsWith(TEXT("InputTag.")))

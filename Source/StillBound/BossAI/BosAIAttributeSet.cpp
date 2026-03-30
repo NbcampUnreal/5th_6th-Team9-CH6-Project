@@ -1,4 +1,4 @@
-
+﻿
 #include "BossAI/BosAIAttributeSet.h"
 #include "BossAI/BossAICharacter.h"
 #include "GameplayEffectExtension.h"
@@ -6,6 +6,8 @@
 #include "AbilitySystemComponent.h"
 #include "Character/PlayerController_SB.h"
 #include "UI/USB_UIManager.h"
+#include "GuideQuest/GuideQuestSubsystem.h"	//가이드 퀘스트
+#include "Engine/GameInstance.h"
 #include "GameplayTagContainer.h"
 
 void UBosAIAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -86,6 +88,19 @@ void UBosAIAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 					if (!ASC->HasMatchingGameplayTag(DeadTag))
 					{
 						ASC->AddLooseGameplayTag(DeadTag);
+
+						//가이드 퀘스트
+						if (UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr)
+						{
+							if (UGuideQuestSubsystem* QuestSys = GI->GetSubsystem<UGuideQuestSubsystem>())
+							{
+								//디버깅용 코드
+								UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] ReportKillBoss called"));
+
+								QuestSys->ReportKillBoss(NAME_None);
+							}
+						}
+						//===============
 
 						FGameplayEventData EventData;
 						EventData.EventTag = DeathEventTag;

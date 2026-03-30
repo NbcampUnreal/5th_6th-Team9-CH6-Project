@@ -1,6 +1,9 @@
-#include "Inventory/InventoryComponent.h"
+﻿#include "Inventory/InventoryComponent.h"
 #include "Data/ItemData.h"
 #include "Items/ItemBase.h"
+#include "NPC/Quest/QuestComponent.h"
+#include "Character/PlayerCharacter_SB.h"
+#include "GuideQuest/GuideQuestSubsystem.h"
 
 static bool GetRecipeRow(UDataTable* Table, FName RecipeID, FCraftingRecipeRow& OutRow)
 {
@@ -134,6 +137,9 @@ int32 UInventoryComponent::CalculateNumberForFullStack(UItemBase* StackableItem,
 void UInventoryComponent::RemoveSingleInstanceOfItem(UItemBase* ItemToRemove)
 {
 	if (!ItemToRemove) return;
+	// 지워지기 전에 아이템 정보 백업
+	FName RemovedID = ItemToRemove->ID;
+	int32 RemovedQuantity = ItemToRemove->Quantity;
 
 	for (int32 i = 0; i < InventorySlots.Num(); ++i)
 	{
@@ -141,6 +147,7 @@ void UInventoryComponent::RemoveSingleInstanceOfItem(UItemBase* ItemToRemove)
 		{
 			InventorySlots[i] = nullptr;
 			OnInventoryUpdated.Broadcast();
+			NotifyQuestItemRemoved(RemovedID, RemovedQuantity);
 			return;
 		}
 	}
@@ -152,6 +159,7 @@ void UInventoryComponent::RemoveSingleInstanceOfItem(UItemBase* ItemToRemove)
 			HotbarContents[i] = nullptr;
 			OnHotbarUpdated.Broadcast();
 			OnInventoryUpdated.Broadcast();
+			NotifyQuestItemRemoved(RemovedID, RemovedQuantity);
 			return;
 		}
 	}
@@ -161,12 +169,12 @@ void UInventoryComponent::RemoveSingleInstanceOfItem(UItemBase* ItemToRemove)
 int32 UInventoryComponent::RemoveAmountOfItem(UItemBase* ItemIn, int32 DesiredAmountToRemove)
 {
 	const int32 ActualAmountToRemove = FMath::Min(DesiredAmountToRemove, ItemIn->Quantity);
-
 	ItemIn->SetQuantity(ItemIn->Quantity - ActualAmountToRemove);
-
 	InventoryTotalWeight -= ActualAmountToRemove * ItemIn->GetItemSingleWeight();
 
 	OnInventoryUpdated.Broadcast();
+
+	NotifyQuestItemRemoved(ItemIn->ID, ActualAmountToRemove);
 
 	return ActualAmountToRemove;
 }
@@ -201,6 +209,9 @@ FItemAddResult UInventoryComponent::HandleNonStackableItems(UItemBase* InputItem
 	}
 
 	AddNewItem(InputItem, 1);
+	//가이드 퀘스트
+	NotifyGuideQuestItemCollected(InputItem->ID, 1);
+	//===============
 	return FItemAddResult::AddedAll(1, FText::Format(FText::FromString("Successfully added a single {0} to the inventory."), InputItem->TextData.Name));
 }
 
@@ -317,12 +328,20 @@ FItemAddResult UInventoryComponent::HandleAddItem(UItemBase* InputItem)
 
 		if (StackableAmountAdded == InitialRequestedAddAmount)
 		{
+			//가이드 퀘스트
+			NotifyGuideQuestItemCollected(InputItem->ID, StackableAmountAdded);
+			//===============
+
 			return FItemAddResult::AddedAll(InitialRequestedAddAmount, FText::Format(
 				FText::FromString("Succeesfully added {0} {1} to the inventory."), InitialRequestedAddAmount, InputItem->TextData.Name));
 		}
 
 		if (StackableAmountAdded < InitialRequestedAddAmount && StackableAmountAdded>0)
 		{
+			//가이드 퀘스트
+			NotifyGuideQuestItemCollected(InputItem->ID, StackableAmountAdded);
+			//===============
+
 			return FItemAddResult::AddedPartial(StackableAmountAdded, FText::Format(
 				FText::FromString("Partial amount of {0} added to the inventory. Number added = {1}"), InputItem->TextData.Name, StackableAmountAdded));
 		}
@@ -384,6 +403,10 @@ FItemAddResult UInventoryComponent::HandleAddItem_AutoHotbarFirst(UItemBase* Inp
 
 			OnHotbarUpdated.Broadcast();
 			OnInventoryUpdated.Broadcast();
+
+			//가이드 퀘스트
+			NotifyGuideQuestItemCollected(InputItem->ID, 1);
+			//===============
 
 			return FItemAddResult::AddedAll(1, FText::Format(FText::FromString("Added {0} to hotbar slot {1}."), InputItem->TextData.Name, FText::AsNumber(EmptyIdx + 1)));
 		}
@@ -477,11 +500,19 @@ FItemAddResult UInventoryComponent::HandleAddItem_AutoHotbarFirst(UItemBase* Inp
 		{
 			return FItemAddResult::AddedPartial(TotalAdded, FText::Format(FText::FromString("Added {0} partially (hotbar+inventory)."), InputItem->TextData.Name));
 		}
+		
+		//가이드 퀘스트
+		NotifyGuideQuestItemCollected(InputItem->ID, TotalAdded);
+		//===============
 
 		return FItemAddResult::AddedAll(TotalAdded, FText::Format(FText::FromString("Added{0} fully (hotbar+Inventory)."), InputItem->TextData.Name));
 	}
 
 	//핫바에서 전부 소화
+
+	//가이드 퀘스트
+	NotifyGuideQuestItemCollected(InputItem->ID, InitialRequestedAddAmount);
+	//===============
 	return FItemAddResult::AddedAll(InitialRequestedAddAmount, FText::Format(FText::FromString("Added {0} to hotbar."), InputItem->TextData.Name));
 }
 
@@ -558,6 +589,7 @@ int32 UInventoryComponent::RemoveAmountAtIndex(int32 Index, int32 Quantity)
 	}
 
 	OnInventoryUpdated.Broadcast();
+	NotifyQuestItemRemoved(Item->ID, Removed);
 	return Removed;
 }
 
@@ -597,6 +629,7 @@ int32 UInventoryComponent::RemoveAmountInContainer(ESlotContainer InContainer, i
 		OnHotbarUpdated.Broadcast();
 		OnInventoryUpdated.Broadcast();
 	}
+	NotifyQuestItemRemoved(Item->ID, Removed);
 
 	return Removed;
 }
@@ -865,6 +898,10 @@ FCraftResult UInventoryComponent::Craft(FName RecipeID, int32 CraftCount)
 
 	OnInventoryUpdated.Broadcast();
 
+	//가이드 퀘스트
+	NotifyGuideQuestCrafted(Row.ResultItemID, GiveCount);
+	//===============
+
 	R.bSuccess = true;
 	R.Message = FText::FromString(TEXT("Craft success"));
 	return R;
@@ -1061,3 +1098,63 @@ void UInventoryComponent::GetAllItems(TArray<UItemBase*>& OutItems) const
 		}
 	}
 }
+
+//가이드 퀘스트
+void UInventoryComponent::NotifyGuideQuestItemCollected(FName ItemID, int32 AddedAmount) const
+{
+	if (ItemID.IsNone() || AddedAmount <= 0)
+	{
+		return;
+	}
+
+	if (!GetWorld() || !GetWorld()->GetGameInstance())
+	{
+		return;
+	}
+
+	if (UGuideQuestSubsystem* QuestSys = GetWorld()->GetGameInstance()->GetSubsystem<UGuideQuestSubsystem>())
+	{
+		////디버깅용 코드
+		UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] NotifyGuideQuestItemCollected called: ItemID=%s AddedAmount=%d"),
+			*ItemID.ToString(), AddedAmount);
+
+		QuestSys->ReportCollectItem(ItemID, AddedAmount);
+	}
+}
+
+void UInventoryComponent::NotifyGuideQuestCrafted(FName ItemID, int32 CraftedAmount) const
+{
+	if (ItemID.IsNone() || CraftedAmount <= 0)
+	{
+		return;
+	}
+
+	if (!GetWorld() || !GetWorld()->GetGameInstance())
+	{
+		return;
+	}
+
+	if (UGuideQuestSubsystem* QuestSys = GetWorld()->GetGameInstance()->GetSubsystem<UGuideQuestSubsystem>())
+	{
+		//디버깅용 코드
+		UE_LOG(LogTemp, Warning, TEXT("[GuideQuest] NotifyGuideQuestCrafted called: ItemID=%s CraftedAmount=%d"),
+			*ItemID.ToString(), CraftedAmount);
+
+		QuestSys->ReportCraftItem(ItemID, CraftedAmount);
+	}
+}
+void UInventoryComponent::NotifyQuestItemRemoved(FName ItemID, int32 RemovedAmount) const
+{
+	if (ItemID.IsNone() || RemovedAmount <= 0)return;
+
+	APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwner());
+	if (Player)
+	{
+		UQuestComponent* QuestComp = Player->FindComponentByClass<UQuestComponent>();
+		if (QuestComp)
+		{
+			QuestComp->OnItemRemoved(ItemID, RemovedAmount);
+		}
+	}
+}
+//===============

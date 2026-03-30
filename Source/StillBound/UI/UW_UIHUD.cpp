@@ -11,6 +11,8 @@
 #include "Components/VerticalBox.h"
 #include "Inventory/InventoryComponent.h"
 #include "Components/Image.h"
+#include "Components/TextBlock.h"
+#include "Components/Widget.h"
 
 void UUW_UIHUD::NativeConstruct()
 {
@@ -63,10 +65,27 @@ void UUW_UIHUD::AddPickupLog(const FText& Text)
 		return;
 	}
 
-	FString ItemName = Text.ToString();
+	FString RawText = Text.ToString();
 
-	ItemName = ItemName.Replace(TEXT("+1"), TEXT(""));
-	ItemName = ItemName.TrimStartAndEnd();
+	FString ItemName;
+	int32 Amount = 1;
+
+	int32 PlusIndex;
+	if (RawText.FindLastChar(TEXT('+'), PlusIndex))
+	{
+		ItemName = RawText.Left(PlusIndex).TrimEnd();
+
+		FString AmountString = RawText.Mid(PlusIndex + 1).TrimStartAndEnd();
+
+		if (AmountString.IsNumeric())
+		{
+			Amount = FCString::Atoi(*AmountString);
+		}
+	}
+	else
+	{
+		ItemName = RawText;
+	}
 
 	for (int32 i = 0; i < PickupLogBox->GetChildrenCount(); i++)
 	{
@@ -75,7 +94,7 @@ void UUW_UIHUD::AddPickupLog(const FText& Text)
 
 		if (Existing && Existing->GetBaseText() == ItemName)
 		{
-			Existing->AddStack(1);
+			Existing->AddStack(Amount);
 			Existing->StartLifeTimer(2.f);
 			return;
 		}
@@ -91,7 +110,7 @@ void UUW_UIHUD::AddPickupLog(const FText& Text)
 
 	PickupPanel->SetVisibility(ESlateVisibility::Visible);
 
-	PickupWidget->SetPickupText(FText::FromString(ItemName));
+	PickupWidget->SetPickupText(FText::FromString(ItemName), Amount);
 	PickupWidget->StartLifeTimer(2.f);
 
 	PickupLogBox->InsertChildAt(0, PickupWidget);
@@ -170,5 +189,42 @@ void UUW_UIHUD::SetCrosshairVisible(bool bVisible)
 		Crosshair->SetVisibility(
 			bVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden
 		);
+	}
+}
+
+//====채집 불가 메시지
+void UUW_UIHUD::ShowGatherFailMessage(const FText& Message)
+{
+	// 텍스트 설정
+	if (GatherFailText)
+	{
+		GatherFailText->SetText(Message);
+	}
+
+	// 패널 표시
+	if (GatherFailPanel)
+	{
+		GatherFailPanel->SetVisibility(ESlateVisibility::Visible);
+	}
+
+	//2초 후 자동 숨김
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		PC->GetWorldTimerManager().ClearTimer(GatherFailTimerHandle);
+		PC->GetWorldTimerManager().SetTimer(
+			GatherFailTimerHandle,
+			this,
+			&UUW_UIHUD::HideGatherFailMessage,
+			2.0f,
+			false
+		);
+	}
+}
+
+void UUW_UIHUD::HideGatherFailMessage()
+{
+	if (GatherFailPanel)
+	{
+		GatherFailPanel->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }

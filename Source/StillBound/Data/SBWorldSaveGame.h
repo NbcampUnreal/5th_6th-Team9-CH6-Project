@@ -1,11 +1,12 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
+#include "UObject/SoftObjectPath.h"
 #include "SBWorldSaveGame.generated.h"
 
 /// ===============================================================================
-/// SAVE DATA STRUCTURES (Ŭ���� ��, ���ʿ� ��ġ)
+/// SAVE DATA STRUCTURES (클래스 밖, 위쪽에 배치)
 /// ===============================================================================
 
 USTRUCT(BlueprintType)
@@ -46,7 +47,30 @@ struct FSBWorldDroppedItemSaveData
     UPROPERTY(BlueprintReadOnly, SaveGame)
     FTransform Transform;
 };
+/// ===============================================================================
+/// Guide Quest Save Data (추가)
+/// ===============================================================================
 
+USTRUCT(BlueprintType)
+struct FSBGuideQuestSaveData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, SaveGame)
+	int32 SaveVersion = 1;
+
+	UPROPERTY(BlueprintReadOnly, SaveGame)
+	bool bHasActiveQuest = false;
+
+	UPROPERTY(BlueprintReadOnly, SaveGame)
+	FName ActiveQuestId = NAME_None;
+
+	UPROPERTY(BlueprintReadOnly, SaveGame)
+	TArray<int32> ActiveObjectiveCounts;
+
+	UPROPERTY(BlueprintReadOnly, SaveGame)
+	TArray<FName> CompletedQuestIds;
+};
 /// ===============================================================================
 /// SAVE GAME CLASS
 /// ===============================================================================
@@ -69,6 +93,16 @@ public:
 
     UPROPERTY(BlueprintReadOnly, SaveGame)
     FRotator PlayerRotation = FRotator::ZeroRotator;
+
+    // --- 부활 위치 저장 관련 ---
+    //부활 위치가 실제로 저장된 적이 있는지 체크
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    bool bHasRespawnTransform = false;
+    
+    // 위치. 회전, 스케일 저장
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    FTransform SavedRespawnTransform = FTransform::Identity;
+    // ===============
 
     UPROPERTY(BlueprintReadOnly, SaveGame)
     bool bHasControlRotation = false;
@@ -139,5 +173,13 @@ public:
     UPROPERTY(BlueprintReadOnly, SaveGame)
     TArray<FSBWorldDroppedItemSaveData> SavedDroppedItems;
 
+    /// ===================================================================
+    /// Guide Quest Save Data (클래스 내부 추가)
+    /// ===================================================================
 
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    bool bHasGuideQuest = false;
+
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    FSBGuideQuestSaveData SavedGuideQuest;
 };

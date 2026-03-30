@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
@@ -172,6 +172,11 @@ public:
 	void HideBuildPreviewPanel();
 	void UpdateBuildPreviewPanel(const TArray<FBuildPreviewCostUIData>& InCosts);
 	void ShowBuildPreviewStateMessage(const FText& InMessage, float Duration = 2.f);
+	void HideGameClear();	//클리어 위젯 숨기기 추가
+
+	//ä�� �Ұ� �˸��� 2�� �� �ڵ� ����
+	void ShowGatherFailMessage(const FText& Message);
+	void HideGatherFailMessage();
 
 	//getter
 	TObjectPtr<UMainMenu> GetMainMenuWidget() const { return MainMenuWidget; };

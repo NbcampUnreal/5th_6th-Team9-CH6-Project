@@ -66,4 +66,15 @@ private:
 
 	//슬롯 이미지 배열로 접근하기 위한 헬퍼
 	UImage* GetSlotImage(int32 Index) const;
+
+protected:
+	//esc키 창닫기
+	virtual FReply NativeOnKeyDown(
+		const FGeometry& InGeometry,
+		const FKeyEvent& InKeyEvent) override;
+
+	//ui밖 클릭 안되게 하기
+	virtual FReply NativeOnMouseButtonDown(
+		const FGeometry& InGeometry,
+		const FPointerEvent& InMouseEvent) override;
 };

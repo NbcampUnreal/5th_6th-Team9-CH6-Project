@@ -10,7 +10,7 @@ UGE_RestoreStamina_Instant::UGE_RestoreStamina_Instant()
     DurationPolicy = EGameplayEffectDurationType::Instant;
 
     FGameplayModifierInfo Mod;
-    Mod.Attribute = UPlayerAttributeSet::GetStaminaAttribute();
+    Mod.Attribute = UPlayerAttributeSet::GetMaxStaminaAttribute();
     Mod.ModifierOp = EGameplayModOp::Additive;
 
     FSetByCallerFloat SBC;

@@ -30,6 +30,10 @@
 #include "NPC/Quest/QuestWidget.h"
 
 #include "Animation/AnimInstance.h"
+
+#include "BossAltaractor/Altaractor.h"
+#include "Kismet/GameplayStatics.h"
+
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -67,6 +71,12 @@ APlayerCharacter_SB::APlayerCharacter_SB()
 	BuildComponent = CreateDefaultSubobject<UBuildComponent>(TEXT("BuildComponent"));
 
 	QuestComponent = CreateDefaultSubobject<UQuestComponent>(TEXT("QuestComponent"));
+
+	// WeaponGameplayAbility와 맞춰서 기본 공격 중 회전 태그 설정
+	FaceAimStateTag = FGameplayTag::RequestGameplayTag(
+		TEXT("State.Attack.FaceAim"),
+		/*ErrorIfNotFound*/ false
+	);
 }
 
 FInteractableData APlayerCharacter_SB::GetInteractableData_Implementation()
@@ -143,6 +153,22 @@ void APlayerCharacter_SB::BeginPlay()
 		const float MH = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 
 		UE_LOG(LogTemp, Warning, TEXT("[Player] After InitStats H=%.1f / %.1f"), H, MH);
+
+		// 공격 중 몸 회전 태그 감지 등록
+		if (FaceAimStateTag.IsValid())
+		{
+			AbilitySystemComponent
+				->RegisterGameplayTagEvent(FaceAimStateTag, EGameplayTagEventType::NewOrRemoved)
+				.AddUObject(this, &APlayerCharacter_SB::OnFaceAimStateTagChanged);
+		}
+		else if (bDebugFaceAimState)
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("[FaceAim] FaceAimStateTag invalid. Register tag and set it in defaults."));
+		}
+
+		// BeginPlay 시점 태그 상태와 회전 모드 동기화
+		RefreshAttackFacingFromASC();
 	}
 	else
 	{
@@ -315,49 +341,86 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 
 	InteractionData.LastInteractionCheckTime = GetWorld()->GetTimeSeconds();
 
-	FVector TraceStart{ GetPawnViewLocation() };
-	FVector TraceEnd{ TraceStart + (GetViewRotation().Vector() * InteractionCheckDistance) };
-
-	float LookDirection = FVector::DotProduct(GetActorForwardVector(), GetViewRotation().Vector());
-
-	if (LookDirection > 0)
+	if (!FollowCamera)
 	{
-		/*DrawDebugLine(
-			GetWorld(),
-			TraceStart,
-			TraceEnd,
-			FColor::Red,
-			false,
-			1.f,
-			2.f);*/
+		NoInteractableFound();
+		return;
+	}
 
-		FCollisionQueryParams QueryParams;
-		QueryParams.AddIgnoredActor(this);
-		FHitResult TraceHit;
 
-		if (GetWorld()->LineTraceSingleByChannel(
-			TraceHit,
-			TraceStart,
-			TraceEnd,
-			ECC_Visibility,
-			QueryParams))
+	FVector TraceStart = GetActorLocation() + FVector(0.f, 0.f, 50.f);
+	FVector TraceEnd = TraceStart + (FollowCamera->GetForwardVector() * InteractionCheckDistance);
+
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
+
+	FHitResult TraceHit;
+
+	if (GetWorld()->LineTraceSingleByChannel(
+		TraceHit,
+		TraceStart,
+		TraceEnd,
+		ECC_Visibility,
+		QueryParams))
+	{
+		AActor* HitActor = TraceHit.GetActor();
+
+		if (HitActor && HitActor != this)
 		{
-			AActor* HitActor = TraceHit.GetActor();
-
-			if (HitActor && HitActor != this)
+			if (HitActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
 			{
-				if (HitActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
+				if (HitActor != InteractionData.CurrentInteractable)
 				{
-					if (HitActor != InteractionData.CurrentInteractable)
-					{
-						FoundInteractable(HitActor);
-					}
-
-					return;
+					FoundInteractable(HitActor);
 				}
+				return;
 			}
 		}
 	}
+
+	//FVector TraceStart{ GetPawnViewLocation() };
+	//FVector TraceEnd{ TraceStart + (GetViewRotation().Vector() * InteractionCheckDistance) };
+
+	//float LookDirection = FVector::DotProduct(GetActorForwardVector(), GetViewRotation().Vector());
+
+	//if (LookDirection > 0)
+	//{
+	//	/*DrawDebugLine(
+	//		GetWorld(),
+	//		TraceStart,
+	//		TraceEnd,
+	//		FColor::Red,
+	//		false,
+	//		1.f,
+	//		2.f);*/
+
+	//	FCollisionQueryParams QueryParams;
+	//	QueryParams.AddIgnoredActor(this);
+
+	//	FHitResult TraceHit;
+
+	//	if (GetWorld()->LineTraceSingleByChannel(
+	//		TraceHit,
+	//		TraceStart,
+	//		TraceEnd,
+	//		ECC_Visibility,
+	//		QueryParams))
+	//	{
+	//		AActor* HitActor = TraceHit.GetActor();
+
+	//		if (HitActor && HitActor != this)
+	//		{
+	//			if (HitActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
+	//			{
+	//				if (HitActor != InteractionData.CurrentInteractable)
+	//				{
+	//					FoundInteractable(HitActor);
+	//				}
+	//				return;
+	//			}
+	//		}
+	//	}
+	//}
 
 	NoInteractableFound();
 }
@@ -767,6 +830,7 @@ void APlayerCharacter_SB::Die()
 
 	bIsDead = true;
 
+<<<<<<< HEAD
 	if (AbilitySystemComponent)
 	{
 		const FGameplayTag DeadTag =
@@ -789,6 +853,8 @@ void APlayerCharacter_SB::Die()
 		}
 	}
 
+=======
+>>>>>>> dev
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
 		Move->StopMovementImmediately();
@@ -868,6 +934,7 @@ void APlayerCharacter_SB::Revive()
 	{
 		float MaxHealth = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 		AbilitySystemComponent->SetNumericAttributeBase(UPlayerAttributeSet::GetHealthAttribute(), MaxHealth);
+
 		// 추가: 죽음 몽타주/죽음 포즈에 멈춰 있는 애니메이션 상태를 초기화
 		if (USkeletalMeshComponent* MeshComp = GetMesh())
 		{
@@ -888,6 +955,33 @@ void APlayerCharacter_SB::Revive()
 			{
 				MeshComp->SetAnimInstanceClass(CurrentAnimClass);
 			}
+		}
+
+	}
+	//게임클리어 UI 숨기기 추가
+	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
+	{
+		if (PC->UIManager)
+		{
+			PC->UIManager->HideGameClear();
+			// 보스 HP바 숨기기
+			if (UUW_UIHUD* HUD = PC->UIManager->GetHUD())
+			{
+				HUD->HideBossHP();
+			}
+		}
+	}
+	//캐릭터 사망시 제단 강제 종료.
+	TArray<AActor*> Altars;
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(), AAltaractor::StaticClass(), Altars);
+
+	for (AActor* A : Altars)
+	{
+		AAltaractor* Altar = Cast<AAltaractor>(A);
+		if (Altar && Altar->IsActivated())
+		{
+			Altar->ForceEndArena();
 		}
 	}
 }
@@ -1063,4 +1157,49 @@ void APlayerCharacter_SB::EnableRagdoll()
 	MeshComp->SetAllBodiesSimulatePhysics(true);
 	MeshComp->WakeAllRigidBodies();
 	MeshComp->bPauseAnims = true;
+}
+
+// [추가] WeaponGameplayAbility가 붙이는 State.Attack.FaceAim 태그 변화 감지
+void APlayerCharacter_SB::OnFaceAimStateTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	const bool bFaceAimActive = (NewCount > 0);
+
+	// 공격 중: 몸이 컨트롤러(Yaw) 방향을 따름
+	bUseControllerRotationYaw = bFaceAimActive;
+	GetCharacterMovement()->bOrientRotationToMovement = !bFaceAimActive;
+
+	if (bDebugFaceAimState)
+	{
+		UE_LOG(LogTemp, Log,
+			TEXT("[FaceAim] Tag=%s NewCount=%d -> bUseControllerRotationYaw=%d bOrientRotationToMovement=%d"),
+			*Tag.ToString(),
+			NewCount,
+			(int32)bUseControllerRotationYaw,
+			(int32)GetCharacterMovement()->bOrientRotationToMovement);
+	}
+}
+
+// [추가] ASC 현재 태그 상태로 회전 모드 강제 동기화
+void APlayerCharacter_SB::RefreshAttackFacingFromASC()
+{
+	if (!AbilitySystemComponent || !GetCharacterMovement())
+	{
+		return;
+	}
+
+	const bool bFaceAimActive =
+		FaceAimStateTag.IsValid() &&
+		AbilitySystemComponent->HasMatchingGameplayTag(FaceAimStateTag);
+
+	bUseControllerRotationYaw = bFaceAimActive;
+	GetCharacterMovement()->bOrientRotationToMovement = !bFaceAimActive;
+
+	if (bDebugFaceAimState)
+	{
+		UE_LOG(LogTemp, Log,
+			TEXT("[FaceAim] Refresh -> Active=%d bUseControllerRotationYaw=%d bOrientRotationToMovement=%d"),
+			(int32)bFaceAimActive,
+			(int32)bUseControllerRotationYaw,
+			(int32)GetCharacterMovement()->bOrientRotationToMovement);
+	}
 }

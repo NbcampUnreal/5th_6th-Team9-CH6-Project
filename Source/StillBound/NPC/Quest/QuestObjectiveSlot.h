@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -11,42 +11,52 @@ class UTextBlock;
 class UProgressBar;
 class UBorder;
 /**
- * 
+ *
  */
 UCLASS()
 class STILLBOUND_API UQuestObjectiveSlot : public UUserWidget
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-    // Äù½ºÆ® µ¥ÀÌÅÍ ¼³Á¤
-
+    // í€˜ìŠ¤íŠ¸ ë°ì´í„° ì„¤ì •
     UFUNCTION(BlueprintCallable, Category = "Quest")
     void SetObjectiveData(const FQuestDataRow& QuestData, const FQuestProgress& Progress);
 
+    // ê°€ì´ë“œ í€˜ìŠ¤íŠ¸ ë°ì´í„° ì„¤ì •
+    UFUNCTION(BlueprintCallable, Category = "Quest")
+    void SetGuideQuestData(
+        const FText& Title,
+        const FText& Desc,
+        const FText& Reward
+    );
+
 protected:
-    // Äù½ºÆ® ÀÌ¸§
+    // í€˜ìŠ¤íŠ¸ ì´ë¦„
     UPROPERTY(meta = (BindWidget))
     UTextBlock* TXT_QuestName;
 
-    // ÁøÇà Ä«¿îÆ® (2/3)
+    // ì§„í–‰ ì¹´ìš´íŠ¸ (2/3)
     UPROPERTY(meta = (BindWidget))
     UTextBlock* TXT_QuestCount;
 
-    // ¸ñÇ¥ ¼³¸í ÅØ½ºÆ®
+    // ëª©í‘œ ì„¤ëª… í…ìŠ¤íŠ¸
     UPROPERTY(meta = (BindWidget))
     UTextBlock* TXT_ObjectiveDesc;
 
-    // ÁøÇàµµ ¹Ù
+    // ê°€ì´ë“œ í€˜ìŠ¤íŠ¸ ë³´ìƒ í…ìŠ¤íŠ¸
+    UPROPERTY(meta = (BindWidgetOptional))
+    UTextBlock* TXT_Reward;
+
+    // ì§„í–‰ë„ ë°”
     UPROPERTY(meta = (BindWidget))
     UProgressBar* PB_Progress;
 
-    // ¿Ï·á ¹èÁö Border
+    // ì™„ë£Œ ë°°ì§€ Border
     UPROPERTY(meta = (BindWidget))
     UBorder* Border_CompleteBadge;
 
-    // ¿Ï·á ¹èÁö ÅØ½ºÆ®
+    // ì™„ë£Œ ë°°ì§€ í…ìŠ¤íŠ¸
     UPROPERTY(meta = (BindWidget))
     UTextBlock* TXT_CompleteBadge;
-	
 };

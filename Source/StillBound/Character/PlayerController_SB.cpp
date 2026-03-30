@@ -1,4 +1,4 @@
-
+﻿
 #include "Character/PlayerController_SB.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
@@ -24,9 +24,12 @@
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Inventory/InventoryComponent.h"
 #include "Camera/CameraShakeBase.h"
+#include "GameInstance/SBGameInstance.h"
+#include "GuideQuest/GuideQuestSubsystem.h"
 #include "Build/BuildComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Items/StorageBox.h"
+#include "UserSettings/EnhancedInputUsersettings.h"
 
 void APlayerController_SB::SetupInputComponent()
 {
@@ -35,10 +38,45 @@ void APlayerController_SB::SetupInputComponent()
 	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
 	if (!IsValid(InputSubsystem)) return;
 
-	if (IMC_System) InputSubsystem->AddMappingContext(IMC_System, 10);
-	if (IMC_Movement) InputSubsystem->AddMappingContext(IMC_Movement, 0);
-	if (IMC_Abilities) InputSubsystem->AddMappingContext(IMC_Abilities, 0);
-	if (IMC_Hotbar) InputSubsystem->AddMappingContext(IMC_Hotbar, 0);
+	if (IMC_System)
+	{
+		InputSubsystem->AddMappingContext(IMC_System, 10);
+
+		if (UEnhancedInputUserSettings* UserSettings = InputSubsystem->GetUserSettings())
+		{
+			UserSettings->RegisterInputMappingContext(IMC_System);
+		}
+	}
+
+	if (IMC_Movement)
+	{
+		InputSubsystem->AddMappingContext(IMC_Movement, 0);
+
+		if (UEnhancedInputUserSettings* UserSettings = InputSubsystem->GetUserSettings())
+		{
+			UserSettings->RegisterInputMappingContext(IMC_Movement);
+		}
+	}
+
+	if (IMC_Abilities)
+	{
+		InputSubsystem->AddMappingContext(IMC_Abilities, 0);
+
+		if (UEnhancedInputUserSettings* UserSettings = InputSubsystem->GetUserSettings())
+		{
+			UserSettings->RegisterInputMappingContext(IMC_Abilities);
+		}
+	}
+
+	if (IMC_Hotbar)
+	{
+		InputSubsystem->AddMappingContext(IMC_Hotbar, 0);
+
+		if (UEnhancedInputUserSettings* UserSettings = InputSubsystem->GetUserSettings())
+		{
+			UserSettings->RegisterInputMappingContext(IMC_Hotbar);
+		}
+	}
 
 	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
 	if (!IsValid(EnhancedInputComponent)) return;
@@ -69,7 +107,7 @@ void APlayerController_SB::SetupInputComponent()
 	EnhancedInputComponent->BindAction(HotbarSelectAction_9, ETriggerEvent::Started, this, &ThisClass::OnHotbar9);
 
 	EnhancedInputComponent->BindAction(ToggleMenuAction, ETriggerEvent::Started, this, &ThisClass::ToggleMenu);
-	EnhancedInputComponent->BindAction(FullMapAction,ETriggerEvent::Started,this,&ThisClass::ToggleFullMap);
+	EnhancedInputComponent->BindAction(FullMapAction, ETriggerEvent::Started, this, &ThisClass::ToggleFullMap);
 
 	EnhancedInputComponent->BindAction(ToggleBuildAction, ETriggerEvent::Started, this, &ThisClass::ToggleBuild);
 	EnhancedInputComponent->BindAction(PlaceBuildAction, ETriggerEvent::Started, this, &ThisClass::OnBuildPlace);
@@ -120,7 +158,7 @@ void APlayerController_SB::Jump()
 	ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
 
-	
+
 	if (!Char->CanJump())
 	{
 		return;
@@ -155,7 +193,7 @@ void APlayerController_SB::ToggleCrouch()
 		}
 	}
 
-	UAbilitySystemComponent* ASC =UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Char);
+	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Char);
 	if (ASC)
 	{
 		const FGameplayTag NoCrouchTag = FGameplayTag::RequestGameplayTag(TEXT("State.Action"));
@@ -329,7 +367,7 @@ bool APlayerController_SB::ActivateAbilityAttack(const FGameplayTag& InputTag) c
 void APlayerController_SB::Attack()
 {
 	if (IsGameplayInputBlocked()) return;
-	
+
 	ACharacter* Char = GetCharacter();
 	if (!IsValid(Char)) return;
 
@@ -747,10 +785,62 @@ void APlayerController_SB::BeginPlay()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] CurrentSlotId = %s"), *Sub->GetCurrentSlotId());
 		Sub->TouchCurrentWorldLastPlayed();
+
+		// 추가: 저장된 체크포인트 부활 위치가 있으면 게임 시작 시 GameMode로 복원
+		if (!Sub->GetCurrentSlotId().IsEmpty())
+		{
+			const bool bRespawnLoaded = Sub->LoadCurrentWorldRespawnTransformToGameMode(this);
+			UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldRespawnTransformToGameMode -> %d"), bRespawnLoaded);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Gameplay] CurrentSlotId is empty, skip respawn transform load"));
+		}
 	}
 
 	OverlayState = EOverlayInputState::Gameplay;
 	ApplyOverlayInputState();
+
+	//가이드 퀘스트
+	if (USBGameInstance* SBGI = GetGameInstance<USBGameInstance>())
+	{
+		if (UGuideQuestSubsystem* QuestSys = GetGameInstance()->GetSubsystem<UGuideQuestSubsystem>())
+		{
+			//디버깅용 코드
+			UE_LOG(LogTemp, Warning, TEXT("[GuideQuest Init] BeginPlay reached"));
+			UE_LOG(LogTemp, Warning, TEXT("[GuideQuest Init] MasterTable = %s"),
+				SBGI->GuideQuestMasterTable ? TEXT("Valid") : TEXT("Null"));
+			UE_LOG(LogTemp, Warning, TEXT("[GuideQuest Init] ObjectiveTable = %s"),
+				SBGI->GuideQuestObjectiveTable ? TEXT("Valid") : TEXT("Null"));
+			UE_LOG(LogTemp, Warning, TEXT("[GuideQuest Init] FirstGuideQuestId = %s"),
+				*SBGI->FirstGuideQuestId.ToString());
+
+			// 기존 단일 보상 초기화 호출은 팀원이 비교할 수 있도록 주석으로 유지
+			// QuestSys->InitializeQuestTables(SBGI->GuideQuestMasterTable, SBGI->GuideQuestObjectiveTable);
+
+			QuestSys->InitializeQuestTables(SBGI->GuideQuestMasterTable, SBGI->GuideQuestObjectiveTable, SBGI->GuideQuestRewardTable);
+
+			if (SBGI->GuideQuestWidgetClass)
+			{
+				QuestSys->AttachWidget(this, SBGI->GuideQuestWidgetClass);
+			}
+
+			bool bGuideQuestLoaded = false;
+			if (USBWorldSaveManagerSubsystem* SaveSub = GetGameInstance()->GetSubsystem<USBWorldSaveManagerSubsystem>())
+			{
+				bGuideQuestLoaded = SaveSub->LoadCurrentWorldGuideQuest();
+
+				//디버깅용 코드
+				UE_LOG(LogTemp, Warning, TEXT("[GuideQuest Init] LoadCurrentWorldGuideQuest -> %d"), bGuideQuestLoaded);
+			}
+
+			if (!bGuideQuestLoaded && !QuestSys->HasActiveQuest())
+			{
+				QuestSys->EnsureStarted(SBGI->FirstGuideQuestId);
+			}
+		}
+	}
+	//===============
 }
 
 void APlayerController_SB::OnPossess(APawn* InPawn)
@@ -813,11 +903,24 @@ void APlayerController_SB::ApplyOverlayInputState()
 		bShowMouseCursor = false;
 		break;
 
+	case EOverlayInputState::OptionsMenu:
+		if (IMC_Movement) Subsystem->AddMappingContext(IMC_Movement, 0);
+
+		SetIgnoreMoveInput(true);
+		SetIgnoreLookInput(true);
+
+		{
+			FInputModeGameAndUI Mode;
+			Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			SetInputMode(Mode);
+		}
+		bShowMouseCursor = true;
+		break;
+
 	case EOverlayInputState::Inventory:
 	case EOverlayInputState::Crafting:
 	case EOverlayInputState::BuildMenu:
 	case EOverlayInputState::PauseMenu:
-	case EOverlayInputState::OptionsMenu:
 	case EOverlayInputState::FullMap:
 		SetIgnoreMoveInput(true);
 		SetIgnoreLookInput(true);
@@ -842,8 +945,6 @@ void APlayerController_SB::ApplyOverlayInputState()
 			SetInputMode(Mode);
 		}
 		bShowMouseCursor = false;
-
-		// 추후 좌/우클릭 IMC_Abilities 분기 예정
 		break;
 	}
 }
@@ -862,8 +963,8 @@ void APlayerController_SB::BP_OpenOptionsFromPause()
 	if (!UIManager) return;
 
 	UIManager->ClosePauseMenu();
-	UIManager->OpenOptionsPage_FromPause();
 	SetOverlayInputState(EOverlayInputState::OptionsMenu);
+	UIManager->OpenOptionsPage_FromPause();
 }
 
 void APlayerController_SB::BP_ReturnToPauseFromOptions()

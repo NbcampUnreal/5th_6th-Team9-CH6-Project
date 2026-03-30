@@ -125,15 +125,18 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 		{
 			if (UInventoryComponent* PlayerInventory = Taker->GetInventory())
 			{
+				int32 PickupAmount = ItemReference->Quantity;
+
 				const FItemAddResult AddResult = PlayerInventory->HandleAddItem_AutoHotbarFirst(ItemReference);
 
 				switch (AddResult.OperationResult)
 				{
 				case EItemAddResult::IAR_NoItemAdded:
 					break;
+
 				case EItemAddResult::IAR_PartialAmountItemAdded:
+				case EItemAddResult::IAR_AllItemAdded:
 				{
-					// 퀘스트 진행도 업데이트 (부분 추가된 수량)
 					if (UQuestComponent* QuestComp = Taker->FindComponentByClass<UQuestComponent>())
 					{
 						QuestComp->OnItemCollected(ItemReference->ID, AddResult.ActualAmountAdded);
@@ -146,41 +149,41 @@ void APickup::TakePickup(const APlayerCharacter_SB* Taker)
 					{
 						if (PC->UIManager)
 						{
+							FString NameStr = ItemReference->TextData.Name.ToString();
+							FString FinalString;
+
+							if (PickupAmount > 1)
+							{
+								FString AmountStr = FText::AsNumber(PickupAmount).ToString();
+
+								FinalString = FString::Printf(
+									TEXT("%s %s +1"),
+									*NameStr,
+									*AmountStr
+								);
+							}
+							else
+							{
+								int32 AddedAmount = AddResult.ActualAmountAdded;
+
+								FinalString = FString::Printf(
+									TEXT("%s +%d"),
+									*NameStr,
+									AddedAmount
+								);
+							}
+
 							PC->UIManager->ShowPickupText(
-								FText::Format(
-									FText::FromString(TEXT("{0} +{1}")),
-									ItemReference->TextData.Name,
-									ItemReference->Quantity
-								)
+								FText::FromString(FinalString)
 							);
 						}
 					}
 
-					break;
-				}
-				
-				case EItemAddResult::IAR_AllItemAdded:
-				{
-					// 퀘스트 진행도 업데이트 (전체 수량)
-					if (UQuestComponent* QuestComp = Taker->FindComponentByClass<UQuestComponent>())
+					if (AddResult.OperationResult == EItemAddResult::IAR_AllItemAdded)
 					{
-						QuestComp->OnItemCollected(ItemReference->ID, AddResult.ActualAmountAdded);
+						Destroy();
 					}
 
-					if (APlayerController_SB* PC = Cast<APlayerController_SB>(Taker->GetController()))
-					{
-						if (PC->UIManager)
-						{
-							PC->UIManager->ShowPickupText(
-								FText::Format(
-									FText::FromString(TEXT("{0} +{1}")),
-									ItemReference->TextData.Name,
-									ItemReference->Quantity
-								)
-							);
-						}
-					}
-					Destroy();
 					break;
 				}
 				}

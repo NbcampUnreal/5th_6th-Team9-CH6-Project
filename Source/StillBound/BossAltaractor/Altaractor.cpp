@@ -10,6 +10,7 @@
 #include "BossAltaractor/WbpAltarUI.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/StaticMeshComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 AAltaractor::AAltaractor()
 {
@@ -87,12 +88,15 @@ void AAltaractor::Interact_Implementation(APlayerCharacter_SB* PlayerCharacter)
 	if (!AltarUIInstance) return;
 
 	AltarUIInstance->AddToViewport(10);
+	//키보드 포커스 설정
+	AltarUIInstance->SetUserFocus(PC);
+	AltarUIInstance->SetKeyboardFocus();
 
 	// UI에 제단 레퍼런스 전달 (WBP_AltarUI는 AAltarActor* 를 받는 함수를 구현해야 함)
-	if (AltarUIInstance->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
-	{
-		// 인터페이스 없이 직접 캐스팅 방식을 사용 (WBP_AltarUI.h 참고)
-	}
+	//if (AltarUIInstance->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
+	//{
+	//	// 인터페이스 없이 직접 캐스팅 방식을 사용 (WBP_AltarUI.h 참고)
+	//}
 
 	// BlueprintImplementableEvent로 노출된 함수 호출
 	UFunction* InitFunc = AltarUIInstance->FindFunction(FName("InitWithAltar"));
@@ -105,7 +109,20 @@ void AAltaractor::Interact_Implementation(APlayerCharacter_SB* PlayerCharacter)
 
 	// 마우스 커서 활성화
 	PC->SetShowMouseCursor(true);
-	PC->SetInputMode(FInputModeGameAndUI());
+	//PC->SetInputMode(FInputModeGameAndUI());
+
+	// UI Only 모드 - 마우스만 작동, WASD 차단
+	FInputModeUIOnly UIOnlyMode;
+	UIOnlyMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	UIOnlyMode.SetWidgetToFocus(AltarUIInstance->TakeWidget());
+	PC->SetInputMode(UIOnlyMode);
+
+	// 캐릭터 이동 완전 차단
+	if (UCharacterMovementComponent* MoveComp =
+		InteractingPlayer->GetCharacterMovement())
+	{
+		MoveComp->DisableMovement();
+	}
 }
 
 FInteractableData AAltaractor::GetInteractableData_Implementation()
@@ -182,11 +199,21 @@ void AAltaractor::CloseAltarUI()
 
 	if (InteractingPlayer)
 	{
-		APlayerController* PC = Cast<APlayerController>(InteractingPlayer->GetController());
+		// 이동 복원
+		if (UCharacterMovementComponent* MoveComp =
+			InteractingPlayer->GetCharacterMovement())
+		{
+			MoveComp->SetMovementMode(EMovementMode::MOVE_Walking);
+		}
+
+		APlayerController* PC = Cast<APlayerController>(
+			InteractingPlayer->GetController());
 		if (PC)
 		{
 			PC->SetShowMouseCursor(false);
-			PC->SetInputMode(FInputModeGameOnly());
+			// 게임 입력 모드 복원
+			FInputModeGameOnly GameOnlyMode;
+			PC->SetInputMode(GameOnlyMode);
 		}
 	}
 }
@@ -345,5 +372,17 @@ void AAltaractor::EndArena()
 	}
 }
 
+void AAltaractor::ForceEndArena()
+{
+	// 보스가 살아있으면 먼저 제거
+	if (IsValid(SpawnedBoss))
+	{
+		// OnBossDestroyed가 중복 호출되지 않도록 델리게이트 먼저 해제
+		SpawnedBoss->OnDestroyed.RemoveAll(this);
+		SpawnedBoss->Destroy();
+		SpawnedBoss = nullptr;
+	}
 
+	EndArena();
+}
 

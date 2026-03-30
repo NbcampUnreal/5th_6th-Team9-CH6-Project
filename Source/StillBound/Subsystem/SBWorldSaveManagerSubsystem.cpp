@@ -1,4 +1,4 @@
-#include "Subsystem/SBWorldSaveManagerSubsystem.h"
+﻿#include "Subsystem/SBWorldSaveManagerSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/Guid.h"
 #include "GameFramework/Pawn.h"
@@ -15,7 +15,9 @@
 #include "Items/ItemBase.h"
 #include "Data/ItemData.h"
 #include "Data/BuildingData.h"
+#include "GuideQuest/GuideQuestSubsystem.h"
 #include "Engine/DataTable.h"
+#include "StillBoundGameMode.h"
 
 
 const FString USBWorldSaveManagerSubsystem::IndexSlotName = TEXT("SB_WorldIndex");
@@ -98,7 +100,7 @@ bool USBWorldSaveManagerSubsystem::DeleteWorld(const FString& SlotId)
     {
         SaveIndex(Index);
 
-        // SlotId�� WorldSave�� �����Ѵٸ� ���� ���� ����
+        // SlotId로 WorldSave도 저장한다면 같이 삭제 가능
         UGameplayStatics::DeleteGameInSlot(SlotId, 0);
 
         if (CurrentSlotId == SlotId)
@@ -146,7 +148,7 @@ bool USBWorldSaveManagerSubsystem::TouchCurrentWorldLastPlayed()
     return false;
 }
 
-// World Save (SlotId�� ���� ���� ����/�ε�)
+// World Save (SlotId별 실제 월드 저장/로드)
 USBWorldSaveGame* USBWorldSaveManagerSubsystem::LoadOrCreateWorldSave(const FString& SlotId)
 {
     if (SlotId.IsEmpty()) return nullptr;
@@ -297,7 +299,7 @@ bool USBWorldSaveManagerSubsystem::ApplyPlayerAttributesToPawn(APawn* Pawn, cons
     }
 
 
-    // Max -> Current ���� (Clamp ����)
+    // Max -> Current 순서 (Clamp 안정)
     ASC->SetNumericAttributeBase(UPlayerAttributeSet::GetMaxHealthAttribute(), Save->SavedMaxHealth);
     ASC->SetNumericAttributeBase(UPlayerAttributeSet::GetHealthAttribute(), Save->SavedHealth);
 
@@ -353,7 +355,7 @@ bool USBWorldSaveManagerSubsystem::SaveCurrentWorldFromPawn(APawn* Pawn)
     Save->PlayerLocation = Pawn->GetActorLocation();
     Save->PlayerRotation = Pawn->GetActorRotation();
 
-    // ī�޶� ����
+    // 카메라 방향
     if (APlayerController* PC = Cast<APlayerController>(Pawn->GetController()))
     {
         Save->bHasControlRotation = true;
@@ -377,6 +379,13 @@ bool USBWorldSaveManagerSubsystem::SaveCurrentWorldFromPawn(APawn* Pawn)
         Save->SavedGold = PC->GetGold();
     }
 
+    //가이드용 퀘스트 내부 저장 로직
+    if (UGameInstance* GI = GetGameInstance()) {
+        if (UGuideQuestSubsystem* QuestSys = GI->GetSubsystem<UGuideQuestSubsystem>()) {
+            QuestSys->ExportToSaveGame(Save);
+        }
+    }
+    //===============
     const bool bOk = SaveWorldSave(CurrentSlotId, Save);
     if (bOk)
     {
@@ -405,7 +414,7 @@ bool USBWorldSaveManagerSubsystem::LoadCurrentWorldTransformToPawn(APawn* Pawn)
         );
     }
 
-    // ī�޶� ����
+    // 카메라 방향
     if (Save->bHasControlRotation)
     {
         if (APlayerController* PC = Cast<APlayerController>(Pawn->GetController()))
@@ -449,7 +458,7 @@ bool USBWorldSaveManagerSubsystem::LoadCurrentWorldToPawn(APawn* Pawn)
         );
     }
 
-    // ControlRotation (�̰� �۵� ���ϴ°� ���� ������ ����)
+    // ControlRotation (이거 작동 안하는거 같음 수정할 예정)
     if (Save->bHasControlRotation)
     {
         if (APlayerController* PC = Cast<APlayerController>(Pawn->GetController()))
@@ -461,9 +470,15 @@ bool USBWorldSaveManagerSubsystem::LoadCurrentWorldToPawn(APawn* Pawn)
     // Attributes
     bOk = ApplyPlayerAttributesToPawn(Pawn, Save) && bOk;
     bOk = ApplyInventoryToPawn(Pawn, Save) && bOk;
+
+    //가이드 퀘스트 내부 로드 로직
+    if (UGameInstance* GI = GetGameInstance()) {
+        if (UGuideQuestSubsystem* QuestSys = GI->GetSubsystem<UGuideQuestSubsystem>()) {
+            QuestSys->ImportFromSaveGame(Save);
+        }
+    }
+    //===============
     return bOk;
-
-
 }
 
 bool USBWorldSaveManagerSubsystem::FillPlacedBuildingsFromPawn(APawn* Pawn, USBWorldSaveGame* Save)
@@ -549,7 +564,7 @@ bool USBWorldSaveManagerSubsystem::ApplyPlacedBuildingsToPawn(APawn* Pawn, const
     UWorld* World = Pawn->GetWorld();
     if (!World) return false;
 
-    // Ȥ�� ���� ��ġ ���๰�� ������ ����
+    // 혹시 기존 배치 건축물이 있으면 제거
     TArray<AActor*> ToDestroy;
     for (TActorIterator<AActor> It(World); It; ++It)
     {
@@ -568,7 +583,7 @@ bool USBWorldSaveManagerSubsystem::ApplyPlacedBuildingsToPawn(APawn* Pawn, const
         }
     }
 
-    // ����� ���๰ ����
+    // 저장된 건축물 복원
     for (const FSBPlacedBuildingSaveData& Data : Save->SavedBuildings)
     {
         if (Data.BuildingID.IsNone())
@@ -781,4 +796,81 @@ bool USBWorldSaveManagerSubsystem::ApplyDroppedItemsToPawn(APawn* Pawn, const US
 
     UE_LOG(LogTemp, Warning, TEXT("[Load] DroppedItems Loaded = %d"), Save->SavedDroppedItems.Num());
     return true;
+}
+
+//가이드 퀘스트 자동 복원용 함수
+bool USBWorldSaveManagerSubsystem::LoadCurrentWorldGuideQuest()
+{
+    if (CurrentSlotId.IsEmpty()) return false;
+
+    if (!UGameplayStatics::DoesSaveGameExist(CurrentSlotId, 0))
+    {
+        return false;
+    }
+
+    USBWorldSaveGame* Save = Cast<USBWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(CurrentSlotId, 0));
+    if (!Save) return false;
+
+    if (!Save->bHasGuideQuest)
+    {
+        return false;
+    }
+
+    if (UGameInstance* GI = GetGameInstance())
+    {
+        if (UGuideQuestSubsystem* QuestSys = GI->GetSubsystem<UGuideQuestSubsystem>())
+        {
+            QuestSys->ImportFromSaveGame(Save);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+//세이브 포인트 갱신 위치 저장용 함수
+bool USBWorldSaveManagerSubsystem::SaveCurrentWorldRespawnTransform(const FTransform& RespawnTransform)
+{
+    // 현재 사용 중인 슬롯이 없으면 저장 불가
+    if (CurrentSlotId.IsEmpty()) return false;
+
+    // 현재 슬롯용 SaveGame 객체를 가져오거나 새로 생성
+    USBWorldSaveGame* Save = LoadOrCreateWorldSave(CurrentSlotId);
+    if (!Save) return false;
+
+    // 이제 "부활 위치가 있다"는 표시를 저장
+    Save->bHasRespawnTransform = true;
+
+    // 실제 부활 위치 Transform 저장
+    Save->SavedRespawnTransform = RespawnTransform;
+
+    // 파일에 최종 반영
+    return SaveWorldSave(CurrentSlotId, Save);
+}
+
+// GameMode 런타임 부활 위치로 다시 복원하는 함수
+bool USBWorldSaveManagerSubsystem::LoadCurrentWorldRespawnTransformToGameMode(UObject* WorldContextObject)
+{
+    // 월드 컨텍스트가 없으면 GameMode를 찾을 수 없으므로 실패
+    if (!WorldContextObject) return false;
+
+    // 현재 슬롯이 비어 있으면 불러올 수 없음
+    if (CurrentSlotId.IsEmpty()) return false;
+
+    // 현재 슬롯용 SaveGame 객체 불러오기
+    USBWorldSaveGame* Save = LoadOrCreateWorldSave(CurrentSlotId);
+    if (!Save) return false;
+
+    // 저장된 부활 위치 자체가 없으면 복원할 게 없음
+    if (!Save->bHasRespawnTransform) return false;
+
+    // 현재 월드의 GameMode를 가져와서
+    // SaveGame에 저장된 부활 위치를 런타임용 GameMode에 복원
+    if (AStillBoundGameMode* GM = Cast<AStillBoundGameMode>(UGameplayStatics::GetGameMode(WorldContextObject)))
+    {
+        GM->SetRespawnTransform(Save->SavedRespawnTransform);
+        return true;
+    }
+
+    return false;
 }
