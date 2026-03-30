@@ -110,6 +110,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Altar")
 	void CloseAltarUI();
 	
+	// 외부에서 활성화 여부 확인
+	UFUNCTION(BlueprintPure, Category = "Altar")
+	bool IsActivated() const { return bActivated; }
+
+	// 외부에서 강제 종료 (플레이어 사망 시 호출)
+	UFUNCTION(BlueprintCallable, Category = "Altar")
+	void ForceEndArena();
+
 private:
 
 	//3개 다 채웟을 때 보스 소환 + 벽 생성 + 제단 소멸

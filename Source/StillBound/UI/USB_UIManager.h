@@ -174,7 +174,7 @@ public:
 	void ShowBuildPreviewStateMessage(const FText& InMessage, float Duration = 2.f);
 	void HideGameClear();	//í´ë¦¬ì–´ ìœ„ì ¯ ìˆ¨ê¸°ê¸° ì¶”ê°€
 
-	//Ã¤Áı ºÒ°¡ ¾Ë¸®°í 2ÃÊ µÚ ÀÚµ¿ ¼û±è
+	//Ã¤ï¿½ï¿½ ï¿½Ò°ï¿½ ï¿½Ë¸ï¿½ï¿½ï¿½ 2ï¿½ï¿½ ï¿½ï¿½ ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½
 	void ShowGatherFailMessage(const FText& Message);
 	void HideGatherFailMessage();
 
