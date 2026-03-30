@@ -173,6 +173,10 @@ public:
 	void UpdateBuildPreviewPanel(const TArray<FBuildPreviewCostUIData>& InCosts);
 	void ShowBuildPreviewStateMessage(const FText& InMessage, float Duration = 2.f);
 
+	//채집 불가 알리고 2초 뒤 자동 숨김
+	void ShowGatherFailMessage(const FText& Message);
+	void HideGatherFailMessage();
+
 	//getter
 	TObjectPtr<UMainMenu> GetMainMenuWidget() const { return MainMenuWidget; };
 
