@@ -337,49 +337,86 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 
 	InteractionData.LastInteractionCheckTime = GetWorld()->GetTimeSeconds();
 
-	FVector TraceStart{ GetPawnViewLocation() };
-	FVector TraceEnd{ TraceStart + (GetViewRotation().Vector() * InteractionCheckDistance) };
-
-	float LookDirection = FVector::DotProduct(GetActorForwardVector(), GetViewRotation().Vector());
-
-	if (LookDirection > 0)
+	if (!FollowCamera)
 	{
-		/*DrawDebugLine(
-			GetWorld(),
-			TraceStart,
-			TraceEnd,
-			FColor::Red,
-			false,
-			1.f,
-			2.f);*/
+		NoInteractableFound();
+		return;
+	}
 
-		FCollisionQueryParams QueryParams;
-		QueryParams.AddIgnoredActor(this);
-		FHitResult TraceHit;
 
-		if (GetWorld()->LineTraceSingleByChannel(
-			TraceHit,
-			TraceStart,
-			TraceEnd,
-			ECC_Visibility,
-			QueryParams))
+	FVector TraceStart = GetActorLocation() + FVector(0.f, 0.f, 50.f);
+	FVector TraceEnd = TraceStart + (FollowCamera->GetForwardVector() * InteractionCheckDistance);
+
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
+
+	FHitResult TraceHit;
+
+	if (GetWorld()->LineTraceSingleByChannel(
+		TraceHit,
+		TraceStart,
+		TraceEnd,
+		ECC_Visibility,
+		QueryParams))
+	{
+		AActor* HitActor = TraceHit.GetActor();
+
+		if (HitActor && HitActor != this)
 		{
-			AActor* HitActor = TraceHit.GetActor();
-
-			if (HitActor && HitActor != this)
+			if (HitActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
 			{
-				if (HitActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
+				if (HitActor != InteractionData.CurrentInteractable)
 				{
-					if (HitActor != InteractionData.CurrentInteractable)
-					{
-						FoundInteractable(HitActor);
-					}
-
-					return;
+					FoundInteractable(HitActor);
 				}
+				return;
 			}
 		}
 	}
+
+	//FVector TraceStart{ GetPawnViewLocation() };
+	//FVector TraceEnd{ TraceStart + (GetViewRotation().Vector() * InteractionCheckDistance) };
+
+	//float LookDirection = FVector::DotProduct(GetActorForwardVector(), GetViewRotation().Vector());
+
+	//if (LookDirection > 0)
+	//{
+	//	/*DrawDebugLine(
+	//		GetWorld(),
+	//		TraceStart,
+	//		TraceEnd,
+	//		FColor::Red,
+	//		false,
+	//		1.f,
+	//		2.f);*/
+
+	//	FCollisionQueryParams QueryParams;
+	//	QueryParams.AddIgnoredActor(this);
+
+	//	FHitResult TraceHit;
+
+	//	if (GetWorld()->LineTraceSingleByChannel(
+	//		TraceHit,
+	//		TraceStart,
+	//		TraceEnd,
+	//		ECC_Visibility,
+	//		QueryParams))
+	//	{
+	//		AActor* HitActor = TraceHit.GetActor();
+
+	//		if (HitActor && HitActor != this)
+	//		{
+	//			if (HitActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
+	//			{
+	//				if (HitActor != InteractionData.CurrentInteractable)
+	//				{
+	//					FoundInteractable(HitActor);
+	//				}
+	//				return;
+	//			}
+	//		}
+	//	}
+	//}
 
 	NoInteractableFound();
 }
@@ -833,24 +870,34 @@ void APlayerCharacter_SB::Die()
 //부활 관련 코드 추가
 void APlayerCharacter_SB::Revive()
 {
+	//이미 살아있는 상태라면 부활X
 	if (!bIsDead) return;
-
+	//사망 상태 해제
 	bIsDead = false;
 
+	//이동 능력 복구
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
 		Move->SetMovementMode(MOVE_Walking);
 	}
 
+	//충돌 설정 복구
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 
-
+	//GAS 체력을 최대로
 	if (AbilitySystemComponent)
 	{
 		float MaxHealth = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 		AbilitySystemComponent->SetNumericAttributeBase(UPlayerAttributeSet::GetHealthAttribute(), MaxHealth);
 	}
-
+	//게임클리어 UI 숨기기 추가
+	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
+	{
+		if (PC->UIManager)
+		{
+			PC->UIManager->HideGameClear();
+		}
+	}
 }
 
 bool APlayerCharacter_SB::ModifyGold(int32 Amount)
