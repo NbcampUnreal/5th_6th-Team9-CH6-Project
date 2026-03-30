@@ -19,7 +19,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Title|UI")
 	TSubclassOf<UUserWidget> TitleRootWidgetClass;
 
-	// 키 설정 표시용 IMC들
 	UPROPERTY(EditDefaultsOnly, Category = "Title|Input")
 	TObjectPtr<UInputMappingContext> IMC_System;
 

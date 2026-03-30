@@ -1,5 +1,4 @@
 #include "Player/SBTitlePlayerController.h"
-
 #include "Blueprint/UserWidget.h"
 #include "Settings/SBGameUserSettings.h"
 #include "EnhancedInputSubsystems.h"
