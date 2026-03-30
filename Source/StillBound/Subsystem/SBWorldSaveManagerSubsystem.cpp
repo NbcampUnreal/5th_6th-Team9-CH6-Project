@@ -17,6 +17,7 @@
 #include "Data/BuildingData.h"
 #include "GuideQuest/GuideQuestSubsystem.h"
 #include "Engine/DataTable.h"
+#include "StillBoundGameMode.h"
 
 
 const FString USBWorldSaveManagerSubsystem::IndexSlotName = TEXT("SB_WorldIndex");
@@ -822,6 +823,53 @@ bool USBWorldSaveManagerSubsystem::LoadCurrentWorldGuideQuest()
             QuestSys->ImportFromSaveGame(Save);
             return true;
         }
+    }
+
+    return false;
+}
+
+//세이브 포인트 갱신 위치 저장용 함수
+bool USBWorldSaveManagerSubsystem::SaveCurrentWorldRespawnTransform(const FTransform& RespawnTransform)
+{
+    // 현재 사용 중인 슬롯이 없으면 저장 불가
+    if (CurrentSlotId.IsEmpty()) return false;
+
+    // 현재 슬롯용 SaveGame 객체를 가져오거나 새로 생성
+    USBWorldSaveGame* Save = LoadOrCreateWorldSave(CurrentSlotId);
+    if (!Save) return false;
+
+    // 이제 "부활 위치가 있다"는 표시를 저장
+    Save->bHasRespawnTransform = true;
+
+    // 실제 부활 위치 Transform 저장
+    Save->SavedRespawnTransform = RespawnTransform;
+
+    // 파일에 최종 반영
+    return SaveWorldSave(CurrentSlotId, Save);
+}
+
+// GameMode 런타임 부활 위치로 다시 복원하는 함수
+bool USBWorldSaveManagerSubsystem::LoadCurrentWorldRespawnTransformToGameMode(UObject* WorldContextObject)
+{
+    // 월드 컨텍스트가 없으면 GameMode를 찾을 수 없으므로 실패
+    if (!WorldContextObject) return false;
+
+    // 현재 슬롯이 비어 있으면 불러올 수 없음
+    if (CurrentSlotId.IsEmpty()) return false;
+
+    // 현재 슬롯용 SaveGame 객체 불러오기
+    USBWorldSaveGame* Save = LoadOrCreateWorldSave(CurrentSlotId);
+    if (!Save) return false;
+
+    // 저장된 부활 위치 자체가 없으면 복원할 게 없음
+    if (!Save->bHasRespawnTransform) return false;
+
+    // 현재 월드의 GameMode를 가져와서
+    // SaveGame에 저장된 부활 위치를 런타임용 GameMode에 복원
+    if (AStillBoundGameMode* GM = Cast<AStillBoundGameMode>(UGameplayStatics::GetGameMode(WorldContextObject)))
+    {
+        GM->SetRespawnTransform(Save->SavedRespawnTransform);
+        return true;
     }
 
     return false;

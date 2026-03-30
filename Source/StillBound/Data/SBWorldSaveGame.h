@@ -94,6 +94,16 @@ public:
     UPROPERTY(BlueprintReadOnly, SaveGame)
     FRotator PlayerRotation = FRotator::ZeroRotator;
 
+    // --- 부활 위치 저장 관련 ---
+    //부활 위치가 실제로 저장된 적이 있는지 체크
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    bool bHasRespawnTransform = false;
+    
+    // 위치. 회전, 스케일 저장
+    UPROPERTY(BlueprintReadOnly, SaveGame)
+    FTransform SavedRespawnTransform = FTransform::Identity;
+    // ===============
+
     UPROPERTY(BlueprintReadOnly, SaveGame)
     bool bHasControlRotation = false;
 

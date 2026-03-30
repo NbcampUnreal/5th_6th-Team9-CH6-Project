@@ -785,6 +785,17 @@ void APlayerController_SB::BeginPlay()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[Gameplay] CurrentSlotId = %s"), *Sub->GetCurrentSlotId());
 		Sub->TouchCurrentWorldLastPlayed();
+
+		// 추가: 저장된 체크포인트 부활 위치가 있으면 게임 시작 시 GameMode로 복원
+		if (!Sub->GetCurrentSlotId().IsEmpty())
+		{
+			const bool bRespawnLoaded = Sub->LoadCurrentWorldRespawnTransformToGameMode(this);
+			UE_LOG(LogTemp, Warning, TEXT("[Gameplay] LoadCurrentWorldRespawnTransformToGameMode -> %d"), bRespawnLoaded);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Gameplay] CurrentSlotId is empty, skip respawn transform load"));
+		}
 	}
 
 	OverlayState = EOverlayInputState::Gameplay;
