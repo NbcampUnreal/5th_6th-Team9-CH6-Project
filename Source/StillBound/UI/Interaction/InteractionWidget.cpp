@@ -27,7 +27,7 @@ void UInteractionWidget::UpdateWidget(const FInteractableData& InteractableData)
     switch (InteractableData.InteractableType)
     {
     case EInteractableType::Pickup:
-        KeyPressText->SetText(FText::FromString("Press"));
+        //KeyPressText->SetText(FText::FromString("Press"));
         InteractionProgressBar->SetVisibility(ESlateVisibility::Collapsed);
 
         if (InteractableData.Quantity < 2)
@@ -47,7 +47,7 @@ void UInteractionWidget::UpdateWidget(const FInteractableData& InteractableData)
         break;
 
     case EInteractableType::Device:
-        KeyPressText->SetText(FText::FromString("Press"));
+        //KeyPressText->SetText(FText::FromString("Press"));
         break;
 
     case EInteractableType::Toggle:
@@ -59,7 +59,7 @@ void UInteractionWidget::UpdateWidget(const FInteractableData& InteractableData)
     default:;
     }
 
-    ActionText->SetText(InteractableData.Action);
+    //ActionText->SetText(InteractableData.Action);
     NameText->SetText(InteractableData.Name);
 }
 

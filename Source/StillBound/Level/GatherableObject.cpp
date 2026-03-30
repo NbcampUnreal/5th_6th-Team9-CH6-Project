@@ -10,6 +10,8 @@
 #include "Engine/World.h"
 #include "Engine/DataTable.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Character/PlayerController_SB.h"
+#include "UI/USB_UIManager.h"
 
 AGatherableObject::AGatherableObject()
 {
@@ -89,6 +91,66 @@ void AGatherableObject::BeginInteract_Implementation()
     if (!CanGather(Player))
     {
         InteractableData.InteractionDuration = 9999.f;
+
+        UInventoryComponent* Inventory = Player->GetInventory();
+        if (Inventory)
+        {
+            UItemBase* EquippedItem = Inventory->GetItemInContainer(
+                ESlotContainer::Hotbar, Player->CurrentHotbarIndex);
+
+            FText MessageToShow;
+            bool bShouldShowMessage = false;
+
+            if (EquippedItem)
+            {
+                if (EquippedItem->ItemType != EItemType::Tool)
+                {
+                    // ★ Tool이 아닌 아이템을 들고 있는 경우
+                    MessageToShow = RemoveItemText;
+                    bShouldShowMessage = true;
+                }
+                else
+                {
+                    EToolKind EquippedKind = EquippedItem->ItemStatistics.ToolKind;
+
+                    // 돌 채집인데 곡괭이가 아닌 경우
+                    if (GatherType == EGatherType::Rock &&
+                        EquippedKind != EToolKind::Pickaxe)
+                    {
+                        MessageToShow = NeedPickaxeText;
+                        bShouldShowMessage = true;
+                    }
+                    // 나무 채집인데 도끼가 아닌 경우
+                    else if (GatherType == EGatherType::Wood &&
+                        EquippedKind != EToolKind::Axe)
+                    {
+                        MessageToShow = NeedAxeText;
+                        bShouldShowMessage = true;
+                    }
+                }
+            }
+            else
+            {
+                //맨손인데 돌 채집 시도하는 경우
+                if (GatherType == EGatherType::Rock)
+                {
+                    MessageToShow = NeedPickaxeText;
+                    bShouldShowMessage = true;
+                }
+            }
+
+            if (bShouldShowMessage)
+            {
+                if (APlayerController_SB* PC = Cast<APlayerController_SB>(
+                    Player->GetController()))
+                {
+                    if (PC->UIManager)
+                    {
+                        PC->UIManager->ShowGatherFailMessage(MessageToShow);
+                    }
+                }
+            }
+        }
         return;
     }
 
@@ -206,12 +268,14 @@ FInteractableData AGatherableObject::GetInteractableData_Implementation()
     if (GatherType == EGatherType::Wood)
     {
         InteractableData.Name = FText::FromString(
-            FString::Printf(TEXT("Wood (remaining foraging %d)"), CurrentGatherCount));
+            //FString::Printf(TEXT("Wood (remaining foraging %d)"), CurrentGatherCount));
+            FString::Printf(TEXT("")));
     }
     else
     {
         InteractableData.Name = FText::FromString(
-            FString::Printf(TEXT("Rock (remaining foraging %d)"), CurrentGatherCount));
+            //FString::Printf(TEXT("Rock (remaining foraging %d)"), CurrentGatherCount));
+            FString::Printf(TEXT("")));
     }
 
     //플레이어를 찾아서 현재 도구 티어 반영
@@ -231,19 +295,22 @@ FInteractableData AGatherableObject::GetInteractableData_Implementation()
         if (!CanGather(Player))
         {
             InteractableData.InteractionDuration = 0.f;
-            InteractableData.Action = FText::FromString(TEXT("Cannot gather"));
+            //InteractableData.Action = FText::FromString(TEXT("Cannot gather"));
+            InteractableData.Action = CannotGatherText;
         }
         else
         {
             int32 ToolTier = GetCharacterToolTier(Player);
             InteractableData.InteractionDuration = CalculateGatherTime(ToolTier);
-            InteractableData.Action = FText::FromString(TEXT("gathering"));
+            //InteractableData.Action = FText::FromString(TEXT("gathering"));
+            InteractableData.Action = GatherActionText;
         }
     }
     else
     {
         InteractableData.InteractionDuration = BaseGatherTime;
-        InteractableData.Action = FText::FromString(TEXT("gathering"));
+       // InteractableData.Action = FText::FromString(TEXT("gathering"));
+        InteractableData.Action = GatherActionText;
     }
 
     return InteractableData;
