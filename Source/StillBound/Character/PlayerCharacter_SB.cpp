@@ -30,6 +30,10 @@
 #include "NPC/Quest/QuestWidget.h"
 
 #include "Animation/AnimInstance.h"
+
+#include "BossAltaractor/Altaractor.h"
+#include "Kismet/GameplayStatics.h"
+
 APlayerCharacter_SB::APlayerCharacter_SB()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -896,6 +900,24 @@ void APlayerCharacter_SB::Revive()
 		if (PC->UIManager)
 		{
 			PC->UIManager->HideGameClear();
+			// 보스 HP바 숨기기
+			if (UUW_UIHUD* HUD = PC->UIManager->GetHUD())
+			{
+				HUD->HideBossHP();
+			}
+		}
+	}
+	//캐릭터 사망시 제단 강제 종료.
+	TArray<AActor*> Altars;
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(), AAltaractor::StaticClass(), Altars);
+
+	for (AActor* A : Altars)
+	{
+		AAltaractor* Altar = Cast<AAltaractor>(A);
+		if (Altar && Altar->IsActivated())
+		{
+			Altar->ForceEndArena();
 		}
 	}
 }
