@@ -830,7 +830,6 @@ void APlayerCharacter_SB::Die()
 
 	bIsDead = true;
 
-<<<<<<< HEAD
 	if (AbilitySystemComponent)
 	{
 		const FGameplayTag DeadTag =
@@ -853,8 +852,6 @@ void APlayerCharacter_SB::Die()
 		}
 	}
 
-=======
->>>>>>> dev
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
 		Move->StopMovementImmediately();
