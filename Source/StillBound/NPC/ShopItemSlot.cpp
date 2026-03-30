@@ -181,16 +181,22 @@ void UShopItemSlot::SetShopItemData(const FShopItemData& InItemData, UShopWidget
     {
         if (ItemData.CurrentStock < 0)
         {
-            TXT_ItemStock->SetText(FText::FromString( TEXT("Infi_Stock")));
+           // TXT_ItemStock->SetText(FText::FromString( TEXT("Infi_Stock")));
+            TXT_ItemStock->SetText(InfiniteStockText); //변수 사용
         }
         else
         {
-            FText StockText = FText::Format(
-                FText::FromString(TEXT("{0}G")),
-                FText::AsNumber(ItemData.CurrentStock)
-            );
-            TXT_ItemStock->SetText(StockText);
+            //FText StockText = FText::Format(
+            //    FText::FromString(TEXT("{0}G")),
+            //    FText::AsNumber(ItemData.CurrentStock)
+            //);
+            //TXT_ItemStock->SetText(StockText);
+
+            FText FormattedStock = FText::Format(StockFormat,
+                FText::AsNumber(ItemData.CurrentStock)); // 변수 사용
+            TXT_ItemStock->SetText(FormattedStock);
         }
+        TXT_ItemStock->SetColorAndOpacity(StockNormalColor); // 기본 색상 적용
     }
 
     // 아이콘
@@ -211,9 +217,14 @@ void UShopItemSlot::SetShopItemData(const FShopItemData& InItemData, UShopWidget
         // 아이템 이름에 "(품절)" 추가
         if (TXT_ItemName)
         {
-            FText OutOfStockText = FText::Format(
-                FText::FromString(TEXT("{0} (Out Of Stock)")),
-                FullItemData->TextData.Name
+            //FText OutOfStockText = FText::Format(
+            //    FText::FromString(TEXT("{0} (Out Of Stock)")),
+            //    FullItemData->TextData.Name
+            //);
+            FText SoldOutName = FText::Format(
+                FText::FromString(TEXT("{0} ({1})")),
+                FullItemData->TextData.Name,
+                OutOfStockText // 변수 사용
             );
             TXT_ItemName->SetText(OutOfStockText);
         }
@@ -221,13 +232,16 @@ void UShopItemSlot::SetShopItemData(const FShopItemData& InItemData, UShopWidget
         // 가격 텍스트 회색으로
         if (TXT_ItemPrice)
         {
-            TXT_ItemPrice->SetColorAndOpacity(FLinearColor(0.4f, 0.4f, 0.4f, 1.0f));
+            //TXT_ItemPrice->SetColorAndOpacity(FLinearColor(0.4f, 0.4f, 0.4f, 1.0f));
+            TXT_ItemPrice->SetColorAndOpacity(PriceOutOfStockColor);//변수 사용
         }
         if (TXT_ItemStock)
         {
-            TXT_ItemStock->SetText(FText::FromString(TEXT("Out Of Stock")));
-            TXT_ItemStock->SetColorAndOpacity(
-                FSlateColor(FLinearColor(0.75f, 0.38f, 0.38f, 1.0f)));
+            //TXT_ItemStock->SetText(FText::FromString(TEXT("Out Of Stock")));
+            //TXT_ItemStock->SetColorAndOpacity(
+            //    FSlateColor(FLinearColor(0.75f, 0.38f, 0.38f, 1.0f)));
+            TXT_ItemStock->SetText(OutOfStockText); // 변수 사용
+            TXT_ItemStock->SetColorAndOpacity(StockOutColor); // 변수 사용
         }
     }
 }
