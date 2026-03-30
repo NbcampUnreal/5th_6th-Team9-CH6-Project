@@ -841,24 +841,34 @@ void APlayerCharacter_SB::Die()
 //부활 관련 코드 추가
 void APlayerCharacter_SB::Revive()
 {
+	//이미 살아있는 상태라면 부활X
 	if (!bIsDead) return;
-
+	//사망 상태 해제
 	bIsDead = false;
 
+	//이동 능력 복구
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
 		Move->SetMovementMode(MOVE_Walking);
 	}
 
+	//충돌 설정 복구
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 
-
+	//GAS 체력을 최대로
 	if (AbilitySystemComponent)
 	{
 		float MaxHealth = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 		AbilitySystemComponent->SetNumericAttributeBase(UPlayerAttributeSet::GetHealthAttribute(), MaxHealth);
 	}
-
+	//게임클리어 UI 숨기기 추가
+	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
+	{
+		if (PC->UIManager)
+		{
+			PC->UIManager->HideGameClear();
+		}
+	}
 }
 
 bool APlayerCharacter_SB::ModifyGold(int32 Amount)

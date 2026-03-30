@@ -62,6 +62,14 @@ public:
     UFUNCTION(BlueprintCallable)
     bool LoadCurrentWorldGuideQuest();
 
+    //세이브 포인트 갱신 위치 저장용 함수 추가
+    UFUNCTION(BlueprintCallable)
+    bool SaveCurrentWorldRespawnTransform(const FTransform& RespawnTransform);
+
+    // GameMode 런타임 부활 위치로 다시 복원하는 함수 추가
+    UFUNCTION(BlueprintCallable)
+    bool LoadCurrentWorldRespawnTransformToGameMode(UObject* WorldContextObject);
+
 private:
     static const FString IndexSlotName;
 
