@@ -347,17 +347,6 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 	FVector TraceStart = GetActorLocation() + FVector(0.f, 0.f, 50.f);
 	FVector TraceEnd = TraceStart + (FollowCamera->GetForwardVector() * InteractionCheckDistance);
 
-	DrawDebugLine(
-		GetWorld(),
-		TraceStart,
-		TraceEnd,
-		FColor::Green,
-		false,
-		0.1f,
-		0,
-		2.f
-	);
-
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(this);
 
