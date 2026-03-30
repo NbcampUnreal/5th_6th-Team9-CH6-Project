@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
@@ -172,6 +172,7 @@ public:
 	void HideBuildPreviewPanel();
 	void UpdateBuildPreviewPanel(const TArray<FBuildPreviewCostUIData>& InCosts);
 	void ShowBuildPreviewStateMessage(const FText& InMessage, float Duration = 2.f);
+	void HideGameClear();	//í´ë¦¬ì–´ ìœ„ì ¯ ìˆ¨ê¸°ê¸° ì¶”ê°€
 
 	//Ã¤Áı ºÒ°¡ ¾Ë¸®°í 2ÃÊ µÚ ÀÚµ¿ ¼û±è
 	void ShowGatherFailMessage(const FText& Message);

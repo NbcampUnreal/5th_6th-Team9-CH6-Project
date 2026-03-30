@@ -5,6 +5,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "StillBoundGameMode.h"
 #include "Character/PlayerCharacter_SB.h"
+#include "Subsystem/SBWorldSaveManagerSubsystem.h"
 
 // Sets default values
 ASavePointActor::ASavePointActor()
@@ -49,21 +50,29 @@ void ASavePointActor::EndInteract_Implementation() {}
 
 void ASavePointActor::Interact_Implementation(APlayerCharacter_SB* PlayerCharacter)
 {
-	// 1. 현재 맵의 게임 모드를 가져와서 우리가 만든 AStillBoundGameMode로 캐스팅합니다.
+	// 현재 맵의 게임 모드를 가져와서 우리가 만든 AStillBoundGameMode로 캐스팅
 	if (AStillBoundGameMode* GM = Cast<AStillBoundGameMode>(UGameplayStatics::GetGameMode(this))) 
 	{
 		if (PlayerCharacter)
 		{
 			FTransform SaveTransform = PlayerCharacter->GetActorTransform();
 
-			// 3. 게임 모드에 부활 위치를 덮어씌웁니다!
+			// 게임 모드에 부활 위치를 덮어씌움
 			GM->SetRespawnTransform(SaveTransform);
 			// 디버그 메시지
 			UE_LOG(LogTemp, Warning, TEXT("[SavePoint] 부활 위치가 갱신되었습니다."));
 
+			// 게임을 껐다 켜도 부활 위치가 유지되도록 함
+			if (UGameInstance* GI = GetGameInstance())
+			{
+				if (USBWorldSaveManagerSubsystem* SaveSub = GI->GetSubsystem<USBWorldSaveManagerSubsystem>())
+				{
+					SaveSub->SaveCurrentWorldRespawnTransform(SaveTransform);
+				}
+			}
 			if (GEngine)
 			{
-				GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, TEXT("위치가 저장되었습니다"));
+				//GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, TEXT("위치가 저장되었습니다"));
 			}
 		}
 	}
