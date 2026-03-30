@@ -337,49 +337,97 @@ void APlayerCharacter_SB::PerformInteractionCheck()
 
 	InteractionData.LastInteractionCheckTime = GetWorld()->GetTimeSeconds();
 
-	FVector TraceStart{ GetPawnViewLocation() };
-	FVector TraceEnd{ TraceStart + (GetViewRotation().Vector() * InteractionCheckDistance) };
-
-	float LookDirection = FVector::DotProduct(GetActorForwardVector(), GetViewRotation().Vector());
-
-	if (LookDirection > 0)
+	if (!FollowCamera)
 	{
-		/*DrawDebugLine(
-			GetWorld(),
-			TraceStart,
-			TraceEnd,
-			FColor::Red,
-			false,
-			1.f,
-			2.f);*/
+		NoInteractableFound();
+		return;
+	}
 
-		FCollisionQueryParams QueryParams;
-		QueryParams.AddIgnoredActor(this);
-		FHitResult TraceHit;
 
-		if (GetWorld()->LineTraceSingleByChannel(
-			TraceHit,
-			TraceStart,
-			TraceEnd,
-			ECC_Visibility,
-			QueryParams))
+	FVector TraceStart = GetActorLocation() + FVector(0.f, 0.f, 50.f);
+	FVector TraceEnd = TraceStart + (FollowCamera->GetForwardVector() * InteractionCheckDistance);
+
+	DrawDebugLine(
+		GetWorld(),
+		TraceStart,
+		TraceEnd,
+		FColor::Green,
+		false,
+		0.1f,
+		0,
+		2.f
+	);
+
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
+
+	FHitResult TraceHit;
+
+	if (GetWorld()->LineTraceSingleByChannel(
+		TraceHit,
+		TraceStart,
+		TraceEnd,
+		ECC_Visibility,
+		QueryParams))
+	{
+		AActor* HitActor = TraceHit.GetActor();
+
+		if (HitActor && HitActor != this)
 		{
-			AActor* HitActor = TraceHit.GetActor();
-
-			if (HitActor && HitActor != this)
+			if (HitActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
 			{
-				if (HitActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
+				if (HitActor != InteractionData.CurrentInteractable)
 				{
-					if (HitActor != InteractionData.CurrentInteractable)
-					{
-						FoundInteractable(HitActor);
-					}
-
-					return;
+					FoundInteractable(HitActor);
 				}
+				return;
 			}
 		}
 	}
+
+	//FVector TraceStart{ GetPawnViewLocation() };
+	//FVector TraceEnd{ TraceStart + (GetViewRotation().Vector() * InteractionCheckDistance) };
+
+	//float LookDirection = FVector::DotProduct(GetActorForwardVector(), GetViewRotation().Vector());
+
+	//if (LookDirection > 0)
+	//{
+	//	/*DrawDebugLine(
+	//		GetWorld(),
+	//		TraceStart,
+	//		TraceEnd,
+	//		FColor::Red,
+	//		false,
+	//		1.f,
+	//		2.f);*/
+
+	//	FCollisionQueryParams QueryParams;
+	//	QueryParams.AddIgnoredActor(this);
+
+	//	FHitResult TraceHit;
+
+	//	if (GetWorld()->LineTraceSingleByChannel(
+	//		TraceHit,
+	//		TraceStart,
+	//		TraceEnd,
+	//		ECC_Visibility,
+	//		QueryParams))
+	//	{
+	//		AActor* HitActor = TraceHit.GetActor();
+
+	//		if (HitActor && HitActor != this)
+	//		{
+	//			if (HitActor->GetClass()->ImplementsInterface(UInteractionInterface::StaticClass()))
+	//			{
+	//				if (HitActor != InteractionData.CurrentInteractable)
+	//				{
+	//					FoundInteractable(HitActor);
+	//				}
+	//				return;
+	//			}
+	//		}
+	//	}
+	//}
 
 	NoInteractableFound();
 }
