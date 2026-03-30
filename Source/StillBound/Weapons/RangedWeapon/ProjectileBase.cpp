@@ -10,6 +10,7 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 
+#include "Engine/CollisionProfile.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 
 #include "NiagaraComponent.h"
@@ -24,17 +25,12 @@ AProjectileBase::AProjectileBase()
     SetRootComponent(CollisionComp);
 
     CollisionComp->InitSphereRadius(8.f);
+    CollisionComp->SetCollisionProfileName(UCollisionProfile::BlockAllDynamic_ProfileName);
     CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     CollisionComp->SetCollisionObjectType(ECC_WorldDynamic);
-    CollisionComp->SetCollisionResponseToAllChannels(ECR_Ignore);
-    CollisionComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-    CollisionComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
-    CollisionComp->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Overlap);
-    CollisionComp->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Overlap);
-    CollisionComp->SetGenerateOverlapEvents(true);
-    CollisionComp->SetNotifyRigidBodyCollision(false);
+    CollisionComp->SetGenerateOverlapEvents(false);
+    CollisionComp->SetNotifyRigidBodyCollision(true);
     CollisionComp->SetCanEverAffectNavigation(false);
-
     CollisionComp->SetSimulatePhysics(false);
     CollisionComp->SetEnableGravity(false);
 
@@ -53,7 +49,7 @@ AProjectileBase::AProjectileBase()
     ProjectileMovement->bRotationFollowsVelocity = true;
     ProjectileMovement->bShouldBounce = false;
 
-    CollisionComp->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnProjectileBeginOverlap);
+    CollisionComp->OnComponentHit.AddDynamic(this, &ThisClass::OnProjectileHit);
 }
 
 void AProjectileBase::BeginPlay()
@@ -135,10 +131,7 @@ void AProjectileBase::DisableCollisionResponsesTemporarily()
     }
 
     bDeferredCollisionRestorePending = true;
-
-    // QueryAndPhysics 유지 + 응답만 잠깐 Ignore
-    CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-    CollisionComp->SetCollisionResponseToAllChannels(ECR_Ignore);
+    CollisionComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AProjectileBase::RestoreCollisionResponsesAfterSpawnDelay()
@@ -149,71 +142,28 @@ void AProjectileBase::RestoreCollisionResponsesAfterSpawnDelay()
     }
 
     bDeferredCollisionRestorePending = false;
-
     CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-    CollisionComp->SetCollisionResponseToAllChannels(ECR_Ignore);
-    CollisionComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-    CollisionComp->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
-    CollisionComp->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Overlap);
-    CollisionComp->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Overlap);
 }
 
-void AProjectileBase::OnProjectileBeginOverlap(
-    UPrimitiveComponent* OverlappedComponent,
+void AProjectileBase::OnProjectileHit(
+    UPrimitiveComponent* HitComponent,
     AActor* OtherActor,
     UPrimitiveComponent* OtherComp,
-    int32 OtherBodyIndex,
-    bool bFromSweep,
-    const FHitResult& SweepResult
+    FVector NormalImpulse,
+    const FHitResult& Hit
 )
 {
-    if (!bUseOverlapAsFallback)
+    if (bHasImpactProcessed)
     {
         return;
     }
 
-    if (!OtherActor || ShouldIgnoreActor(OtherActor))
+    if (OtherActor && ShouldIgnoreActor(OtherActor))
     {
         return;
     }
 
-    FHitResult HitResult = SweepResult;
-
-    if (!bFromSweep)
-    {
-        HitResult = FHitResult(ForceInit);
-
-        const FVector SelfLoc = GetActorLocation();
-        const FVector OtherLoc = OtherComp ? OtherComp->GetComponentLocation() : OtherActor->GetActorLocation();
-
-        HitResult.Location = SelfLoc;
-        HitResult.ImpactPoint = OtherLoc;
-        HitResult.TraceStart = SelfLoc;
-        HitResult.TraceEnd = OtherLoc;
-
-        const FVector Dir = (OtherLoc - SelfLoc).GetSafeNormal();
-        HitResult.Normal = Dir.IsNearlyZero() ? FVector::UpVector : -Dir;
-        HitResult.ImpactNormal = Dir.IsNearlyZero() ? FVector::UpVector : -Dir;
-    }
-    else
-    {
-        if (HitResult.ImpactPoint.IsNearlyZero())
-        {
-            HitResult.ImpactPoint = OtherComp ? OtherComp->GetComponentLocation() : OtherActor->GetActorLocation();
-        }
-
-        if (HitResult.Location.IsNearlyZero())
-        {
-            HitResult.Location = GetActorLocation();
-        }
-
-        if (HitResult.ImpactNormal.IsNearlyZero() && !HitResult.Normal.IsNearlyZero())
-        {
-            HitResult.ImpactNormal = HitResult.Normal;
-        }
-    }
-
-    HandleImpact(HitResult, OtherActor);
+    HandleImpact(Hit, OtherActor);
 }
 
 void AProjectileBase::HandleImpact(const FHitResult& HitResult, AActor* ExplicitOtherActor)
@@ -234,7 +184,6 @@ void AProjectileBase::HandleImpact(const FHitResult& HitResult, AActor* Explicit
     bDeferredCollisionRestorePending = false;
 
     StopTrailFX(TrailFX.bDestroyOnImpact);
-
     SpawnImpactFXFromHitResult(HitResult);
 
     if (TargetActor)

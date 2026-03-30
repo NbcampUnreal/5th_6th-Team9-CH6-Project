@@ -33,9 +33,12 @@ UWeaponRangedAttackAbilityBase::UWeaponRangedAttackAbilityBase()
 
     bFireImmediatelyIfNoMontageOrEvent = true;
 
-    bDebugTrace = false;
+    bDebugTrace = true;
     DebugLifeTime = 1.0f;
     DebugLineThickness = 1.5f;
+
+    AimTraceStartForwardOffset = 50.0f;
+    MinForwardDotForAimCandidate = 0.05f;
 }
 
 void UWeaponRangedAttackAbilityBase::ActivateAbility(
@@ -283,18 +286,17 @@ bool UWeaponRangedAttackAbilityBase::ResolveViewData(
     return !OutViewDir.IsNearlyZero();
 }
 
-bool UWeaponRangedAttackAbilityBase::ComputeAimPointFromView(
+bool UWeaponRangedAttackAbilityBase::TraceAimCandidatesFromView(
     const FVector& ViewLoc,
     const FVector& ViewDir,
     float TraceDistance,
     ECollisionChannel TraceChannel,
     bool bTraceComplex,
     float TraceRadius,
-    FVector& OutAimPoint,
-    FHitResult* OutViewHit
+    TArray<FHitResult>& OutHits
 ) const
 {
-    OutAimPoint = FVector::ZeroVector;
+    OutHits.Reset();
 
     AActor* Avatar = GetAvatarActorFromActorInfo();
     UWorld* World = Avatar ? Avatar->GetWorld() : nullptr;
@@ -303,21 +305,27 @@ bool UWeaponRangedAttackAbilityBase::ComputeAimPointFromView(
         return false;
     }
 
+    const FVector SafeViewDir = ViewDir.GetSafeNormal();
+    if (SafeViewDir.IsNearlyZero())
+    {
+        return false;
+    }
+
     const float FinalDistance = FMath::Max(TraceDistance, 1.f);
-    const FVector TraceEnd = ViewLoc + ViewDir * FinalDistance;
+    const FVector TraceStart = ViewLoc + SafeViewDir * FMath::Max(0.f, AimTraceStartForwardOffset);
+    const FVector TraceEnd = TraceStart + SafeViewDir * FinalDistance;
 
     FCollisionQueryParams Params(SCENE_QUERY_STAT(WeaponRangedAimTrace), bTraceComplex);
     BuildTraceParams(Params, bTraceComplex);
 
-    FHitResult LocalHit;
-    bool bBlockingHit = false;
+    bool bAnyHit = false;
 
     if (TraceRadius > KINDA_SMALL_NUMBER)
     {
         const FCollisionShape Shape = FCollisionShape::MakeSphere(TraceRadius);
-        bBlockingHit = World->SweepSingleByChannel(
-            LocalHit,
-            ViewLoc,
+        bAnyHit = World->SweepMultiByChannel(
+            OutHits,
+            TraceStart,
             TraceEnd,
             FQuat::Identity,
             TraceChannel,
@@ -327,20 +335,166 @@ bool UWeaponRangedAttackAbilityBase::ComputeAimPointFromView(
     }
     else
     {
-        bBlockingHit = World->LineTraceSingleByChannel(
-            LocalHit,
-            ViewLoc,
+        bAnyHit = World->LineTraceMultiByChannel(
+            OutHits,
+            TraceStart,
             TraceEnd,
             TraceChannel,
             Params
         );
     }
 
-    OutAimPoint = bBlockingHit ? LocalHit.ImpactPoint : TraceEnd;
+    if (bAnyHit && OutHits.Num() > 1)
+    {
+        auto GetSortPoint = [](const FHitResult& Hit) -> FVector
+            {
+                if (!Hit.ImpactPoint.IsNearlyZero())
+                {
+                    return Hit.ImpactPoint;
+                }
+
+                if (!Hit.Location.IsNearlyZero())
+                {
+                    return Hit.Location;
+                }
+
+                return Hit.TraceEnd;
+            };
+
+        OutHits.Sort([&TraceStart, &GetSortPoint](const FHitResult& A, const FHitResult& B)
+            {
+                return FVector::DistSquared(TraceStart, GetSortPoint(A))
+                    < FVector::DistSquared(TraceStart, GetSortPoint(B));
+            });
+    }
+
+    return true;
+}
+
+bool UWeaponRangedAttackAbilityBase::IsForwardAimCandidate(
+    const FVector& MuzzleLoc,
+    const FVector& MuzzleForward,
+    const FVector& CandidatePoint,
+    float MinDotThreshold
+) const
+{
+    const FVector SafeMuzzleForward = MuzzleForward.GetSafeNormal();
+    if (SafeMuzzleForward.IsNearlyZero())
+    {
+        return true;
+    }
+
+    const FVector ToCandidate = (CandidatePoint - MuzzleLoc).GetSafeNormal();
+    if (ToCandidate.IsNearlyZero())
+    {
+        return false;
+    }
+
+    const float Dot = FVector::DotProduct(SafeMuzzleForward, ToCandidate);
+    return Dot > MinDotThreshold;
+}
+
+bool UWeaponRangedAttackAbilityBase::ComputeAimPointFromView(
+    const FVector& ViewLoc,
+    const FVector& ViewDir,
+    float TraceDistance,
+    ECollisionChannel TraceChannel,
+    bool bTraceComplex,
+    float TraceRadius,
+    const FVector& MuzzleLoc,
+    const FVector& MuzzleForward,
+    FVector& OutAimPoint,
+    FHitResult* OutViewHit
+) const
+{
+    OutAimPoint = FVector::ZeroVector;
+
+    const FVector SafeViewDir = ViewDir.GetSafeNormal();
+    if (SafeViewDir.IsNearlyZero())
+    {
+        return false;
+    }
+
+    const float FinalDistance = FMath::Max(TraceDistance, 1.f);
+    const FVector TraceStart = ViewLoc + SafeViewDir * FMath::Max(0.f, AimTraceStartForwardOffset);
+    const FVector TraceEnd = TraceStart + SafeViewDir * FinalDistance;
+
+    TArray<FHitResult> ViewHits;
+    if (!TraceAimCandidatesFromView(
+        ViewLoc,
+        ViewDir,
+        TraceDistance,
+        TraceChannel,
+        bTraceComplex,
+        TraceRadius,
+        ViewHits))
+    {
+        return false;
+    }
+
+    auto GetCandidatePoint = [](const FHitResult& Hit) -> FVector
+        {
+            if (!Hit.ImpactPoint.IsNearlyZero())
+            {
+                return Hit.ImpactPoint;
+            }
+
+            if (!Hit.Location.IsNearlyZero())
+            {
+                return Hit.Location;
+            }
+
+            return Hit.TraceEnd;
+        };
+
+    for (const FHitResult& Hit : ViewHits)
+    {
+        if (!Hit.bBlockingHit)
+        {
+            continue;
+        }
+
+        const FVector CandidatePoint = GetCandidatePoint(Hit);
+
+        if (!IsForwardAimCandidate(
+            MuzzleLoc,
+            MuzzleForward,
+            CandidatePoint,
+            MinForwardDotForAimCandidate))
+        {
+            continue;
+        }
+
+        OutAimPoint = CandidatePoint;
+
+        if (OutViewHit)
+        {
+            *OutViewHit = Hit;
+        }
+
+        return true;
+    }
+
+    if (IsForwardAimCandidate(MuzzleLoc, MuzzleForward, TraceEnd, 0.f))
+    {
+        OutAimPoint = TraceEnd;
+    }
+    else
+    {
+        const FVector SafeMuzzleForward = MuzzleForward.GetSafeNormal();
+        if (SafeMuzzleForward.IsNearlyZero())
+        {
+            OutAimPoint = TraceEnd;
+        }
+        else
+        {
+            OutAimPoint = MuzzleLoc + SafeMuzzleForward * FinalDistance;
+        }
+    }
 
     if (OutViewHit)
     {
-        *OutViewHit = LocalHit;
+        *OutViewHit = FHitResult();
     }
 
     return true;
@@ -385,6 +539,7 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
     }
 
     const FVector MuzzleLoc = MuzzleTf.GetLocation();
+    const FVector MuzzleForward = MuzzleTf.GetRotation().GetForwardVector().GetSafeNormal();
 
     FVector ViewLoc;
     FVector ViewDir;
@@ -407,6 +562,8 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
         Hitscan.TraceChannel,
         Hitscan.bTraceComplex,
         Hitscan.Radius,
+        MuzzleLoc,
+        MuzzleForward,
         OutAimPoint,
         &ViewHit))
     {
@@ -431,10 +588,12 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
         if (World)
         {
             const float Life = DebugLifeTime;
+            const FVector DebugViewStart = ViewLoc + ViewDir.GetSafeNormal() * FMath::Max(0.f, AimTraceStartForwardOffset);
+            const FVector DebugViewEnd = DebugViewStart + ViewDir.GetSafeNormal() * Hitscan.MaxDistance;
             const bool bViewBlocking = ViewHit.bBlockingHit;
 
             DrawDebugLine(
-                World, ViewLoc, ViewLoc + ViewDir * Hitscan.MaxDistance,
+                World, DebugViewStart, DebugViewEnd,
                 bViewBlocking ? FColor::Cyan : FColor::Silver,
                 false, Life, 0, DebugLineThickness);
 
@@ -442,6 +601,20 @@ bool UWeaponRangedAttackAbilityBase::ComputeFinalHitscanHit(
                 World, MuzzleLoc, MuzzleEnd,
                 bMuzzleBlocking ? FColor::Yellow : FColor::Silver,
                 false, Life, 0, DebugLineThickness);
+
+            // [추가] 총구 소켓의 실제 Forward 방향 확인용
+            DrawDebugLine(
+                World,
+                MuzzleLoc,
+                MuzzleLoc + MuzzleForward * 100.f,
+                FColor::Magenta,
+                false,
+                Life,
+                0,
+                2.f
+            );
+
+            DrawDebugSphere(World, OutAimPoint, 5.f, 12, FColor::Blue, false, Life);
 
             if (bViewBlocking)
             {
@@ -664,6 +837,8 @@ bool UWeaponRangedAttackAbilityBase::TryGetProjectileSpawnTransform(
         AimChannel,
         bAimTraceComplex,
         0.f,
+        SpawnLoc,
+        MuzzleForward,
         AimPoint,
         &ViewHit))
     {
@@ -683,11 +858,13 @@ bool UWeaponRangedAttackAbilityBase::TryGetProjectileSpawnTransform(
         if (World)
         {
             const float Life = DebugLifeTime;
+            const FVector DebugViewStart = ViewLoc + ViewDir.GetSafeNormal() * FMath::Max(0.f, AimTraceStartForwardOffset);
+            const FVector DebugViewEnd = DebugViewStart + ViewDir.GetSafeNormal() * AimDistance;
 
             DrawDebugLine(
                 World,
-                ViewLoc,
-                ViewLoc + ViewDir * AimDistance,
+                DebugViewStart,
+                DebugViewEnd,
                 ViewHit.bBlockingHit ? FColor::Green : FColor::Silver,
                 false,
                 Life,
@@ -706,7 +883,20 @@ bool UWeaponRangedAttackAbilityBase::TryGetProjectileSpawnTransform(
                 DebugLineThickness
             );
 
+            // [추가] 총구 소켓의 실제 Forward 방향 확인용
+            DrawDebugLine(
+                World,
+                SpawnLoc,
+                SpawnLoc + MuzzleForward * 100.f,
+                FColor::Magenta,
+                false,
+                Life,
+                0,
+                2.f
+            );
+
             DrawDebugSphere(World, SpawnLoc, 4.f, 8, FColor::Orange, false, Life);
+            DrawDebugSphere(World, AimPoint, 5.f, 12, FColor::Blue, false, Life);
 
             if (ViewHit.bBlockingHit)
             {

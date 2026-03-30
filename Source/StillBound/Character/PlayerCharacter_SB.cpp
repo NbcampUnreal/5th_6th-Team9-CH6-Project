@@ -603,8 +603,23 @@ void APlayerCharacter_SB::SelectHotbarIndex(int32 NewIndex)
 	if (HotbarSize <= 0) return;
 
 	NewIndex = (NewIndex % HotbarSize + HotbarSize) % HotbarSize;
-	
+
 	const bool bChanged = (CurrentHotbarIndex != NewIndex);
+	const bool bBlockSwap =
+		bChanged &&
+		AbilitySystemComponent &&
+		FaceAimStateTag.IsValid() &&
+		AbilitySystemComponent->HasMatchingGameplayTag(FaceAimStateTag);
+
+	if (bBlockSwap)
+	{
+		UE_LOG(LogTemp, Log,
+			TEXT("[Hotbar] Weapon swap blocked during attack. CurrentIndex=%d RequestedIndex=%d"),
+			CurrentHotbarIndex,
+			NewIndex);
+		return;
+	}
+
 	CurrentHotbarIndex = NewIndex;
 
 	if (auto* PC = Cast<APlayerController_SB>(GetController()))
