@@ -9,8 +9,6 @@ ACraftingStation::ACraftingStation()
 	SetRootComponent(Mesh);
 
 	InteractableData.InteractableType = EInteractableType::Device;
-	InteractableData.Name = FText::FromString(TEXT("Items"));
-	InteractableData.Action = FText::FromString(TEXT("F to Craft"));
 	InteractableData.Quantity = 0;
 	InteractableData.InteractionDuration = 0.f;
 }

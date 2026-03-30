@@ -16,8 +16,6 @@ ASavePointActor::ASavePointActor()
 
 
 	InteractableData.InteractableType = EInteractableType::Device;
-	InteractableData.Name = FText::FromString(TEXT("the game"));
-	InteractableData.Action = FText::FromString(TEXT("F to save"));
 	InteractableData.InteractionDuration = 0.1f; // 버튼을 누르고 있어야 하는 시간
 
 }
