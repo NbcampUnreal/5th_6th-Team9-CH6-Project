@@ -29,6 +29,7 @@
 #include "Build/BuildComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Items/StorageBox.h"
+#include "UserSettings/EnhancedInputUsersettings.h"
 
 void APlayerController_SB::SetupInputComponent()
 {
@@ -37,10 +38,45 @@ void APlayerController_SB::SetupInputComponent()
 	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
 	if (!IsValid(InputSubsystem)) return;
 
-	if (IMC_System) InputSubsystem->AddMappingContext(IMC_System, 10);
-	if (IMC_Movement) InputSubsystem->AddMappingContext(IMC_Movement, 0);
-	if (IMC_Abilities) InputSubsystem->AddMappingContext(IMC_Abilities, 0);
-	if (IMC_Hotbar) InputSubsystem->AddMappingContext(IMC_Hotbar, 0);
+	if (IMC_System)
+	{
+		InputSubsystem->AddMappingContext(IMC_System, 10);
+
+		if (UEnhancedInputUserSettings* UserSettings = InputSubsystem->GetUserSettings())
+		{
+			UserSettings->RegisterInputMappingContext(IMC_System);
+		}
+	}
+
+	if (IMC_Movement)
+	{
+		InputSubsystem->AddMappingContext(IMC_Movement, 0);
+
+		if (UEnhancedInputUserSettings* UserSettings = InputSubsystem->GetUserSettings())
+		{
+			UserSettings->RegisterInputMappingContext(IMC_Movement);
+		}
+	}
+
+	if (IMC_Abilities)
+	{
+		InputSubsystem->AddMappingContext(IMC_Abilities, 0);
+
+		if (UEnhancedInputUserSettings* UserSettings = InputSubsystem->GetUserSettings())
+		{
+			UserSettings->RegisterInputMappingContext(IMC_Abilities);
+		}
+	}
+
+	if (IMC_Hotbar)
+	{
+		InputSubsystem->AddMappingContext(IMC_Hotbar, 0);
+
+		if (UEnhancedInputUserSettings* UserSettings = InputSubsystem->GetUserSettings())
+		{
+			UserSettings->RegisterInputMappingContext(IMC_Hotbar);
+		}
+	}
 
 	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
 	if (!IsValid(EnhancedInputComponent)) return;
@@ -856,11 +892,24 @@ void APlayerController_SB::ApplyOverlayInputState()
 		bShowMouseCursor = false;
 		break;
 
+	case EOverlayInputState::OptionsMenu:
+		if (IMC_Movement) Subsystem->AddMappingContext(IMC_Movement, 0);
+
+		SetIgnoreMoveInput(true);
+		SetIgnoreLookInput(true);
+
+		{
+			FInputModeGameAndUI Mode;
+			Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			SetInputMode(Mode);
+		}
+		bShowMouseCursor = true;
+		break;
+
 	case EOverlayInputState::Inventory:
 	case EOverlayInputState::Crafting:
 	case EOverlayInputState::BuildMenu:
 	case EOverlayInputState::PauseMenu:
-	case EOverlayInputState::OptionsMenu:
 	case EOverlayInputState::FullMap:
 		SetIgnoreMoveInput(true);
 		SetIgnoreLookInput(true);
@@ -885,8 +934,6 @@ void APlayerController_SB::ApplyOverlayInputState()
 			SetInputMode(Mode);
 		}
 		bShowMouseCursor = false;
-
-		// 추후 좌/우클릭 IMC_Abilities 분기 예정
 		break;
 	}
 }
@@ -905,8 +952,8 @@ void APlayerController_SB::BP_OpenOptionsFromPause()
 	if (!UIManager) return;
 
 	UIManager->ClosePauseMenu();
-	UIManager->OpenOptionsPage_FromPause();
 	SetOverlayInputState(EOverlayInputState::OptionsMenu);
+	UIManager->OpenOptionsPage_FromPause();
 }
 
 void APlayerController_SB::BP_ReturnToPauseFromOptions()
