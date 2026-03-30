@@ -511,3 +511,20 @@ void USB_UIManager::OpenOptionsPage_FromTitle()
 		OptionsPage->ForceRefreshKeyBindingsUI();
 	}
 }
+
+//=====채집 불가 메시지
+void USB_UIManager::ShowGatherFailMessage(const FText& Message)
+{
+	if (UUW_UIHUD* HUD = GetHUD())
+	{
+		HUD->ShowGatherFailMessage(Message);
+	}
+}
+
+void USB_UIManager::HideGatherFailMessage()
+{
+	if (UUW_UIHUD* HUD = GetHUD())
+	{
+		HUD->HideGatherFailMessage();
+	}
+}
