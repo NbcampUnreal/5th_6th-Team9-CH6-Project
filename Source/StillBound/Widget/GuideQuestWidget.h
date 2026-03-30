@@ -6,6 +6,8 @@
 
 class UTextBlock;
 class UGuideQuestSubsystem;
+class UBorder;
+class USizeBox;
 
 UCLASS()
 class STILLBOUND_API UGuideQuestWidget : public UUserWidget
@@ -25,6 +27,14 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> TXT_GuideQuestReward;
+
+	// 추가: 토스트 박스 루트
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UBorder> BD_RewardToast;
+
+	// 추가: 토스트 최대 폭 제어용
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<USizeBox> SB_RewardToast;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> TXT_RewardToast;

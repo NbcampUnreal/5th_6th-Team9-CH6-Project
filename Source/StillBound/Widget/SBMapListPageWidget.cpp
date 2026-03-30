@@ -1,4 +1,4 @@
-#include "Widget/SBMapListPageWidget.h"
+﻿#include "Widget/SBMapListPageWidget.h"
 
 #include "Components/ListView.h"
 #include "Components/Button.h"
@@ -106,7 +106,7 @@ void USBMapListPageWidget::OnCreateClicked()
     }
     else
     {
-        Popup->AddToViewport(1000);
+        Popup->AddToViewport(100);
     }
 }
 
@@ -143,7 +143,7 @@ void USBMapListPageWidget::OnDeleteClicked()
     }
     else
     {
-        Popup->AddToViewport(1000);
+        Popup->AddToViewport(100);
     }
 }
 
