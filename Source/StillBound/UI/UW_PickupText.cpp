@@ -4,35 +4,13 @@
 #include "GameFramework/HUD.h"
 #include "Components/TextBlock.h"
 
-void UUW_PickupText::SetPickupText(const FText& InText)
+void UUW_PickupText::SetPickupText(const FText& ItemName, int32 Amount)
 {
     if (!PickupText)
         return;
 
-    FString RawText = InText.ToString().TrimStartAndEnd();
+    BaseText = ItemName.ToString();
 
-    FString ItemName;
-    int32 Amount = 1;
-
-    int32 PlusIndex;
-    if (RawText.FindLastChar(TEXT('+'), PlusIndex))
-    {
-        ItemName = RawText.Left(PlusIndex).TrimEnd();
-
-        FString AmountString = RawText.Mid(PlusIndex + 1).TrimStartAndEnd();
-        Amount = FCString::Atoi(*AmountString);
-
-        if (Amount <= 0)
-        {
-            Amount = 1;
-        }
-    }
-    else
-    {
-        ItemName = RawText;
-    }
-
-    BaseText = ItemName;
     StackCount = Amount;
 
     UpdateText();
@@ -40,11 +18,16 @@ void UUW_PickupText::SetPickupText(const FText& InText)
 
 void UUW_PickupText::UpdateText()
 {
-    if (PickupText)
-    {
-        FString NewText = FString::Printf(TEXT("%s +%d"), *BaseText, StackCount);
-        PickupText->SetText(FText::FromString(NewText));
-    }
+    if (!PickupText)
+        return;
+
+    FText FinalText = FText::Format(
+        FText::FromString("{0} +{1}"),
+        FText::FromString(BaseText),
+        FText::AsNumber(StackCount) 
+    );
+
+    PickupText->SetText(FinalText);
 }
 
 
