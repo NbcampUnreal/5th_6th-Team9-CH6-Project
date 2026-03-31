@@ -180,7 +180,7 @@ void APlayerCharacter_SB::BeginPlay()
 		QuestWidget = CreateWidget<UQuestWidget>(GetWorld(), QuestWidgetClass);
 		if (QuestWidget)
 		{
-			QuestWidget->AddToViewport(50);
+			QuestWidget->AddToViewport(1);
 			QuestWidget->SetVisibility(ESlateVisibility::HitTestInvisible); // 초기 숨김
 			QuestWidget->SetQuestComponent(QuestComponent);
 		}
@@ -603,8 +603,23 @@ void APlayerCharacter_SB::SelectHotbarIndex(int32 NewIndex)
 	if (HotbarSize <= 0) return;
 
 	NewIndex = (NewIndex % HotbarSize + HotbarSize) % HotbarSize;
-	
+
 	const bool bChanged = (CurrentHotbarIndex != NewIndex);
+	const bool bBlockSwap =
+		bChanged &&
+		AbilitySystemComponent &&
+		FaceAimStateTag.IsValid() &&
+		AbilitySystemComponent->HasMatchingGameplayTag(FaceAimStateTag);
+
+	if (bBlockSwap)
+	{
+		UE_LOG(LogTemp, Log,
+			TEXT("[Hotbar] Weapon swap blocked during attack. CurrentIndex=%d RequestedIndex=%d"),
+			CurrentHotbarIndex,
+			NewIndex);
+		return;
+	}
+
 	CurrentHotbarIndex = NewIndex;
 
 	if (auto* PC = Cast<APlayerController_SB>(GetController()))
@@ -830,6 +845,28 @@ void APlayerCharacter_SB::Die()
 
 	bIsDead = true;
 
+	if (AbilitySystemComponent)
+	{
+		const FGameplayTag DeadTag =
+			FGameplayTag::RequestGameplayTag(TEXT("Player.State.Dead"), false);
+
+		if (DeadTag.IsValid())
+		{
+			AbilitySystemComponent->AddLooseGameplayTag(DeadTag);
+		}
+	}
+
+	EndInteract();
+	NotifyGatherEnd();
+
+	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
+	{
+		if (PC->UIManager)
+		{
+			PC->UIManager->ShowGameClear(false);
+		}
+	}
+
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
 		Move->StopMovementImmediately();
@@ -842,6 +879,11 @@ void APlayerCharacter_SB::Die()
 	{
 		if (UAnimInstance* Anim = MeshComp->GetAnimInstance())
 		{
+			if (UAnimMontage* CurrentMontage = Anim->GetCurrentActiveMontage())
+			{
+				Anim->Montage_Stop(0.1f, CurrentMontage);
+			}
+
 			Anim->StopAllMontages(0.1f);
 		}
 	}
@@ -850,7 +892,7 @@ void APlayerCharacter_SB::Die()
 
 	if (DeathMontage)
 	{
-		DelayTimer = PlayAnimMontage(DeathMontage, 1.5f);
+		DelayTimer = PlayAnimMontage(DeathMontage, 1.0f);
 	}
 
 	if (DelayTimer <= 0.0f)
@@ -878,6 +920,17 @@ void APlayerCharacter_SB::Revive()
 	if (!bIsDead) return;
 	//사망 상태 해제
 	bIsDead = false;
+
+	if (AbilitySystemComponent)
+	{
+		const FGameplayTag DeadTag =
+			FGameplayTag::RequestGameplayTag(TEXT("Player.State.Dead"), false);
+
+		if (DeadTag.IsValid())
+		{
+			AbilitySystemComponent->RemoveLooseGameplayTag(DeadTag);
+		}
+	}
 
 	//이동 능력 복구
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())

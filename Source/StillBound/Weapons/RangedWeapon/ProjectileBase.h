@@ -130,12 +130,12 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile")
     bool bDestroyOnImpact = true;
 
-    // 이름은 유지해서 BP 깨짐 최소화
+    // 히트 기반으로 전환했지만 BP 깨짐 최소화를 위해 변수는 유지
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile")
-    bool bUseOverlapAsFallback = true;
+    bool bUseOverlapAsFallback = false;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile|Collision", meta = (ClampMin = "0.0"))
-    float InitialCollisionDisableTime = 0.1f;
+    float InitialCollisionDisableTime = 0.05f;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Projectile|TrailFX")
     FProjectileTrailFXConfig TrailFX;
@@ -169,13 +169,12 @@ protected:
 
 protected:
     UFUNCTION()
-    void OnProjectileBeginOverlap(
-        UPrimitiveComponent* OverlappedComponent,
+    void OnProjectileHit(
+        UPrimitiveComponent* HitComponent,
         AActor* OtherActor,
         UPrimitiveComponent* OtherComp,
-        int32 OtherBodyIndex,
-        bool bFromSweep,
-        const FHitResult& SweepResult
+        FVector NormalImpulse,
+        const FHitResult& Hit
     );
 
 protected:

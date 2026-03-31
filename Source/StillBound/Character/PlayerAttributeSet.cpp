@@ -59,6 +59,12 @@ void UPlayerAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
             {
                 if (APlayerCharacter_SB* Player = Cast<APlayerCharacter_SB>(GetOwningActor()))
                 {
+                    if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
+                    {
+                        const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Player.State.Dead"));
+                        ASC->AddLooseGameplayTag(DeadTag);
+                    }
+
                     Player->Die();
                 }
             }

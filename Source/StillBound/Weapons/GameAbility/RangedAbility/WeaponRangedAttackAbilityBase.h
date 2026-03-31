@@ -35,6 +35,14 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ranged|Debug", meta = (ClampMin = "0.1"))
     float DebugLineThickness = 1.5f;
 
+    // [추가] 카메라 trace 시작점을 카메라 전방으로 조금 밀어 등뒤/어깨뒤 오검출 완화
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ranged|Aim", meta = (ClampMin = "0.0"))
+    float AimTraceStartForwardOffset = 50.0f;
+
+    // [추가] 총구 기준으로 이 Dot보다 큰 후보만 유효 aim hit로 인정
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ranged|Aim", meta = (ClampMin = "-1.0", ClampMax = "1.0"))
+    float MinForwardDotForAimCandidate = 0.05f;
+
 protected:
     UPROPERTY()
     TObjectPtr<UAbilityTask_PlayMontageAndWait> MontageTask;
@@ -113,6 +121,25 @@ protected:
         FVector& OutViewDir
     ) const;
 
+    // [추가] 카메라 ray 상의 후보들을 전부 수집
+    bool TraceAimCandidatesFromView(
+        const FVector& ViewLoc,
+        const FVector& ViewDir,
+        float TraceDistance,
+        ECollisionChannel TraceChannel,
+        bool bTraceComplex,
+        float TraceRadius,
+        TArray<FHitResult>& OutHits
+    ) const;
+
+    // [추가] 총구 기준 앞쪽 후보인지 검사
+    bool IsForwardAimCandidate(
+        const FVector& MuzzleLoc,
+        const FVector& MuzzleForward,
+        const FVector& CandidatePoint,
+        float MinDotThreshold
+    ) const;
+
     bool ComputeAimPointFromView(
         const FVector& ViewLoc,
         const FVector& ViewDir,
@@ -120,6 +147,8 @@ protected:
         ECollisionChannel TraceChannel,
         bool bTraceComplex,
         float TraceRadius,
+        const FVector& MuzzleLoc,
+        const FVector& MuzzleForward,
         FVector& OutAimPoint,
         FHitResult* OutViewHit = nullptr
     ) const;

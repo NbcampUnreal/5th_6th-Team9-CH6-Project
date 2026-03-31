@@ -6,6 +6,7 @@
 #include "StillBoundGameMode.h"
 #include "Character/PlayerCharacter_SB.h"
 #include "Subsystem/SBWorldSaveManagerSubsystem.h"
+#include <Character/PlayerController_SB.h>
 
 // Sets default values
 ASavePointActor::ASavePointActor()
@@ -70,6 +71,16 @@ void ASavePointActor::Interact_Implementation(APlayerCharacter_SB* PlayerCharact
 					SaveSub->SaveCurrentWorldRespawnTransform(SaveTransform);
 				}
 			}
+
+			// 추가: 세이브포인트 갱신 토스트 메시지 표시
+			if (APlayerController_SB* PC = Cast<APlayerController_SB>(PlayerCharacter->GetController()))
+			{
+				if (PC->UIManager)
+				{
+					PC->UIManager->ShowPickupText(FText::FromString(TEXT("세이브 포인트가 갱신되었습니다")));
+				}
+			}
+
 			if (GEngine)
 			{
 				//GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, TEXT("위치가 저장되었습니다"));

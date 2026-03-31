@@ -77,4 +77,24 @@ private:
     const FItemDataRow* CachedItemData;
     int32 CachedPrice;
 
+protected:
+    // 재고 표시 포맷 WBP에서 편집용
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Text")
+    FText StockFormat = FText::FromString(TEXT("remaining stock : {0}"));
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Text")
+    FText InfiniteStockText = FText::FromString(TEXT("infinite stock"));
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Text")
+    FText OutOfStockText = FText::FromString(TEXT("sold out"));
+
+    // 색상 WBP에서 편집용
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Colors")
+    FSlateColor StockNormalColor = FSlateColor(FLinearColor::White);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Colors")
+    FSlateColor StockOutColor = FSlateColor(FLinearColor(0.75f, 0.38f, 0.38f, 1.0f));
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Colors")
+    FSlateColor PriceOutOfStockColor = FSlateColor(FLinearColor(0.4f, 0.4f, 0.4f, 1.0f));
 };

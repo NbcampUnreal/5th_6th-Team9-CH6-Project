@@ -1,11 +1,27 @@
 ﻿#include "GuideQuestWidget.h"
 #include "Components/TextBlock.h"
+#include "Components/Border.h"
+#include "Components/SizeBox.h"
 #include "TimerManager.h"
+#include "Engine/Engine.h"
 #include "GuideQuest/GuideQuestSubsystem.h"
 
 void UGuideQuestWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	// 시작 시 토스트 박스는 무조건 숨김
+	if (BD_RewardToast)
+	{
+		BD_RewardToast->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	// 디자이너 기본 문구 제거
+	if (TXT_RewardToast)
+	{
+		TXT_RewardToast->SetText(FText::GetEmpty());
+		TXT_RewardToast->SetVisibility(ESlateVisibility::Visible);
+	}
 
 	if (UGameInstance* GI = GetGameInstance())
 	{
@@ -17,6 +33,7 @@ void UGuideQuestWidget::NativeConstruct()
 			Subsystem->OnGuideQuestRewardToast.AddDynamic(this, &ThisClass::HandleGuideQuestRewardToast);
 		}
 	}
+
 	RefreshFromSubsystem();
 }
 
@@ -42,15 +59,14 @@ void UGuideQuestWidget::RefreshFromSubsystem()
 {
 	const bool bHasActiveQuest = CachedSubsystem.IsValid() && CachedSubsystem->HasActiveQuest();
 
-	//시스템이 유효하지 않고, 현재 진행중인 퀘스트도 없고, 보상 토스트도 없다면 위젯을 숨기기
 	if (!bHasActiveQuest && !bShowingRewardToast)
 	{
 		SetVisibility(ESlateVisibility::Collapsed);
 		return;
 	}
 
-	// 퀘스트 또는 보상 토스트 중 하나라도 있으면 위젯을 화면에 노출
 	SetVisibility(ESlateVisibility::HitTestInvisible);
+
 	if (TXT_GuideQuestTitle)
 	{
 		TXT_GuideQuestTitle->SetVisibility(bHasActiveQuest ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
@@ -81,20 +97,43 @@ void UGuideQuestWidget::RefreshFromSubsystem()
 		}
 	}
 
-	if (TXT_RewardToast && !bShowingRewardToast)
+	// 텍스트가 아니라 박스 전체를 숨김
+	if (BD_RewardToast && !bShowingRewardToast)
 	{
-		TXT_RewardToast->SetVisibility(ESlateVisibility::Collapsed);
+		BD_RewardToast->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
 
-void UGuideQuestWidget::HandleGuideQuestRewardToast(FText RewardText) 
+void UGuideQuestWidget::HandleGuideQuestRewardToast(FText RewardText)
 {
 	bShowingRewardToast = true;
+
+	float MaxToastWidth = 420.f;
+
+	if (GEngine && GEngine->GameViewport)
+	{
+		FVector2D ViewportSize(0.f, 0.f);
+		GEngine->GameViewport->GetViewportSize(ViewportSize);
+		MaxToastWidth = FMath::Max(280.f, ViewportSize.X * 0.35f);
+	}
+
+	if (SB_RewardToast)
+	{
+		SB_RewardToast->SetMaxDesiredWidth(MaxToastWidth);
+	}
 
 	if (TXT_RewardToast)
 	{
 		TXT_RewardToast->SetText(RewardText);
-		TXT_RewardToast->SetVisibility(ESlateVisibility::HitTestInvisible);
+		TXT_RewardToast->SetAutoWrapText(true);
+		TXT_RewardToast->SetWrapTextAt(MaxToastWidth - 40.f);
+		TXT_RewardToast->SetVisibility(ESlateVisibility::Visible);
+	}
+
+	if (BD_RewardToast)
+	{
+		BD_RewardToast->SetVisibility(ESlateVisibility::HitTestInvisible);
+		BD_RewardToast->ForceLayoutPrepass();
 	}
 
 	SetVisibility(ESlateVisibility::HitTestInvisible);
@@ -116,9 +155,9 @@ void UGuideQuestWidget::HideRewardToast()
 {
 	bShowingRewardToast = false;
 
-	if (TXT_RewardToast)
+	if (BD_RewardToast)
 	{
-		TXT_RewardToast->SetVisibility(ESlateVisibility::Collapsed);
+		BD_RewardToast->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	RefreshFromSubsystem();
