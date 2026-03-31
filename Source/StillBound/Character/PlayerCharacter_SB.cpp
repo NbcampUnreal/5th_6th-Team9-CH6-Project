@@ -859,14 +859,6 @@ void APlayerCharacter_SB::Die()
 	EndInteract();
 	NotifyGatherEnd();
 
-	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
-	{
-		if (PC->UIManager)
-		{
-			PC->UIManager->ShowGameClear(false);
-		}
-	}
-
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
 		Move->StopMovementImmediately();
