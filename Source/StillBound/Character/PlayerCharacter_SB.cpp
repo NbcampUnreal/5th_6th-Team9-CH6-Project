@@ -859,14 +859,6 @@ void APlayerCharacter_SB::Die()
 	EndInteract();
 	NotifyGatherEnd();
 
-	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
-	{
-		if (PC->UIManager)
-		{
-			PC->UIManager->ShowGameClear(false);
-		}
-	}
-
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
 		Move->StopMovementImmediately();
@@ -947,6 +939,29 @@ void APlayerCharacter_SB::Revive()
 		float MaxHealth = AbilitySystemComponent->GetNumericAttribute(UPlayerAttributeSet::GetMaxHealthAttribute());
 		AbilitySystemComponent->SetNumericAttributeBase(UPlayerAttributeSet::GetHealthAttribute(), MaxHealth);
 	}
+
+	// 사망 몽타주/누운 포즈에 고정된 애니메이션 상태를 초기화
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		// 현재 재생 중인 몽타주가 있으면 정지
+		if (UAnimInstance* AnimInstance = MeshComp->GetAnimInstance())
+		{
+			AnimInstance->StopAllMontages(0.0f);
+		}
+
+		// 현재 사용 중인 Anim Blueprint 클래스를 기억
+		UClass* CurrentAnimClass = MeshComp->GetAnimClass();
+
+		// 애니메이션 모드를 다시 Animation Blueprint로 설정
+		MeshComp->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+
+		// Anim Blueprint 클래스를 다시 넣어서 AnimInstance를 재초기화
+		if (CurrentAnimClass)
+		{
+			MeshComp->SetAnimInstanceClass(CurrentAnimClass);
+		}
+	}
+
 	//게임클리어 UI 숨기기 추가
 	if (APlayerController_SB* PC = Cast<APlayerController_SB>(GetController()))
 	{
@@ -960,6 +975,7 @@ void APlayerCharacter_SB::Revive()
 			}
 		}
 	}
+
 	//캐릭터 사망시 제단 강제 종료.
 	TArray<AActor*> Altars;
 	UGameplayStatics::GetAllActorsOfClass(
