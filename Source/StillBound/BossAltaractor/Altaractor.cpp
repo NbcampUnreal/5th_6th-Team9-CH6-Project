@@ -372,5 +372,17 @@ void AAltaractor::EndArena()
 	}
 }
 
+void AAltaractor::ForceEndArena()
+{
+	// 보스가 살아있으면 먼저 제거
+	if (IsValid(SpawnedBoss))
+	{
+		// OnBossDestroyed가 중복 호출되지 않도록 델리게이트 먼저 해제
+		SpawnedBoss->OnDestroyed.RemoveAll(this);
+		SpawnedBoss->Destroy();
+		SpawnedBoss = nullptr;
+	}
 
+	EndArena();
+}
 

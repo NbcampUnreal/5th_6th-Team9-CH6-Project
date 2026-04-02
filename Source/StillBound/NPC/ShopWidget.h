@@ -161,4 +161,29 @@ private:
 
     // === 타이머 ===
     FTimerHandle RestockTimerHandle;
+
+protected:
+    // DropZone 색상 (WBP에서 편집 가능)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Colors")
+    FLinearColor DropZoneDefaultColor = FLinearColor::White;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Colors")
+    FLinearColor DropZoneCanSellColor = FLinearColor::Green;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Colors")
+    FLinearColor DropZoneCannotSellColor = FLinearColor::Red;
+
+    // 탭 텍스트 색상 (WBP에서 편집 가능)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Colors")
+    FSlateColor TabActiveTextColor = FSlateColor(FLinearColor(1.f, 0.8f, 0.f)); // 노란색 예시
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Colors")
+    FSlateColor TabInactiveTextColor = FSlateColor(FLinearColor(0.5f, 0.5f, 0.5f)); // 회색 예시
+
+    // 탭 텍스트 블록 바인딩 (WBP에서 연결)
+    UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
+    UTextBlock* TXT_BuyTab;
+
+    UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
+    UTextBlock* TXT_SellTab;
 };

@@ -65,10 +65,27 @@ void UUW_UIHUD::AddPickupLog(const FText& Text)
 		return;
 	}
 
-	FString ItemName = Text.ToString();
+	FString RawText = Text.ToString();
 
-	ItemName = ItemName.Replace(TEXT("+1"), TEXT(""));
-	ItemName = ItemName.TrimStartAndEnd();
+	FString ItemName;
+	int32 Amount = 1;
+
+	int32 PlusIndex;
+	if (RawText.FindLastChar(TEXT('+'), PlusIndex))
+	{
+		ItemName = RawText.Left(PlusIndex).TrimEnd();
+
+		FString AmountString = RawText.Mid(PlusIndex + 1).TrimStartAndEnd();
+
+		if (AmountString.IsNumeric())
+		{
+			Amount = FCString::Atoi(*AmountString);
+		}
+	}
+	else
+	{
+		ItemName = RawText;
+	}
 
 	for (int32 i = 0; i < PickupLogBox->GetChildrenCount(); i++)
 	{
@@ -77,7 +94,7 @@ void UUW_UIHUD::AddPickupLog(const FText& Text)
 
 		if (Existing && Existing->GetBaseText() == ItemName)
 		{
-			Existing->AddStack(1);
+			Existing->AddStack(Amount);
 			Existing->StartLifeTimer(2.f);
 			return;
 		}
@@ -93,7 +110,7 @@ void UUW_UIHUD::AddPickupLog(const FText& Text)
 
 	PickupPanel->SetVisibility(ESlateVisibility::Visible);
 
-	PickupWidget->SetPickupText(FText::FromString(ItemName));
+	PickupWidget->SetPickupText(FText::FromString(ItemName), Amount);
 	PickupWidget->StartLifeTimer(2.f);
 
 	PickupLogBox->InsertChildAt(0, PickupWidget);

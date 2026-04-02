@@ -4,6 +4,9 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayTagContainer.h"
+#include "BehaviorTree/BlackboardComponent.h"
+#include "BossAI/BossAIController.h"
+#include "Kismet/KismetMathLibrary.h"
 
 UBTT_BossMeleeAttack::UBTT_BossMeleeAttack()
 {
@@ -25,6 +28,24 @@ EBTNodeResult::Type UBTT_BossMeleeAttack::ExecuteTask(UBehaviorTreeComponent& Ow
 	if (!Pawn)
 	{
 		return EBTNodeResult::Failed;
+	}
+
+	UBlackboardComponent* BB = OwnerComp.GetBlackboardComponent();
+	AActor* TargetActor = BB
+		? Cast<AActor>(BB->GetValueAsObject(ABossAIController::TargetActorKey))
+		: nullptr;
+
+	if (TargetActor)
+	{
+		FVector Start = Pawn->GetActorLocation();
+		FVector End = TargetActor->GetActorLocation();
+
+		FRotator LookAtRot = UKismetMathLibrary::FindLookAtRotation(Start, End);
+		LookAtRot.Pitch = 0.f;
+		LookAtRot.Roll = 0.f;
+
+		Pawn->SetActorRotation(LookAtRot);
+		AICon->SetControlRotation(LookAtRot);
 	}
 
 	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Pawn);

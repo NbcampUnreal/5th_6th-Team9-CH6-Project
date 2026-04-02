@@ -14,7 +14,7 @@ class STILLBOUND_API UUW_PickupText : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	void SetPickupText(const FText& InText);
+	void SetPickupText(const FText& ItemName, int32 Amount);
 
 	void StartLifeTimer(float LifeTime = 2.f);
 

@@ -216,17 +216,25 @@ void UShopWidget::DisplayPlayerInventory()
     const TArray<UItemBase*>& InventorySlots = PlayerInventory->GetInventorySlots();
     for (int32 i = 0; i < InventorySlots.Num(); ++i)
     {
+       // if (!InventorySlots[i]) continue;
+
         UInventoryItemSlot* ItemSlot = CreateWidget<UInventoryItemSlot>(this, InventoryItemSlotClass);
+    //    if (ItemSlot)
+    //    {
+    //        ItemSlot->InitSlot(ESlotContainer::Inventory, i, PlayerInventory);
+
+    //        if (InventorySlots[i])
+    //        {
+    //            ItemSlot->SetItemReference(InventorySlots[i]);
+    //        }
+
+    //        WB_PlayerInventory->AddChildToWrapBox(ItemSlot);
+    //    }
         if (ItemSlot)
         {
             ItemSlot->InitSlot(ESlotContainer::Inventory, i, PlayerInventory);
-
-            if (InventorySlots[i])
-            {
-                ItemSlot->SetItemReference(InventorySlots[i]);
-            }
-
-            WB_PlayerInventory->AddChildToWrapBox(ItemSlot);
+            ItemSlot->SetItemReference(InventorySlots[i]); // AddChild 전에 먼저 호출!
+            WB_PlayerInventory->AddChildToWrapBox(ItemSlot); //  이후에 추가
         }
     }
 }
@@ -335,7 +343,8 @@ bool UShopWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 
         if (DropZone)
         {
-            DropZone->SetBrushColor(FLinearColor::White);
+            //DropZone->SetBrushColor(FLinearColor::White);
+            DropZone->SetBrushColor(DropZoneDefaultColor);
         }
         if (TXT_DropHint)
         {
@@ -397,7 +406,8 @@ bool UShopWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
     // DropZone 색상 초기화
     if (DropZone)
     {
-        DropZone->SetBrushColor(FLinearColor::White);
+        //DropZone->SetBrushColor(FLinearColor::White);
+        DropZone->SetBrushColor(DropZoneDefaultColor);
     }
 
     if (TXT_DropHint)
@@ -425,11 +435,13 @@ void UShopWidget::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDrop
     {
         if (SellPrice > 0)
         {
-            DropZone->SetBrushColor(FLinearColor::Green);
+            //DropZone->SetBrushColor(FLinearColor::Green);
+            DropZone->SetBrushColor(DropZoneCanSellColor);
         }
         else
         {
-            DropZone->SetBrushColor(FLinearColor::Red);
+            //DropZone->SetBrushColor(FLinearColor::Red);
+            DropZone->SetBrushColor(DropZoneCannotSellColor);
         }
     }
 
@@ -497,6 +509,11 @@ void UShopWidget::SwitchTab(bool bShowBuy)
     {
         Border_LeftPanel->SetVisibility(bShowBuy ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
     }
+    //탭 텍스트 색상 업데이트 추가
+    if (TXT_BuyTab)
+        TXT_BuyTab->SetColorAndOpacity(bShowBuy ? TabActiveTextColor : TabInactiveTextColor);
+    if (TXT_SellTab)
+        TXT_SellTab->SetColorAndOpacity(bShowBuy ? TabInactiveTextColor : TabActiveTextColor);
 }
 
 // ============================================
