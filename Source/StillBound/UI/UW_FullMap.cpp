@@ -230,8 +230,9 @@ void UUW_FullMap::UpdatePing(const FVector2D& PingUV)
 
 void UUW_FullMap::ClearPing()
 {
-	const float ViewSize = 1.f / CurrentZoom;
-
-	PanOffset.X = FMath::Clamp(PanOffset.X, 0.f, 1.f - ViewSize);
-	PanOffset.Y = FMath::Clamp(PanOffset.Y, 0.f, 1.f - ViewSize);
+	if (ActivePing)
+	{
+		ActivePing->RemoveFromParent();
+		ActivePing = nullptr;
+	}
 }
